@@ -5,8 +5,9 @@ import { Badge as BadgeComponent } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { useUserProgress } from '../hooks/useUserProgress';
-import { badges, rarityColors, rarityBorders, rarityLabels, checkBadgeUnlock, getNextBadgeToUnlock, type Badge } from '../lib/badges';
+import { badges, rarityColors, rarityBorders, rarityLabels, getNextBadgeToUnlock, type Badge } from '../lib/badges';
 import { Lock, Trophy, Sparkles, TrendingUp } from 'lucide-react';
+import { SocialShare } from './SocialShare';
 import type { View } from '../App';
 
 interface BadgeShowcaseProps {
@@ -226,15 +227,23 @@ export function BadgeShowcase({ onNavigate }: BadgeShowcaseProps) {
                     )}
 
                     {/* Reward Info (if unlocked) */}
-                    {isUnlocked && badge.reward && (
-                      <div className="mt-3 pt-3 border-t border-gray-200">
-                        <div className="flex items-center gap-2 text-sm text-green-600">
-                          <Sparkles className="w-4 h-4" />
-                          <span>
-                            {badge.reward.xp && `+${badge.reward.xp} XP`}
-                            {badge.reward.multiplier && ` • ${((badge.reward.multiplier - 1) * 100).toFixed(0)}% XP boost`}
-                          </span>
-                        </div>
+                    {isUnlocked && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 space-y-3">
+                        {badge.reward && (
+                          <div className="flex items-center gap-2 text-sm text-green-600">
+                            <Sparkles className="w-4 h-4" />
+                            <span>
+                              {badge.reward.xp && `+${badge.reward.xp} XP`}
+                              {badge.reward.multiplier && ` • ${((badge.reward.multiplier - 1) * 100).toFixed(0)}% XP boost`}
+                            </span>
+                          </div>
+                        )}
+                        
+                        <SocialShare 
+                          title={`Ho sbloccato il badge "${badge.name}" su BTC Wheel! 🏆`} 
+                          description={`${badge.description} - Unisciti a me per imparare la Bitcoin Wheel Strategy!`}
+                          className="justify-center"
+                        />
                       </div>
                     )}
 

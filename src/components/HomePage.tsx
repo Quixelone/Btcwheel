@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Navigation } from './Navigation';
 import { UserMenu } from './UserMenu';
 import { Progress } from './ui/progress';
 import { Button } from './ui/button';
@@ -66,10 +65,10 @@ export function HomePage({ onNavigate }: HomePageProps) {
   };
 
   return (
-    <div className="min-h-screen md:pl-20 pb-24 md:pb-0 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white">
+    <div className="space-y-8 pb-8 text-white">
       
-      {/* Background effects */}
-      <div className="fixed inset-0 opacity-[0.02] pointer-events-none">
+      {/* Background effects - slightly reduced since Layout handles background */}
+      <div className="fixed inset-0 opacity-[0.02] pointer-events-none -z-10">
         <div className="absolute inset-0" style={{
           backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
                            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
@@ -77,72 +76,36 @@ export function HomePage({ onNavigate }: HomePageProps) {
         }} />
       </div>
 
-      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px] pointer-events-none" />
-      <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[150px] pointer-events-none" />
+      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px] pointer-events-none -z-10" />
+      <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[150px] pointer-events-none -z-10" />
 
-      <Navigation currentView="home" onNavigate={onNavigate} />
-      
       {/* Modern Header */}
       <motion.header 
-        className="relative bg-gradient-to-br from-gray-900/50 to-gray-800/50 safe-area-top sticky top-0 z-40 backdrop-blur-xl border-b border-white/10"
+        className="relative bg-gradient-to-br from-gray-900/50 to-gray-800/50 rounded-2xl border border-white/10 p-6 backdrop-blur-xl"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
       >
-        <div className="px-4 py-5 md:px-6 md:py-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-1">
-                  Percorso di Apprendimento
-                </h1>
-                <p className="text-gray-400 text-sm">
-                  {userProgress.lessonsCompleted} di {userProgress.totalLessons} lezioni completate
-                </p>
-              </div>
-              <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-                <motion.div 
-                  className="flex items-center gap-2 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 backdrop-blur-sm rounded-xl px-3 py-2"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <Flame className="w-4 h-4 text-orange-400 flex-shrink-0" />
-                  <span className="text-white font-semibold">{userProgress.streak}</span>
-                </motion.div>
-                <motion.div 
-                  className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 backdrop-blur-sm rounded-xl px-3 py-2"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <Zap className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                  <span className="text-white font-semibold">{userProgress.xp}</span>
-                </motion.div>
-                <div className="hidden md:block">
-                  <UserMenu onNavigate={onNavigate} />
-                </div>
-              </div>
-            </div>
-
-            {/* Overall Progress */}
-            <motion.div 
-              className="mt-6"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">Completamento Corso</span>
-                <span className="text-sm font-bold text-emerald-400">
-                  {Math.round((userProgress.lessonsCompleted / userProgress.totalLessons) * 100)}%
-                </span>
-              </div>
-              <div className="relative h-2 bg-white/5 rounded-full overflow-hidden backdrop-blur-sm border border-white/10">
-                <motion.div
-                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(userProgress.lessonsCompleted / userProgress.totalLessons) * 100}%` }}
-                  transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-                />
-              </div>
-            </motion.div>
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-1">
+              Percorso di Apprendimento
+            </h1>
+            <p className="text-gray-400 text-sm">
+              {userProgress.lessonsCompleted} di {userProgress.totalLessons} lezioni completate
+            </p>
           </div>
+          <div className="hidden md:block">
+             <UserMenu onNavigate={onNavigate} />
+          </div>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="mt-6">
+          <div className="flex justify-between text-xs text-gray-400 mb-2">
+            <span>Progresso Totale</span>
+            <span>{Math.round((userProgress.lessonsCompleted / userProgress.totalLessons) * 100)}%</span>
+          </div>
+          <Progress value={(userProgress.lessonsCompleted / userProgress.totalLessons) * 100} className="h-2" />
         </div>
       </motion.header>
 

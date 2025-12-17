@@ -2,6 +2,7 @@ import { motion } from 'motion/react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
+import { SocialShare } from './SocialShare';
 import { Sparkles, Target, Clock, Lightbulb, TrendingUp, ArrowRight } from 'lucide-react';
 import type { PersonalizedRecommendation } from '../lib/openai';
 
@@ -156,6 +157,20 @@ export function OnboardingResults({ recommendations, onStart }: OnboardingResult
                 </div>
               ))}
             </div>
+          </motion.div>
+
+          {/* Social Share */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.05 }}
+            className="mb-8 flex justify-center"
+          >
+            <SocialShare
+              title="Il mio percorso su BTC Wheel è pronto! 🚀"
+              description={`L'AI mi consiglia di iniziare dalla lezione ${recommendations.startingLesson}. Unisciti a me!`}
+              className="justify-center"
+            />
           </motion.div>
 
           {/* CTA Button */}

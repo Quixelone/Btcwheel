@@ -22,6 +22,7 @@ import { SupabaseStatus } from "./components/SupabaseStatus";
 import { ChatTutorTest } from "./components/ChatTutorTest";
 import { useOnboarding } from "./hooks/useOnboarding";
 import { Toaster } from "./components/ui/sonner";
+import { Layout } from "./components/Layout";
 
 export type View =
   | "landing"
@@ -53,7 +54,7 @@ export interface UserProgress {
 function AppContent() {
   // 🐛 DEBUG MODE: Bypass landing/auth to test mascot animations immediately
   // TODO: Set DEBUG_MODE = false when done testing
-  const DEBUG_MODE = true; // ✅ ENABLED - Per testare il nuovo design
+  const DEBUG_MODE = false; // ✅ ENABLED - Per testare il nuovo design
   
   const [currentView, setCurrentView] = useState<View>(DEBUG_MODE ? "dashboard" : "landing");
   const [currentLessonId, setCurrentLessonId] = useState<number>(9);
@@ -76,8 +77,6 @@ function AppContent() {
     shouldShowOnboarding,
     loading: onboardingLoading,
   } = useOnboarding();
-  const [hasSeenAuth, setHasSeenAuth] = useState(false);
-  const [showTest, setShowTest] = useState(false);
   const [shouldShowResults, setShouldShowResults] = useState(false);
 
   // On mount, ensure we start fresh - don't auto-show results on page reload
@@ -85,23 +84,18 @@ function AppContent() {
     setShouldShowResults(false);
   }, []);
 
-  // Check URL for test mode
+  // Redirect to dashboard if user is already logged in and on landing page
   useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("test") === "supabase") {
-      setShowTest(true);
+    if (user && !authLoading && currentView === 'landing') {
+      console.log('[App] User logged in, redirecting from landing to dashboard');
+      setHasSeenLanding(true);
+      setCurrentView('dashboard');
     }
-    if (params.get("test") === "chat") {
-      setShowTest(true);
-    }
-    if (params.get("status") === "supabase") {
-      setShowTest(true);
-    }
-  }, []);
+  }, [user, authLoading, currentView]);
 
   // Check if we should show onboarding results after completion
   useEffect(() => {
-    if (onboarding.isComplete && onboarding.recommendations && user) {
+    if (onboarding.completed && onboarding.recommendations && user) {
       const resultsShown = localStorage.getItem('btcwheel_onboarding_results_shown');
       
       if (!resultsShown) {
@@ -115,12 +109,7 @@ function AppContent() {
       // Reset results flag if conditions not met (initial page load, etc.)
       setShouldShowResults(false);
     }
-  }, [onboarding.isComplete, onboarding.recommendations, user]);
-
-  // Check if user skipped auth (demo mode)
-  const isDemoMode = !user && hasSeenAuth;
-
-  // Debug logging (removed - kept only in production for errors)
+  }, [onboarding.completed, onboarding.recommendations, user]);
 
   // Check URL params for test views
   if (typeof window !== 'undefined') {
@@ -150,7 +139,10 @@ function AppContent() {
 
   // Show loading while checking auth and onboarding state (only for non-landing views)
   // If we're on landing, don't show loading spinner - just show the landing page
-  if ((authLoading || onboardingLoading) && currentView !== 'landing') {
+  // unless we are processing an auth redirect (user is logged in)
+  const isAuthRedirect = user && currentView === ('landing' as View);
+  
+  if ((authLoading || onboardingLoading) && !isAuthRedirect) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
         <div className="text-white text-center">
@@ -168,7 +160,6 @@ function AppContent() {
         <MobileOptimizations />
         <Toaster />
         <AuthView onAuthSuccess={() => {
-          setHasSeenAuth(true);
           // After auth, show onboarding if not completed, otherwise go to home
           if (shouldShowOnboarding) {
             setCurrentView('onboarding');
@@ -184,7 +175,7 @@ function AppContent() {
   // Show auth screen if no user and user has left the landing page
   // Auth is REQUIRED to access the app after leaving landing
   // SKIP in DEBUG_MODE
-  if (!DEBUG_MODE && !user && hasSeenLanding && currentView !== 'landing' && currentView !== 'auth') {
+  if (!DEBUG_MODE && !user && hasSeenLanding) {
     console.log('[App] No user found, showing auth');
     return (
       <>
@@ -192,12 +183,14 @@ function AppContent() {
         <Toaster />
         <AuthView 
           onAuthSuccess={() => {
-            setHasSeenAuth(true);
-            // After auth, show onboarding if not completed, otherwise go to home
+            // After auth, show onboarding if not completed, otherwise go to dashboard
+            // Also ensure landing page is marked as seen
+            setHasSeenLanding(true);
+            
             if (shouldShowOnboarding) {
               setCurrentView('onboarding');
             } else {
-              setCurrentView('home');
+              setCurrentView('dashboard');
             }
           }} 
         />
@@ -207,7 +200,7 @@ function AppContent() {
 
   // Show onboarding results only if flag is set AND we're not on landing
   // This ensures results only show right after completing onboarding, not on page reload
-  if (shouldShowResults && onboarding.recommendations && currentView !== 'landing' && hasSeenLanding) {
+  if (shouldShowResults && onboarding.recommendations && hasSeenLanding) {
     console.log('[App] Rendering onboarding results');
     return (
       <>
@@ -257,53 +250,52 @@ function AppContent() {
   // Normal app flow
   console.log('[App] Rendering normal app flow, currentView:', currentView);
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="flex h-screen bg-[#050505] text-white overflow-hidden">
       <MobileOptimizations />
       <MobileGestures />
       <Toaster />
       <PWAInstallPrompt />
       <AppUpdatePrompt />
-      {currentView === "landing" && (
-        <LandingPage onNavigate={handleNavigation} />
-      )}
-      {currentView === "home" && (
-        <HomePage onNavigate={handleNavigation} />
-      )}
-      {currentView === "dashboard" && (
-        <Dashboard onNavigate={handleNavigation} />
-      )}
-      {currentView === "lessons" && (
-        <LessonList onNavigate={handleNavigation} />
-      )}
-      {currentView === "lesson" && (
-        <LessonView onNavigate={(view) => handleNavigation(view)} lessonId={currentLessonId} />
-      )}
-      {currentView === "badges" && (
-        <BadgeShowcase onNavigate={handleNavigation} />
-      )}
-      {currentView === "simulation" && (
-        <SimulationView onNavigate={handleNavigation} />
-      )}
-      {currentView === "leaderboard" && (
-        <LeaderboardView onNavigate={handleNavigation} />
-      )}
-      {currentView === "settings" && (
-        <SettingsView onNavigate={handleNavigation} />
-      )}
+
+      {/* Main App Layout - Wraps all internal app views */}
+      <Layout currentView={currentView} onNavigate={handleNavigation}>
+        {currentView === "home" && (
+          <HomePage onNavigate={handleNavigation} />
+        )}
+        {currentView === "dashboard" && (
+          <Dashboard onNavigate={handleNavigation} />
+        )}
+        {currentView === "lessons" && (
+          <LessonList onNavigate={handleNavigation} />
+        )}
+        {currentView === "lesson" && (
+          <LessonView onNavigate={(view) => handleNavigation(view)} lessonId={currentLessonId} />
+        )}
+        {currentView === "badges" && (
+          <BadgeShowcase onNavigate={handleNavigation} />
+        )}
+        {currentView === "simulation" && (
+          <SimulationView onNavigate={handleNavigation} />
+        )}
+        {currentView === "leaderboard" && (
+          <LeaderboardView onNavigate={handleNavigation} />
+        )}
+        {currentView === "settings" && (
+          <SettingsView onNavigate={handleNavigation} />
+        )}
+      </Layout>
       
-      {/* AI-Powered Mascot - Available globally (except landing) */}
-      {currentView !== 'landing' && (
-        <MascotAI 
-          lessonContext={
-            currentView === 'lesson' 
-              ? {
-                  lessonId: currentLessonId,
-                  lessonTitle: `Lezione ${currentLessonId}`,
-                }
-              : undefined
-          }
-        />
-      )}
+      {/* AI-Powered Mascot - Available globally */}
+      <MascotAI 
+        lessonContext={
+          currentView === 'lesson' 
+            ? {
+                lessonId: currentLessonId,
+                lessonTitle: `Lezione ${currentLessonId}`,
+              }
+            : undefined
+        }
+      />
     </div>
   );
 }

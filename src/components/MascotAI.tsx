@@ -4,7 +4,7 @@ import { Sparkles, Brain, Zap, TrendingUp, Send, X, Trash2 } from 'lucide-react'
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
-import { toast } from 'sonner@2.0.3';
+import { toast } from 'sonner';
 import { ChatTypingBubble } from './animations/AIThinkingIndicator';
 import { useHaptics } from '../hooks/useHaptics';
 import { useMascotSounds } from '../hooks/useMascotSounds';
@@ -12,14 +12,16 @@ import { useUserProgress } from '../hooks/useUserProgress';
 import { useMascotEmotion } from '../hooks/useMascotEmotion';
 
 // Prof Satoshi mascot images - NEW professional 3D renders
-import profSatoshiExcited from 'figma:asset/ab3d59171ab68c537dd57d97d7e9d4de0a06850d.png'; // Jumping with confetti  
-import profSatoshiNormal from 'figma:asset/f29b56f4742151c06a28cc25bd25d8102cbe4d79.png'; // Double thumbs up
-import profSatoshiConfident from 'figma:asset/7d386e671a6e8284b17426eaf3e9958b6a264ae0.png'; // Hands on hips
+const profSatoshiExcited = '/mascot-excited.png'; // Thumbs up
+const profSatoshiNormal = '/mascot-normal.png'; // Hands on hips
+const profSatoshiThinking = '/mascot-thinking.png'; // Finger on chin
+const profSatoshiDisappointed = '/mascot-disappointed.png'; // Shocked/Open hands
 
 // For backward compatibility with existing code
 const mascotNormalImage = profSatoshiNormal;
-const mascotDisappointedImage = profSatoshiConfident; // Using confident pose for thinking/serious state
+const mascotDisappointedImage = profSatoshiDisappointed;
 const mascotExcitedImage = profSatoshiExcited;
+const mascotThinkingImage = profSatoshiThinking;
 
 interface Message {
   id: string;
@@ -55,7 +57,7 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
   const { emotion, message: emotionMessage, setActivity } = useMascotEmotion();
 
   // Check preferences
-  const [soundEnabled, setSoundEnabled] = useState(() => {
+  const [soundEnabled] = useState(() => {
     return localStorage.getItem('mascotSoundEnabled') !== 'false';
   });
 
@@ -107,16 +109,20 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
     // Map emotions to available images
     switch (emotion) {
       case 'disappointed':
-      case 'encouraging':
         return mascotDisappointedImage;
+      
+      case 'encouraging':
+              return mascotExcitedImage; // Use excited (thumbs up) for encouraging
       
       case 'excited':
       case 'celebrating':
         return mascotExcitedImage;
       
+      case 'thinking':
+        return mascotThinkingImage;
+      
       case 'normal':
       case 'teaching':
-      case 'thinking':
       case 'sleeping':
       default:
         return mascotNormalImage;
@@ -193,7 +199,7 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
         userXP: progress.xp,
         completedLessons: progress.completedLessons.length,
         totalLessons: 15,
-        currentStreak: progress.currentStreak,
+        currentStreak: progress.streak,
         badges: progress.badges,
         lessonContext,
         conversationHistory
@@ -381,7 +387,7 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
       `}</style>
 
       {/* Floating Mascot Button */}
-      <div className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-50 safe-area-bottom">
+      <div className="fixed bottom-[6.5rem] right-4 md:bottom-10 md:right-12 z-[100] safe-area-bottom">
         <div className="relative">
           {/* AI Chat Window */}
           <AnimatePresence>
@@ -391,42 +397,42 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
-                className="absolute bottom-40 md:bottom-64 right-0 w-[calc(100vw-2rem)] md:w-[600px] max-w-2xl"
+                className="absolute bottom-24 right-0 w-[calc(100vw-2rem)] md:w-[450px] lg:w-[500px] max-w-2xl origin-bottom-right"
               >
-                <Card className="backdrop-blur-xl bg-white/95 shadow-2xl border-2 border-blue-200/50">
+                <Card className="backdrop-blur-xl bg-white/95 shadow-2xl border-2 border-blue-200/50 flex flex-col max-h-[60vh] md:max-h-[80vh]">
                   {/* Header */}
-                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-t-lg">
+                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-3 md:p-4 rounded-t-lg flex-shrink-0">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <div className="relative w-12 h-12">
+                        <div className="relative w-10 h-10 md:w-12 md:h-12">
                           <img 
                             src={getMascotImage()} 
                             alt="Prof Satoshi AI" 
                             className="w-full h-full object-contain"
                           />
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
+                          <div className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 rounded-full border-2 border-white"></div>
                         </div>
                         <div>
-                          <h3 className="text-white">Prof Satoshi AI</h3>
-                          <p className="text-xs text-blue-100">Sempre qui per aiutarti!</p>
+                          <h3 className="text-white text-sm md:text-base font-bold">Prof Satoshi AI</h3>
+                          <p className="text-xs text-blue-100 hidden md:block">Sempre qui per aiutarti!</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1 md:gap-2">
                         {messages.length > 0 && (
                           <Button
-                            size="sm"
+                            size="icon"
                             variant="ghost"
                             onClick={handleClearChat}
-                            className="text-white hover:bg-white/20"
+                            className="text-white hover:bg-white/20 h-8 w-8"
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
                         )}
                         <Button
-                          size="sm"
+                          size="icon"
                           variant="ghost"
                           onClick={handleClose}
-                          className="text-white hover:bg-white/20"
+                          className="text-white hover:bg-white/20 h-8 w-8"
                         >
                           <X className="w-4 h-4" />
                         </Button>
@@ -435,50 +441,46 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
                   </div>
 
                   {/* Messages */}
-                  <div className="h-[400px] md:h-[500px] overflow-y-auto p-4 space-y-4">
+                  <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-4 min-h-[300px]">
                     {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                         <motion.div
                           animate={{ rotate: [0, 360] }}
                           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                          className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center"
+                          className="w-12 h-12 md:w-16 md:h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center"
                         >
-                          <Sparkles className="w-8 h-8 text-white" />
+                          <Sparkles className="w-6 h-6 md:w-8 md:h-8 text-white" />
                         </motion.div>
                         <div>
-                          <h4 className="text-gray-900 mb-2">Ciao! 👋 Sono Prof Satoshi!</h4>
-                          <p className="text-sm text-gray-600 mb-4">
+                          <h4 className="text-gray-900 mb-2 font-bold">Ciao! 👋 Sono Prof Satoshi!</h4>
+                          <p className="text-xs md:text-sm text-gray-600 mb-4 px-4">
                             Il tuo AI tutor personale per la Bitcoin Wheel Strategy.
                             <br />Chiedimi qualsiasi cosa!
                           </p>
                         </div>
 
                         {/* Context Badges */}
-                        <div className="flex flex-wrap gap-2 justify-center">
+                        <div className="flex flex-wrap gap-2 justify-center px-2">
                           {lessonContext && (
-                            <Badge variant="outline" className="bg-blue-50 border-blue-200">
+                            <Badge variant="outline" className="bg-blue-50 border-blue-200 text-xs">
                               <Brain className="w-3 h-3 mr-1" />
-                              Contesto: Lezione {lessonContext.lessonId}
+                              Lezione {lessonContext.lessonId}
                             </Badge>
                           )}
-                          <Badge variant="outline" className="bg-purple-50 border-purple-200">
+                          <Badge variant="outline" className="bg-purple-50 border-purple-200 text-xs">
                             <Zap className="w-3 h-3 mr-1" />
                             Livello {progress.level}
-                          </Badge>
-                          <Badge variant="outline" className="bg-orange-50 border-orange-200">
-                            <TrendingUp className="w-3 h-3 mr-1" />
-                            {progress.completedLessons.length}/15 Lezioni
                           </Badge>
                         </div>
 
                         {/* Suggested Questions */}
-                        <div className="w-full space-y-2">
+                        <div className="w-full space-y-2 px-2">
                           <p className="text-xs text-gray-500">Prova a chiedermi:</p>
                           {suggestedQuestions.map((question, idx) => (
                             <button
                               key={idx}
                               onClick={() => setInput(question)}
-                              className="w-full text-left p-3 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-lg text-sm text-gray-700 transition-all border border-blue-200/50 hover:border-blue-300"
+                              className="w-full text-left p-2 md:p-3 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-lg text-xs md:text-sm text-gray-700 transition-all border border-blue-200/50 hover:border-blue-300"
                             >
                               {question}
                             </button>
@@ -495,14 +497,14 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
                             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
-                              className={`max-w-[80%] rounded-2xl p-3 ${
+                              className={`max-w-[85%] rounded-2xl p-3 text-sm ${
                                 message.role === 'user'
                                   ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
                                   : 'bg-gray-100 text-gray-900'
                               }`}
                             >
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                              <p className={`text-xs mt-1 ${
+                              <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                              <p className={`text-[10px] mt-1 ${
                                 message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
                               }`}>
                                 {message.timestamp.toLocaleTimeString('it-IT', { 
@@ -523,15 +525,15 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
                   </div>
 
                   {/* Input */}
-                  <div className="border-t p-4 bg-gray-50/50 rounded-b-lg">
+                  <div className="border-t p-3 md:p-4 bg-gray-50/50 rounded-b-lg flex-shrink-0">
                     <div className="flex gap-2">
                       <textarea
                         ref={textareaRef}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
-                        placeholder="Scrivi la tua domanda..."
-                        className="flex-1 resize-none rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] max-h-[120px]"
+                        placeholder="Fai una domanda..."
+                        className="flex-1 resize-none rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] max-h-[80px]"
                         rows={1}
                         disabled={isLoading}
                       />
@@ -543,9 +545,6 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
                         <Send className="w-4 h-4" />
                       </Button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
-                      Premi Invio per inviare, Shift+Invio per andare a capo
-                    </p>
                   </div>
                 </Card>
               </motion.div>
@@ -575,11 +574,8 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
                 ease: 'easeInOut',
               },
             }}
-            className={`relative cursor-pointer group touch-manipulation transition-all ${
-              isMinimized ? 'w-14 h-14 md:w-16 md:h-16' : 'w-32 h-32 md:w-56 md:h-56'
-            }`}
+            className={`relative cursor-pointer group touch-manipulation transition-all w-24 h-24 md:w-32 md:h-32`}
             aria-label={isOpen ? "Chiudi AI Tutor" : "Apri AI Tutor"}
-            onDoubleClick={() => setIsMinimized(!isMinimized)} // 🎯 Double click per minimizzare
           >
             {/* Animated rings */}
             {!isOpen && (
@@ -704,34 +700,6 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
             >
               AI
             </motion.div>
-
-            {/* 🎯 Minimize Button (only when NOT open and NOT minimized) */}
-            {!isOpen && !isMinimized && (
-              <motion.div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMinimized(true);
-                  toast.info('Mascotte minimizzata. Clicca per ripristinare.');
-                }}
-                className="absolute -top-2 -left-2 w-8 h-8 bg-emerald-600 hover:bg-emerald-700 rounded-full flex items-center justify-center shadow-lg border-2 border-white z-10 cursor-pointer"
-                whileHover={{ scale: 1.1 }}
-                whileTap={{ scale: 0.9 }}
-                title="Riduci mascotte"
-              >
-                <span className="text-white text-xs font-bold">−</span>
-              </motion.div>
-            )}
-
-            {/* 🎯 Expand Button (only when minimized) */}
-            {isMinimized && (
-              <motion.div
-                className="absolute -top-1 -right-1 w-6 h-6 bg-emerald-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white"
-                animate={{ scale: [1, 1.2, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-              >
-                <span className="text-white text-xs font-bold">+</span>
-              </motion.div>
-            )}
           </motion.button>
         </div>
       </div>

@@ -1,0 +1,34 @@
+
+  <!DOCTYPE html>
+  <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <link rel="icon" type="image/svg+xml" href="/logo.svg" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>BtcWheel - Learn & Earn</title>
+      <script type="module" crossorigin src="/assets/index-DkwUF9I6.js"></script>
+      <link rel="modulepreload" crossorigin href="/assets/vendor-Dztt_Rj5.js">
+      <link rel="modulepreload" crossorigin href="/assets/react-vendor-DAuoNPZP.js">
+      <link rel="modulepreload" crossorigin href="/assets/supabase-DPo2wFUI.js">
+      <link rel="modulepreload" crossorigin href="/assets/motion-DxRVDxSX.js">
+      <link rel="stylesheet" crossorigin href="/assets/index-DV_P_cZO.css">
+    </head>
+
+    <body>
+      <div id="root"></div>
+      <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/service-worker.js')
+            .then((registration) => {
+              console.log('SW registered: ', registration);
+            })
+            .catch((registrationError) => {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
+  </body>
+  </html>
+  

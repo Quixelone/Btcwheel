@@ -129,8 +129,18 @@ export function SimulationTutorial({ onComplete, onSkip }: SimulationTutorialPro
           
           <div className="flex items-center gap-4 mb-4">
             {/* Prof Satoshi Avatar */}
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-4xl">🧑‍🏫</span>
+            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden border-2 border-emerald-100">
+              <img 
+                src={
+                  step.mascotEmotion === 'excited' || step.mascotEmotion === 'celebrating' || step.mascotEmotion === 'happy'
+                    ? '/mascot-excited.png'
+                    : step.mascotEmotion === 'teaching' || step.mascotEmotion === 'explaining'
+                    ? '/mascot-normal.png'
+                    : '/mascot-normal.png'
+                } 
+                alt="Prof Satoshi" 
+                className="w-full h-full object-cover"
+              />
             </div>
             <div className="flex-1">
               <p className="text-emerald-100 text-sm mb-1">Prof Satoshi ti spiega...</p>
