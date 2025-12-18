@@ -4,8 +4,8 @@
   import path from 'path';
 
   export default defineConfig({
-    base: '/',
-    plugins: [react()],
+  base: './',
+  plugins: [react()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
       alias: {
@@ -52,9 +52,9 @@
       },
     },
     build: {
-      target: 'es2020',
-      minify: 'terser',
-      sourcemap: false,
+    target: 'esnext',
+    minify: 'terser',
+    sourcemap: false,
       outDir: 'dist',
       rollupOptions: {
         output: {
