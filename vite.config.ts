@@ -53,9 +53,8 @@
     },
     build: {
     target: 'esnext',
-    minify: 'terser',
     sourcemap: false,
-      outDir: 'dist',
+    outDir: 'dist',
       rollupOptions: {
         output: {
           manualChunks(id) {
