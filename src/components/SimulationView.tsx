@@ -2,8 +2,6 @@ import { useState, useEffect } from 'react';
 import { Navigation } from './Navigation';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { useUserProgress } from '../hooks/useUserProgress';
@@ -11,9 +9,8 @@ import { useDashboardData } from '../hooks/useDashboardData';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Target, Trophy, Lock, CheckCircle2, Rocket, HelpCircle, Wallet, Calendar, Percent, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Target, Lock, CheckCircle2, HelpCircle, Wallet, Calendar, Percent, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion } from 'motion/react';
 import { SimulationTutorial } from './SimulationTutorial';
 import type { View } from '../App';
 
@@ -240,7 +237,7 @@ const MISSIONS: Mission[] = [
 
 export function SimulationView({ onNavigate }: SimulationViewProps) {
   const { user } = useAuth();
-  const { progress: userProgress, addXP } = useUserProgress();
+  const { addXP } = useUserProgress();
   const { gamification, journalStats } = useDashboardData();
   const [btcPrice, setBtcPrice] = useState(96000); // 🎯 Prezzo reale dicembre 2024
   const [cashBalance, setCashBalance] = useState(10000); // 🎯 Renamed from portfolioValue to track actual cash
@@ -248,8 +245,6 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
   const [priceHistory, setPriceHistory] = useState<Array<{ time: string; price: number }>>([]);
   const [missions, setMissions] = useState<Mission[]>(MISSIONS);
   const [activeMission, setActiveMission] = useState<Mission | null>(MISSIONS[0]);
-  const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
-  const [showTutorial, setShowTutorial] = useState(false);
   const [showMainTutorial, setShowMainTutorial] = useState(false);
   const [btcOwned, setBtcOwned] = useState(0);
 
@@ -327,7 +322,6 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
 
   // 🎯 FORCE TUTORIAL OFF - Temporary fix for HMR state preservation
   useEffect(() => {
-    setShowTutorial(false);
     setShowMainTutorial(false);
   }, []);
   
@@ -575,11 +569,6 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     toast.success(`✅ ${optionType === 'put' ? 'Put' : 'Call'} venduta!`, {
       description: `+$${prem * qty} premium raccolto | +${xpReward} XP`
     });
-
-    // Show next tutorial step if available
-    if (activeMission && currentTutorialStep < activeMission.tutorial.length - 1) {
-      setCurrentTutorialStep(prev => prev + 1);
-    }
   };
 
   const handleClosePosition = (positionId: string) => {
@@ -680,8 +669,6 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
           status: 'active' as const
         };
         setActiveMission(nextMissionWithProgress);
-        setCurrentTutorialStep(0);
-        setShowTutorial(true);
         
         toast.success('🔓 Nuova Missione Attivata!', {
           description: nextMission.title,
@@ -707,21 +694,9 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
       return;
     }
     setActiveMission(mission);
-    setCurrentTutorialStep(0);
-    setShowTutorial(true);
   };
 
   const openPositions = positions.filter(p => p.status === 'open');
-  const totalPremiumCollected = positions.reduce((acc, p) => acc + (p.premium * p.quantity), 0);
-  
-  const getDifficultyColor = (difficulty: Mission['difficulty']) => {
-    switch (difficulty) {
-      case 'easy': return 'bg-green-500/20 text-green-400 border border-green-500/20';
-      case 'medium': return 'bg-blue-500/20 text-blue-400 border border-blue-500/20';
-      case 'hard': return 'bg-orange-500/20 text-orange-400 border border-orange-500/20';
-      case 'expert': return 'bg-purple-500/20 text-purple-400 border border-purple-500/20';
-    }
-  };
 
   return (
     <div className="min-h-screen pb-24 md:pb-0 bg-[#050505] text-white max-w-full overflow-x-hidden relative">

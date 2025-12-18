@@ -18,14 +18,12 @@ import {
   BookOpen,
   GraduationCap,
   Settings,
-  User,
   Home,
   Trophy,
   LogOut,
 } from "lucide-react";
 import type { View } from "../App";
 import { cn } from "@/components/ui/utils";
-import { useAuth } from "../hooks/useAuth";
 import { getSupabaseClient } from "../lib/supabase";
 
 // Menu items configuration
@@ -72,7 +70,6 @@ function AppSidebar({
   onNavigate: (view: View) => void;
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
-  const { user } = useAuth();
   const supabase = getSupabaseClient();
 
   const handleLogout = async () => {

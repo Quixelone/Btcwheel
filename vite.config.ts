@@ -4,6 +4,7 @@
   import path from 'path';
 
   export default defineConfig({
+    base: './',
     plugins: [react()],
     resolve: {
       extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
@@ -17,10 +18,6 @@
         'next-themes@0.4.6': 'next-themes',
         'lucide-react@0.487.0': 'lucide-react',
         'input-otp@1.4.2': 'input-otp',
-        'figma:asset/f29b56f4742151c06a28cc25bd25d8102cbe4d79.png': path.resolve(__dirname, './src/assets/f29b56f4742151c06a28cc25bd25d8102cbe4d79.png'),
-        'figma:asset/b2ebfbbeb483ffdf078e6ecdca686b1e139921dc.png': path.resolve(__dirname, './src/assets/b2ebfbbeb483ffdf078e6ecdca686b1e139921dc.png'),
-        'figma:asset/ab3d59171ab68c537dd57d97d7e9d4de0a06850d.png': path.resolve(__dirname, './src/assets/ab3d59171ab68c537dd57d97d7e9d4de0a06850d.png'),
-        'figma:asset/7d386e671a6e8284b17426eaf3e9958b6a264ae0.png': path.resolve(__dirname, './src/assets/7d386e671a6e8284b17426eaf3e9958b6a264ae0.png'),
         'embla-carousel-react@8.6.0': 'embla-carousel-react',
         'cmdk@1.1.1': 'cmdk',
         'class-variance-authority@0.7.1': 'class-variance-authority',
@@ -56,7 +53,7 @@
     },
     build: {
       target: 'esnext',
-      outDir: 'build',
+      outDir: 'dist',
       rollupOptions: {
         output: {
           manualChunks(id) {

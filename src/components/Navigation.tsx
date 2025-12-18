@@ -1,11 +1,6 @@
-import { Home, LayoutDashboard, BookOpen, TrendingUp, Trophy, LogOut } from 'lucide-react';
-import { getSupabaseClient } from '../lib/supabase';
-import { useAuth } from '../hooks/useAuth';
+import { Home, LayoutDashboard, BookOpen, TrendingUp, Trophy } from 'lucide-react';
 import { motion } from 'motion/react';
 import type { View } from '../App';
-
-// btcwheel logo - NEW circular emerald design (transparent)
-const btcwheelLogo = '/logo.svg';
 
 interface NavigationProps {
   currentView: View;
@@ -13,8 +8,6 @@ interface NavigationProps {
 }
 
 export function Navigation({ currentView, onNavigate }: NavigationProps) {
-  const { user } = useAuth();
-  const supabase = getSupabaseClient();
   
   const navItems = [
     { id: 'home' as View, icon: Home, label: 'Home' },
@@ -23,11 +16,6 @@ export function Navigation({ currentView, onNavigate }: NavigationProps) {
     { id: 'simulation' as View, icon: TrendingUp, label: 'Trading' },
     { id: 'leaderboard' as View, icon: Trophy, label: 'Classifica' }
   ];
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.reload();
-  };
 
   return (
     <>

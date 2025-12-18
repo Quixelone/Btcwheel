@@ -32,7 +32,6 @@ export function Dashboard({ onNavigate }: DashboardProps) {
   const { profile, gamification, journalStats, aiSignal, loading, error } = useDashboardData();
   const statsRef = useRef<HTMLDivElement>(null);
   const isStatsInView = useInView(statsRef, { once: true });
-  // const [hoveredCard, setHoveredCard] = useState<number | null>(null);
 
   if (loading) {
     return (
@@ -92,7 +91,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     },
     { 
       label: 'Trading Volume', 
-      value: `$${(gamification?.trading_volume || 0).toLocaleString()}`, 
+      value: `$${(gamification?.trading_volume ?? 0).toLocaleString()}`, 
       total: null, 
       icon: BarChart3,
       gradient: 'from-violet-500 via-purple-500 to-fuchsia-500',
@@ -100,11 +99,11 @@ export function Dashboard({ onNavigate }: DashboardProps) {
     },
     { 
       label: 'PnL Totale', 
-      value: `$${(journalStats.totalPnL || 0).toLocaleString()}`, 
+      value: `$${(journalStats?.totalPnL ?? 0).toLocaleString()}`, 
       total: null, 
       icon: TrendingUp,
       gradient: 'from-green-500 via-emerald-500 to-teal-500',
-      percentage: journalStats.totalPnL > 0 ? 100 : 0
+      percentage: (journalStats?.totalPnL ?? 0) > 0 ? 100 : 0
     }
   ];
 
@@ -327,7 +326,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
                       <div className="flex items-baseline gap-2">
                         <span className="text-gray-400 text-sm">Strike Price:</span>
                         <span className="text-xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">
-                          ${aiSignal.strike_price.toLocaleString()}
+                          ${(aiSignal.strike_price ?? 0).toLocaleString()}
                         </span>
                       </div>
                       <p className="text-gray-400 text-sm mt-1">Premium Stimato: ${aiSignal.premium}</p>

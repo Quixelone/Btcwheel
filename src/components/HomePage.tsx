@@ -12,7 +12,6 @@ import {
   Trophy, 
   Flame, 
   BookOpen, 
-  TrendingUp, 
   Lock,
   Check,
   Star,
