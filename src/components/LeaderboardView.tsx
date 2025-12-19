@@ -70,10 +70,14 @@ export function LeaderboardView({ onNavigate }: LeaderboardViewProps) {
         const userEntry = data.find(entry => entry.user_id === user.id);
         if (userEntry) {
           setUserRank(userEntry.rank);
+          try { localStorage.setItem('btcwheel_user_rank', String(userEntry.rank)); } catch {}
+        } else {
+          try { localStorage.setItem('btcwheel_user_rank', 'N/A'); } catch {}
         }
       } else {
         // Use mock data if Supabase not configured
         setLeaderboardData(mockGlobalLeaderboard as any);
+        try { localStorage.setItem('btcwheel_user_rank', 'N/A'); } catch {}
       }
     } catch (error) {
       // Silently fallback to mock data - errors are already logged in supabase.ts if needed

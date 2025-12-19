@@ -295,6 +295,7 @@ function AppContent() {
               }
             : undefined
         }
+        currentView={currentView}
       />
     </div>
   );

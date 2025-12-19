@@ -45,6 +45,21 @@ const phrases = {
     'Delta 0.20-0.30 è spesso la zona “dolce” per la Wheel.',
     'Chiudi in anticipo se il premio ha perso >50%: proteggi i profitti.',
   ],
+  dashboard: [
+    'Stai costruendo consistenza: obiettivi piccoli ma costanti vincono.',
+    'Controlla equity e PnL per calibrare i prossimi strike.',
+    'Il rischio controllato batte l’azzardo nel lungo periodo.',
+  ],
+  lessons: [
+    'Studia, simula, ripeti: la pratica perfeziona la tua Wheel.',
+    'Ogni lezione è un passo verso la padronanza.',
+    'Appunti chiari oggi = decisioni migliori domani.',
+  ],
+  leaderboard: [
+    'Sapevi che 3 trade di fila con >0.15% profit sbloccano “Consistent Trader” (+500 XP)?',
+    'Osserva i migliori: disciplina e gestione del rischio fanno la differenza.',
+    'Vuoi salire di rank? Focalizzati su setup ad alta probabilità.',
+  ],
 };
 
 interface Message {
@@ -61,9 +76,10 @@ interface LessonContext {
 
 interface MascotAIProps {
   lessonContext?: LessonContext | null;
+  currentView?: 'landing' | 'home' | 'dashboard' | 'lessons' | 'lesson' | 'badges' | 'simulation' | 'leaderboard' | 'settings' | 'onboarding';
 }
 
-export function MascotAI({ lessonContext }: MascotAIProps) {
+export function MascotAI({ lessonContext, currentView }: MascotAIProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMinimized, setIsMinimized] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -144,7 +160,7 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
     };
     const onDistance = (e: any) => {
       const d = e?.detail;
-      if (d && typeof d.distancePct === 'number') {
+      if (currentView === 'simulation' && d && typeof d.distancePct === 'number') {
         setRiskInfo({ distancePct: d.distancePct, riskLabel: d.riskLabel || (d.distancePct > 5 ? 'Sicuro' : 'Rischioso') });
         const signPct = ((d.strike ?? 0) - (d.btcPrice ?? 0)) / (d.btcPrice || 1) * 100;
         const pctStr = `${signPct >= 0 ? '+' : ''}${signPct.toFixed(2)}%`;
@@ -172,6 +188,39 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
       window.removeEventListener('order:distance', onDistance);
     };
   }, [setActivity]);
+
+  // Contextual wisdom per page and auto-hide strike alerts outside Journal
+  useEffect(() => {
+    if (!currentView) return;
+    if (currentView !== 'simulation') {
+      setRiskInfo(null);
+    }
+    let pool: string[] | undefined;
+    switch (currentView) {
+      case 'dashboard':
+        pool = phrases.dashboard; break;
+      case 'lessons':
+        pool = phrases.lessons; break;
+      case 'leaderboard':
+        pool = phrases.leaderboard; break;
+      default:
+        pool = undefined;
+    }
+    if (pool && pool.length) {
+      let pick = pool[Math.floor(Math.random() * pool.length)];
+      if (pick === lastPhraseRef.current) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
+      lastPhraseRef.current = pick;
+      if (currentView === 'leaderboard') {
+        const rankStr = typeof window !== 'undefined' ? localStorage.getItem('btcwheel_user_rank') : null;
+        const rank = rankStr && rankStr !== 'N/A' ? parseInt(rankStr) : null;
+        if (rank && rank >= 8) {
+          pick = 'Anche i grandi whale hanno iniziato dal fondo. Analizziamo i tuoi trade per risalire la china!';
+        }
+      }
+      setAdviceText(pick);
+      setActivity('teaching', 1200);
+    }
+  }, [currentView, setActivity]);
 
   // 🎨 Map emotion to mascot image with smooth transitions
   const getMascotImage = () => {
@@ -221,9 +270,12 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
       });
       haptics.medium();
       
-      // Mostra pillola di saggezza se non stai scrivendo
+      // Mostra pillola di saggezza contestuale
       if (!riskInfo) {
-        const pool = phrases.wheelTips;
+        let pool = phrases.wheelTips;
+        if (currentView === 'dashboard') pool = phrases.dashboard;
+        else if (currentView === 'lessons') pool = phrases.lessons;
+        else if (currentView === 'leaderboard') pool = phrases.leaderboard;
         let pick = pool[Math.floor(Math.random() * pool.length)];
         if (pick === lastPhraseRef.current) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
         lastPhraseRef.current = pick;
@@ -468,9 +520,9 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
       {/* Floating Mascot Button */}
       <div className="fixed bottom-24 right-4 md:bottom-10 md:right-12 z-[100] safe-area-bottom pointer-events-auto">
         <div className="relative">
-          {/* AI Chat Window */}
+          {/* AI Chat Window (disabled) */}
           <AnimatePresence>
-            {isOpen && (
+            {false && isOpen && (
               <motion.div
                 initial={{ opacity: 0, y: 20, scale: 0.9 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}

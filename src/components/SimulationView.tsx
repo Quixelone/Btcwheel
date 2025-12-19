@@ -742,8 +742,8 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     <div className="min-h-screen pb-24 md:pb-0 bg-[#050505] text-white max-w-full overflow-x-hidden relative">
       <Navigation currentView="simulation" onNavigate={onNavigate} />
       
-      <header className="bg-zinc-900/50 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 py-4 md:px-6 flex items-center justify-between">
+      <header className="bg-zinc-900/50 backdrop-blur-md border-b border-white/10 sticky top-0 z-30">
+        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <div>
             <h1 className="text-white truncate font-bold text-xl">🎯 Trading Journal</h1>
             <p className="text-gray-400 hidden md:block text-sm">Monitora le tue performance e gestisci il rischio</p>
@@ -762,9 +762,9 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-5 md:px-6 md:py-8">
+      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-5 md:py-8">
         {/* Stats Cards - New Glassmorphism & Dynamic Data */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
           
           {/* 1. BTC Price Live */}
           <Card className="relative overflow-hidden p-4 bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white group hover:border-white/20 transition-all">
