@@ -23,6 +23,30 @@ const mascotDisappointedImage = profSatoshiDisappointed;
 const mascotExcitedImage = profSatoshiExcited;
 const mascotThinkingImage = profSatoshiThinking;
 
+// Dynamic phrases database
+const phrases = {
+  saggio: [
+    'La Wheel vive di pazienza e disciplina.',
+    'Il tempo è il tuo alleato: lascia lavorare il theta.',
+    'Diversifica strike e scadenze: la ruota gira più stabile.',
+  ],
+  incoraggiante: [
+    'Ottima distanza! Rischio sotto controllo.',
+    'Bel setup: premi alto e rischio moderato.',
+    'Continua così: stai costruendo vantaggio statistico.',
+  ],
+  prudente: [
+    'Attenzione: sei vicino al prezzo. Prepara collaterale.',
+    'Rischio elevato: valuta strike più lontano.',
+    'Meglio allargare la distanza: riduci l’assegnazione.',
+  ],
+  wheelTips: [
+    'Regola d’oro: vendi quando IV è alta, compra quando IV è bassa.',
+    'Delta 0.20-0.30 è spesso la zona “dolce” per la Wheel.',
+    'Chiudi in anticipo se il premio ha perso >50%: proteggi i profitti.',
+  ],
+};
+
 interface Message {
   id: string;
   role: 'user' | 'assistant';
@@ -41,11 +65,14 @@ interface MascotAIProps {
 
 export function MascotAI({ lessonContext }: MascotAIProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false); // 🎯 NEW: Minimizable state
+  const [isMinimized, setIsMinimized] = useState(true);
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
+  const [riskInfo, setRiskInfo] = useState<{ distancePct: number; riskLabel: string } | null>(null);
+  const [adviceText, setAdviceText] = useState<string>('');
+  const lastPhraseRef = useRef<string>('');
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -104,6 +131,48 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
     }
   }, [isLoading, input.length, messages.length, setActivity]); // setActivity is now stable!
 
+  useEffect(() => {
+    const onRisk = (e: any) => {
+      setIsOpen(true);
+      setIsMinimized(false);
+      setActivity('encouraging', 3000);
+    };
+    const onCelebrate = (e: any) => {
+      setIsOpen(true);
+      setIsMinimized(false);
+      setActivity('celebrating', 2000);
+    };
+    const onDistance = (e: any) => {
+      const d = e?.detail;
+      if (d && typeof d.distancePct === 'number') {
+        setRiskInfo({ distancePct: d.distancePct, riskLabel: d.riskLabel || (d.distancePct > 5 ? 'Sicuro' : 'Rischioso') });
+        const signPct = ((d.strike ?? 0) - (d.btcPrice ?? 0)) / (d.btcPrice || 1) * 100;
+        const pctStr = `${signPct >= 0 ? '+' : ''}${signPct.toFixed(2)}%`;
+        let bucket: keyof typeof phrases = 'saggio';
+        if (d.distancePct > 10) bucket = 'incoraggiante';
+        else if (d.distancePct < 5) bucket = 'prudente';
+        const pool = phrases[bucket];
+        let pick = pool[Math.floor(Math.random() * pool.length)];
+        if (pick === lastPhraseRef.current) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
+        lastPhraseRef.current = pick;
+        setAdviceText(`Strike a ${pctStr} • ${pick}`);
+        if (d.distancePct > 10) setActivity('celebrating', 1500);
+        else if (d.distancePct < 5) setActivity('disappointed', 2000);
+        else setActivity('thinking', 1500);
+        setIsOpen(true);
+        setIsMinimized(false);
+      }
+    };
+    window.addEventListener('mascot:risk', onRisk);
+    window.addEventListener('mascot:celebrate', onCelebrate);
+    window.addEventListener('order:distance', onDistance);
+    return () => {
+      window.removeEventListener('mascot:risk', onRisk);
+      window.removeEventListener('mascot:celebrate', onCelebrate);
+      window.removeEventListener('order:distance', onDistance);
+    };
+  }, [setActivity]);
+
   // 🎨 Map emotion to mascot image with smooth transitions
   const getMascotImage = () => {
     // Map emotions to available images
@@ -144,7 +213,7 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
       playSound(() => sounds.click());
       haptics.light();
     } else {
-      // Apri la chat
+      // Apri il fumetto tutor
       setIsOpen(true);
       playSound(() => {
         sounds.click();
@@ -152,9 +221,19 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
       });
       haptics.medium();
       
-      // Welcome if first time
-      if (messages.length === 0) {
-        setActivity('excited', 2000);
+      // Mostra pillola di saggezza se non stai scrivendo
+      if (!riskInfo) {
+        const pool = phrases.wheelTips;
+        let pick = pool[Math.floor(Math.random() * pool.length)];
+        if (pick === lastPhraseRef.current) pick = pool[(pool.indexOf(pick) + 1) % pool.length];
+        lastPhraseRef.current = pick;
+        setAdviceText(pick);
+        setActivity('teaching', 1500);
+      } else {
+        // feedback basato sul rischio corrente
+        if (riskInfo.distancePct > 10) setActivity('celebrating', 1200);
+        else if (riskInfo.distancePct < 5) setActivity('disappointed', 1200);
+        else setActivity('thinking', 1200);
       }
     }
   };
@@ -387,7 +466,7 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
       `}</style>
 
       {/* Floating Mascot Button */}
-      <div className="fixed bottom-[6.5rem] right-4 md:bottom-10 md:right-12 z-[100] safe-area-bottom">
+      <div className="fixed bottom-24 right-4 md:bottom-10 md:right-12 z-[100] safe-area-bottom pointer-events-auto">
         <div className="relative">
           {/* AI Chat Window */}
           <AnimatePresence>
@@ -397,11 +476,14 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 10, scale: 0.95 }}
                 transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
-                className="absolute bottom-24 right-0 w-[calc(100vw-2rem)] md:w-[450px] lg:w-[500px] max-w-2xl origin-bottom-right"
+                className="absolute bottom-20 right-0 w-[calc(100vw-2rem)] md:w-[450px] lg:w-[500px] max-w-2xl origin-bottom-right"
+                drag
+                dragMomentum={false}
+                dragElastic={0.2}
               >
-                <Card className="backdrop-blur-xl bg-white/95 shadow-2xl border-2 border-blue-200/50 flex flex-col max-h-[60vh] md:max-h-[80vh]">
+                <Card className={`backdrop-blur-xl shadow-2xl border-2 flex flex-col max-h-[60vh] md:max-h-[80vh] ${riskInfo && riskInfo.distancePct <= 5 ? 'bg-red-50 border-red-300' : 'bg-white/95 border-blue-200/50'}`}>
                   {/* Header */}
-                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-3 md:p-4 rounded-t-lg flex-shrink-0">
+                  <div className={`${riskInfo && riskInfo.distancePct <= 5 ? 'bg-red-600' : 'bg-gradient-to-r from-blue-600 to-purple-600'} p-3 md:p-4 rounded-t-lg flex-shrink-0`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="relative w-10 h-10 md:w-12 md:h-12">
@@ -437,6 +519,13 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
                           <X className="w-4 h-4" />
                         </Button>
                       </div>
+                    </div>
+                  </div>
+
+                  <div className={`px-3 md:px-4 py-2 ${riskInfo ? (riskInfo.distancePct < 5 ? 'bg-red-100 text-red-700' : riskInfo.distancePct > 10 ? 'bg-emerald-100 text-emerald-700' : 'bg-yellow-100 text-yellow-700') : 'bg-gray-100 text-gray-700'}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold">Distanza: {riskInfo ? riskInfo.distancePct.toFixed(2) : '0.00'}%</span>
+                      <span className="text-[11px]">{adviceText || 'Inserisci uno strike per la valutazione.'}</span>
                     </div>
                   </div>
 
@@ -551,155 +640,46 @@ export function MascotAI({ lessonContext }: MascotAIProps) {
             )}
           </AnimatePresence>
 
-          {/* Mascot Avatar */}
+          {/* Intelligent Speech Bubble (draggable) */}
+          <AnimatePresence>
+            {isOpen && (
+              <motion.div
+                initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: 10, scale: 0.98 }}
+                transition={{ type: 'spring', bounce: 0.25, duration: 0.3 }}
+                className="absolute -top-24 right-16 w-[280px] md:w-[320px] origin-bottom-right"
+                drag
+                dragMomentum={false}
+                dragElastic={0.2}
+              >
+                <div className={`rounded-2xl border shadow-xl backdrop-blur-xl ${riskInfo && riskInfo.distancePct < 5 ? 'bg-red-50 border-red-300' : riskInfo && riskInfo.distancePct > 10 ? 'bg-emerald-50 border-emerald-300' : 'bg-white/95 border-blue-200/50'}`}>
+                  <div className="flex items-center justify-between px-3 py-2 rounded-t-2xl">
+                    <div className="flex items-center gap-2">
+                      <img src={getMascotImage()} alt="Prof Satoshi" className="w-8 h-8" />
+                      <span className="text-xs font-bold text-gray-700">Prof Satoshi</span>
+                    </div>
+                    <button onClick={handleClose} className="text-gray-600 hover:text-gray-900 text-xs">✕</button>
+                  </div>
+                  <div className="px-4 py-3 text-sm text-gray-800">
+                    <div className="mb-1 text-[11px] text-gray-500">Distanza: {riskInfo ? riskInfo.distancePct.toFixed(2) : '0.00'}%</div>
+                    <div>{adviceText || 'Inserisci uno strike per la valutazione.'}</div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <motion.button
             onClick={handleToggle}
-            onHoverStart={() => setIsHovering(true)}
-            onHoverEnd={() => setIsHovering(false)}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            animate={!isOpen ? {
-              scale: [1, 1.03, 1],
-              y: [0, -8, 0],
-            } : {}}
-            transition={{
-              scale: {
-                duration: 2.5,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              },
-              y: {
-                duration: 3.5,
-                repeat: Infinity,
-                ease: 'easeInOut',
-              },
-            }}
-            className={`relative cursor-pointer group touch-manipulation transition-all w-24 h-24 md:w-32 md:h-32`}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            animate={riskInfo ? (riskInfo.distancePct > 10 ? { y: [0, -4, 0] } : riskInfo.distancePct < 5 ? { rotate: [-1.5, 1.5, -1.5], x: [-1, 1, -1] } : {}) : {}}
+            transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
+            className="relative rounded-full bg-gradient-to-br from-blue-600 to-purple-600 text-white shadow-lg border-2 border-white w-12 h-12 flex items-center justify-center"
             aria-label={isOpen ? "Chiudi AI Tutor" : "Apri AI Tutor"}
           >
-            {/* Animated rings */}
-            {!isOpen && (
-              <>
-                <motion.div 
-                  className={`absolute inset-0 rounded-full ${colors.ring} opacity-30`}
-                  animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                />
-                <motion.div 
-                  className={`absolute inset-0 rounded-full ${colors.ring} opacity-20`}
-                  animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0, 0.2] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                />
-              </>
-            )}
-            
-            {/* Glow effect */}
-            {(isHovering || isOpen) && (
-              <motion.div 
-                className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.gradient} blur-xl`}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-              />
-            )}
-
-            {/* 💬 Emotion Tooltip (appears on hover) */}
-            <AnimatePresence>
-              {isHovering && !isOpen && emotionMessage && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10, scale: 0.9 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 10, scale: 0.9 }}
-                  transition={{ type: "spring", bounce: 0.4, duration: 0.3 }}
-                  className="absolute -top-16 md:-top-20 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-white rounded-2xl shadow-xl border-2 border-blue-200 whitespace-nowrap z-50"
-                >
-                  <p className="text-sm text-gray-800">{emotionMessage}</p>
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-3 h-3 bg-white border-r-2 border-b-2 border-blue-200"></div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-
-            {/* Mascot Image with animations + smooth transition */}
-            <motion.div 
-              className={`relative w-full h-full flex items-center justify-center ${getMascotAnimation()}`}
-              key={emotion} // Force re-render on emotion change for smooth transition
-            >
-              <motion.img 
-                src={getMascotImage()} 
-                alt="Prof Satoshi AI Mascot" 
-                className="w-full h-full object-contain"
-                style={{
-                  filter: 'drop-shadow(0 15px 30px rgba(0, 0, 0, 0.3))'
-                }}
-                initial={{ scale: 0.9, opacity: 0.7 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              />
-            </motion.div>
-
-            {/* Thinking particles */}
-            {emotion === 'thinking' && (
-              <>
-                {[...Array(3)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute w-3 h-3 bg-purple-400 rounded-full"
-                    style={{
-                      top: `${30 + i * 15}%`,
-                      left: `${20}%`,
-                    }}
-                    animate={{
-                      scale: [0, 1, 0],
-                      opacity: [0, 1, 0],
-                      x: [-10, 0],
-                      y: [-20, -40],
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      delay: i * 0.3,
-                      ease: "easeOut"
-                    }}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* Excited sparkles */}
-            {(emotion === 'excited' || emotion === 'celebrating') && (
-              <>
-                {[...Array(6)].map((_, i) => (
-                  <motion.div
-                    key={i}
-                    className="absolute w-2 h-2 bg-yellow-400 rounded-full"
-                    style={{
-                      top: `${20 + Math.random() * 60}%`,
-                      left: `${20 + Math.random() * 60}%`,
-                    }}
-                    animate={{
-                      scale: [0, 1, 0],
-                      opacity: [0, 1, 0],
-                      y: [0, -20],
-                    }}
-                    transition={{
-                      duration: 1.5,
-                      repeat: Infinity,
-                      delay: i * 0.2,
-                      ease: "easeOut"
-                    }}
-                  />
-                ))}
-              </>
-            )}
-
-            {/* AI Badge */}
-            <motion.div 
-              className="absolute top-2 right-2 md:top-4 md:right-4 px-3 py-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full text-xs shadow-lg border-2 border-white"
-              animate={{ scale: isOpen ? 1 : [1, 1.1, 1] }}
-              transition={{ duration: 2, repeat: isOpen ? 0 : Infinity }}
-            >
-              AI
-            </motion.div>
+            <span className="text-xs font-bold">AI</span>
           </motion.button>
         </div>
       </div>

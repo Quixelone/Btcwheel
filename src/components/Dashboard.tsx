@@ -23,6 +23,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import type { View } from '../App';
+import { TradingGoals } from './TradingGoals';
 
 interface DashboardProps {
   onNavigate: (view: View) => void;
@@ -130,6 +131,30 @@ export function Dashboard({ onNavigate }: DashboardProps) {
       gradient: 'from-orange-600 to-red-600',
       action: () => onNavigate('lessons')
     }
+  ];
+
+  const goalsData = [
+    {
+      id: 'goal-1',
+      title: 'Il Tuo Primo Premium',
+      target: 1,
+      current: (journalStats?.totalTrades ?? 0) > 0 ? 1 : 0,
+      status: (journalStats?.totalTrades ?? 0) > 0 ? 'completed' as const : 'active' as const,
+    },
+    {
+      id: 'goal-2',
+      title: 'Colleziona $1,000 Premium',
+      target: 1000,
+      current: gamification?.trading_volume ?? 0,
+      status: (gamification?.trading_volume ?? 0) >= 1000 ? 'completed' as const : 'active' as const,
+    },
+    {
+      id: 'goal-3',
+      title: 'Gestisci un’Assegnazione',
+      target: 1,
+      current: 0,
+      status: 'locked' as const,
+    },
   ];
 
   return (
@@ -348,6 +373,7 @@ export function Dashboard({ onNavigate }: DashboardProps) {
 
         {/* Right Column - Badges & XP */}
         <div className="space-y-6">
+          <TradingGoals goals={goalsData} />
           <Card className="p-6 bg-white/5 backdrop-blur-xl border border-white/10 h-full flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold text-white flex items-center gap-2">

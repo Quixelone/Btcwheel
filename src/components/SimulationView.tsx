@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Navigation } from './Navigation';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
@@ -8,7 +8,7 @@ import { useUserProgress } from '../hooks/useUserProgress';
 import { useDashboardData } from '../hooks/useDashboardData';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
 import { TrendingUp, TrendingDown, DollarSign, Target, Lock, CheckCircle2, HelpCircle, Wallet, Calendar, Percent, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import { SimulationTutorial } from './SimulationTutorial';
@@ -239,7 +239,7 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
   const { user } = useAuth();
   const { addXP } = useUserProgress();
   const { gamification, journalStats } = useDashboardData();
-  const [btcPrice, setBtcPrice] = useState(96000); // 🎯 Prezzo reale dicembre 2024
+  const [btcPrice, setBtcPrice] = useState(96000);
   const [cashBalance, setCashBalance] = useState(10000); // 🎯 Renamed from portfolioValue to track actual cash
   const [positions, setPositions] = useState<Position[]>([]);
   const [priceHistory, setPriceHistory] = useState<Array<{ time: string; price: number }>>([]);
@@ -337,7 +337,9 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     duration: 12 // months
   };
 
-  const totalPremiums = positions.reduce((acc, p) => acc + (p.premium * p.quantity), 0);
+  const totalPremiumsAssigned = positions
+    .filter(p => p.type === 'put' && p.status === 'closed' && p.assignmentPrice !== undefined)
+    .reduce((acc, p) => acc + (p.premium * p.quantity), 0);
   
   // Calculate Average Entry Price (Cost Basis) for owned BTC
   // Logic: Sum of strikes for assigned puts (where we bought BTC) divided by total assigned BTC
@@ -345,9 +347,10 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
   const assignedPuts = positions.filter(p => p.type === 'put' && p.status === 'closed' && p.assignmentPrice !== undefined);
   const totalAssignedBTC = assignedPuts.reduce((acc, p) => acc + p.quantity, 0);
   const totalAssignmentCost = assignedPuts.reduce((acc, p) => acc + (p.strike * p.quantity), 0);
-  
   const averageEntryPrice = totalAssignedBTC > 0 ? totalAssignmentCost / totalAssignedBTC : 0;
-  const breakEvenPrice = btcOwned > 0 ? averageEntryPrice - (totalPremiums / btcOwned) : 0;
+  const totalPremiumsCycle = positions.reduce((acc, p) => acc + (p.premium * p.quantity), 0);
+  const breakEvenPrice = btcOwned > 0 ? averageEntryPrice - (totalPremiumsCycle / btcOwned) : 0;
+  const dropPctVsStrike = averageEntryPrice > 0 ? ((averageEntryPrice - breakEvenPrice) / averageEntryPrice) * 100 : 0;
 
   // Sync missions with Supabase data
   useEffect(() => {
@@ -378,6 +381,27 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
   const [premium, setPremium] = useState('800');
   const [quantity, setQuantity] = useState('1');
 
+  const strikeNumeric = parseFloat(strikePrice || '0');
+  const qtyNumeric = parseInt(quantity || '1');
+  const premiumNumeric = parseFloat(premium || '0');
+  const distancePct = btcPrice > 0 && strikeNumeric > 0 ? Math.abs(strikeNumeric - btcPrice) / btcPrice * 100 : 0;
+  const riskLabel = distancePct > 5 ? 'Sicuro' : 'Rischioso';
+  const lastRiskRef = useRef(false);
+  useEffect(() => {
+    const highRisk = riskLabel === 'Rischioso' && distancePct < 2.5 && strikeNumeric > 0;
+    if (highRisk && !lastRiskRef.current) {
+      window.dispatchEvent(new CustomEvent('mascot:risk', { detail: { distancePct, strike: strikeNumeric, btcPrice } }));
+      lastRiskRef.current = true;
+    }
+    if (!highRisk) {
+      lastRiskRef.current = false;
+    }
+  }, [riskLabel, distancePct, strikeNumeric, btcPrice]);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('order:distance', { detail: { distancePct, riskLabel, strike: strikeNumeric, btcPrice } }));
+  }, [distancePct, riskLabel, strikeNumeric, btcPrice]);
+
   // 🎯 Calcolo automatico strike e premium intelligenti
   useEffect(() => {
     if (optionType === 'put') {
@@ -403,17 +427,30 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     }
   }, [optionType, btcPrice]);
 
-  // Simulate BTC price changes
+  // Live BTC price fetch (30s)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setBtcPrice(prev => {
-        const change = (Math.random() - 0.5) * 2000; // Volatilità maggiore
-        const newPrice = Math.max(85000, Math.min(105000, prev + change)); // Range $85k-$105k
-        return Math.round(newPrice);
-      });
-    }, 3000);
+    let cancelled = false;
 
-    return () => clearInterval(interval);
+    const fetchPrice = async () => {
+      try {
+        const res = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
+        const json = await res.json();
+        const amt = parseFloat(json?.data?.amount);
+        if (!cancelled && !Number.isNaN(amt)) {
+          setBtcPrice(Math.round(amt));
+        }
+      } catch {
+        // Silent fallback: keep last price
+      }
+    };
+
+    // initial fetch and interval
+    fetchPrice();
+    const interval = setInterval(fetchPrice, 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, []);
 
   // Update price history
@@ -490,9 +527,9 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
   };
 
   const handleSellOption = async () => {
-    const strike = parseFloat(strikePrice);
-    const prem = parseFloat(premium);
-    const qty = parseInt(quantity);
+    const strike = strikeNumeric;
+    const prem = premiumNumeric;
+    const qty = qtyNumeric;
 
     if (isNaN(strike) || isNaN(prem) || isNaN(qty) || qty <= 0) {
       toast.error('Inserisci valori validi');
@@ -545,16 +582,18 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     // Log to Supabase
     if (user) {
       try {
-        const { error } = await supabase.from('daily_journal').insert({
+        const { error } = await supabase.from('trades').insert({
           user_id: user.id,
-          trade_type: optionType === 'put' ? 'sell_put' : 'sell_call',
+          type: optionType,
           asset: 'BTC',
           strike_price: strike,
           premium: prem,
           quantity: qty,
           entry_price: btcPrice,
           status: 'OPEN',
-          notes: `Sold ${qty} ${optionType.toUpperCase()} @ $${strike} for $${prem} premium`
+          opened_at: new Date().toISOString(),
+          total_premium: prem * qty,
+          distance_pct: distancePct
         });
         
         if (error) {
@@ -569,6 +608,7 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     toast.success(`✅ ${optionType === 'put' ? 'Put' : 'Call'} venduta!`, {
       description: `+$${prem * qty} premium raccolto | +${xpReward} XP`
     });
+    window.dispatchEvent(new CustomEvent('mascot:celebrate', { detail: { type: optionType, premium: prem * qty } }));
   };
 
   const handleClosePosition = (positionId: string) => {
@@ -797,6 +837,7 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
                     <div className="text-xs text-gray-400 mt-1">
                       Avg. Entry: <span className="text-gray-300">${averageEntryPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
                     </div>
+                    <div className="text-xs font-medium text-emerald-400 mt-1">-{dropPctVsStrike.toFixed(2)}% vs Strike</div>
                   </>
                 ) : (
                   <div className="text-sm text-gray-500 italic mt-2">Nessun BTC in portafoglio</div>
@@ -843,48 +884,10 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
           </Card>
         </div>
 
-        {/* 3-Column Layout for Professional Dashboard Look */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          
-          {/* Left Column: Missions / Goals (3 cols) */}
-          <div className="hidden lg:block lg:col-span-3 space-y-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Target className="w-4 h-4 text-emerald-400" />
-              <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider">Trading Goals</h3>
-            </div>
-            
-            <div className="space-y-3">
-              {missions.map((mission) => (
-                <div 
-                  key={mission.id}
-                  onClick={() => selectMission(mission)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    activeMission?.id === mission.id 
-                      ? 'bg-blue-500/10 border-blue-500/50' 
-                      : mission.status === 'locked'
-                        ? 'bg-zinc-900/30 border-white/5 opacity-50'
-                        : 'bg-zinc-900/30 border-white/5 hover:bg-white/5 hover:border-white/10'
-                  }`}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-xs font-bold ${
-                      activeMission?.id === mission.id ? 'text-blue-400' : 'text-gray-300'
-                    }`}>
-                      {mission.title}
-                    </span>
-                    {mission.status === 'completed' && <CheckCircle2 className="w-3 h-3 text-emerald-500" />}
-                    {mission.status === 'locked' && <Lock className="w-3 h-3 text-gray-600" />}
-                  </div>
-                  {mission.status === 'active' && (
-                    <Progress value={(mission.objectives[0].current / mission.objectives[0].target) * 100} className="h-1 bg-zinc-800" />
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Center Column: Chart (6 cols) */}
-          <div className="lg:col-span-6 space-y-6">
+        {/* Expanded Layout without Goals */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0">
+          {/* Chart (expanded) */}
+          <div className="lg:col-span-8 space-y-6">
             
             {/* BTC Chart */}
             <Card className="p-4 bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white overflow-hidden">
@@ -932,6 +935,9 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
                       dot={false} 
                       activeDot={{ r: 4, fill: '#a855f7', stroke: '#fff' }} 
                     />
+                    {openPositions.map(p => (
+                      <ReferenceLine key={`strike-${p.id}`} y={p.strike} stroke="#ffffff" strokeDasharray="4 4" ifOverflow="hidden"/>
+                    ))}
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -1002,20 +1008,20 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
             </Card>
           </div>
 
-          {/* Right Column: Order Entry (3 cols) */}
-          <div className="xl:col-span-3 space-y-6">
+          {/* Right Column: Order Entry (expanded) */}
+          <div className="lg:col-span-4 space-y-6">
             
             {/* Trading Panel */}
             <Card className="bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white sticky top-24 overflow-hidden">
               <div className="p-4 border-b border-white/5 bg-white/5">
                 <h2 className="text-white font-bold text-sm flex items-center gap-2">
                   <DollarSign className="w-4 h-4 text-yellow-400" />
-                  Order Entry
+                  Log New Trade
                 </h2>
               </div>
               
-              <div className="p-4 space-y-4">
-                <div className="grid grid-cols-2 gap-2">
+            <div className="p-4 space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <button
                     onClick={() => setOptionType('put')}
                     className={`py-2 px-4 rounded-lg text-sm font-medium transition-all ${
@@ -1050,6 +1056,10 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
                         onChange={(e) => setStrikePrice(e.target.value)}
                         className="w-full bg-black/20 border border-white/10 rounded-lg py-2.5 pl-7 pr-3 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
                       />
+                    </div>
+                    <div className="mt-2 text-xs flex items-center gap-2">
+                      <span className={`px-2 py-0.5 rounded ${riskLabel === 'Sicuro' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>FinGenius: {riskLabel}</span>
+                      <span className="text-gray-500">Distanza: {distancePct.toFixed(2)}%</span>
                     </div>
                   </div>
 
@@ -1098,7 +1108,7 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
                         : 'bg-blue-600 hover:bg-blue-700 text-white'
                     }`}
                   >
-                    SUBMIT ORDER
+                    Add to Journal
                   </Button>
                 </div>
               </div>

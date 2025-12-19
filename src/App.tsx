@@ -250,7 +250,7 @@ function AppContent() {
   // Normal app flow
   console.log('[App] Rendering normal app flow, currentView:', currentView);
   return (
-    <div className="flex h-screen bg-[#050505] text-white overflow-hidden">
+    <div className="flex min-h-screen bg-[#050505] text-white overflow-hidden">
       <MobileOptimizations />
       <MobileGestures />
       <Toaster />

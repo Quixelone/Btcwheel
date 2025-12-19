@@ -67,8 +67,9 @@
         "terser": "^5.44.1",
         "vite": "6.3.5"
     },
-    "scripts": {
+  "scripts": {
         "dev": "vite",
-        "build": "vite build"
+        "build": "vite build",
+        "preview": "vite preview --port 4173"
     }
 }

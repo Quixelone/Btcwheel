@@ -169,18 +169,20 @@ export async function getDailyJournalStats(userId: string): Promise<{ totalTrade
   if (!isSupabaseConfigured || !supabase) return { totalTrades: 0, totalPnL: 0 };
   try {
     const { data, error } = await supabase
-      .from('daily_journal')
-      .select('trades_count, pnl')
+      .from('trades')
+      .select('total_premium, status')
       .eq('user_id', userId);
-    
-    if (error) throw error;
 
-    const totalTrades = data?.reduce((acc: number, curr: { trades_count: number }) => acc + (curr.trades_count || 0), 0) || 0;
-    const totalPnL = data?.reduce((acc: number, curr: { pnl: number }) => acc + (curr.pnl || 0), 0) || 0;
+    if (error) {
+      return { totalTrades: 0, totalPnL: 0 };
+    }
+
+    const rows = Array.isArray(data) ? data : [] as any[];
+    const totalTrades = rows.length;
+    const totalPnL = rows.reduce((acc: number, curr: { total_premium?: number }) => acc + (curr.total_premium || 0), 0);
 
     return { totalTrades, totalPnL };
-  } catch (err) {
-    console.error('Error fetching journal stats:', err);
+  } catch {
     return { totalTrades: 0, totalPnL: 0 };
   }
 }

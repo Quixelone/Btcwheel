@@ -188,7 +188,7 @@ export function Layout({ children, currentView, onNavigate }: LayoutProps) {
           </header>
 
           <div className="flex-1 overflow-auto p-4 md:p-8 w-full">
-            <div className="max-w-7xl mx-auto w-full">
+            <div className="w-full">
               {children}
             </div>
           </div>
