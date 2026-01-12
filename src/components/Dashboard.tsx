@@ -30,7 +30,7 @@ import {
 import type { View } from '../App';
 
 // Import mascot image
-import mascotImage from 'figma:asset/e8e9af5642f2391d235a2197ed9e4ee543332bbd.png';
+const mascotImage = '/prof-satoshi-normal.png';
 
 interface DashboardProps {
   onNavigate: (view: View) => void;

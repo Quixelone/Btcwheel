@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import type { View } from '../App';
 
 // btcwheel logo - NEW circular emerald design (transparent)
-import btcwheelLogo from 'figma:asset/b2ebfbbeb483ffdf078e6ecdca686b1e139921dc.png';
+const btcwheelLogo = '/favicon.png';
 
 interface NavigationProps {
   currentView: View;

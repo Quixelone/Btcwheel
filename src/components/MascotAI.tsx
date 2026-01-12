@@ -11,9 +11,9 @@ import { useUserProgress } from '../hooks/useUserProgress';
 import { useMascotEmotion } from '../hooks/useMascotEmotion';
 
 // Prof Satoshi mascot images
-import profSatoshiExcited from 'figma:asset/ab3d59171ab68c537dd57d97d7e9d4de0a06850d.png';
-import profSatoshiNormal from 'figma:asset/f29b56f4742151c06a28cc25bd25d8102cbe4d79.png';
-import profSatoshiConfident from 'figma:asset/7d386e671a6e8284b17426eaf3e9958b6a264ae0.png';
+const profSatoshiExcited = '/prof-satoshi-excited.png';
+const profSatoshiNormal = '/prof-satoshi-normal.png';
+const profSatoshiConfident = '/prof-satoshi-normal.png'; // Using normal as fallback
 
 const mascotNormalImage = profSatoshiNormal;
 const mascotDisappointedImage = profSatoshiConfident;
