@@ -1,13 +1,13 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
+import { storage } from '../lib/localStorage';
 
 /**
- * Hook for haptic feedback on mobile devices
- * Uses Vibration API (supported on most modern mobile browsers)
+ * Hook for haptic feedback on supported devices
  */
 export function useHaptics() {
   const vibrate = useCallback((pattern: number | number[]) => {
     // Check if haptic feedback is enabled in settings
-    const hapticEnabled = localStorage.getItem('mascotHapticEnabled') !== 'false';
+    const hapticEnabled = storage.getItem('mascotHapticEnabled') !== 'false';
     if (!hapticEnabled) {
       return;
     }

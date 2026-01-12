@@ -70,14 +70,10 @@ export function LeaderboardView({ onNavigate }: LeaderboardViewProps) {
         const userEntry = data.find(entry => entry.user_id === user.id);
         if (userEntry) {
           setUserRank(userEntry.rank);
-          try { localStorage.setItem('btcwheel_user_rank', String(userEntry.rank)); } catch {}
-        } else {
-          try { localStorage.setItem('btcwheel_user_rank', 'N/A'); } catch {}
         }
       } else {
         // Use mock data if Supabase not configured
         setLeaderboardData(mockGlobalLeaderboard as any);
-        try { localStorage.setItem('btcwheel_user_rank', 'N/A'); } catch {}
       }
     } catch (error) {
       // Silently fallback to mock data - errors are already logged in supabase.ts if needed
@@ -162,12 +158,12 @@ export function LeaderboardView({ onNavigate }: LeaderboardViewProps) {
   );
 
   return (
-    <div className="min-h-screen pb-24 md:pb-0 bg-gray-50">
+    <div className="min-h-screen md:pl-20 pb-24 md:pb-0 bg-gray-50">
       <Navigation currentView="leaderboard" onNavigate={onNavigate} />
       
       {/* Mobile-Optimized Header */}
       <header className="bg-gradient-to-r from-purple-600 to-blue-600 text-white px-4 py-8 md:px-6 md:py-12 safe-area-top">
-        <div className="max-w-6xl text-center">
+        <div className="max-w-6xl mx-auto text-center">
           <Trophy className="w-12 h-12 md:w-16 md:h-16 mx-auto mb-4 text-yellow-300" />
           <h1 className="text-white mb-2">Classifica</h1>
           <p className="text-blue-100">Compete e scala la classifica!</p>
@@ -175,7 +171,7 @@ export function LeaderboardView({ onNavigate }: LeaderboardViewProps) {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl px-4 py-5 md:px-6 md:py-8">
+      <main className="max-w-6xl mx-auto px-4 py-5 md:px-6 md:py-8">
         {/* Your Stats - Mobile Optimized */}
         <Card className="p-5 md:p-6 mb-6 md:mb-8 bg-gradient-to-br from-blue-50 to-purple-50 border-2 border-blue-200">
           <div className="flex items-center justify-between mb-5 md:mb-0">

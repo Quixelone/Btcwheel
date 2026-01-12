@@ -76,6 +76,18 @@ export function useAIQuizGenerator() {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('AI question generation error:', errorText);
+        
+        // Try to parse error details if JSON
+        try {
+          const errorJson = JSON.parse(errorText);
+          console.error('Error details:', errorJson);
+          if (errorJson.rawResponse) {
+            console.error('AI raw response preview:', errorJson.rawResponse);
+          }
+        } catch {
+          // Not JSON, just log as text
+        }
+        
         return null;
       }
 

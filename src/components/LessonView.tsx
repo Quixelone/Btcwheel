@@ -101,17 +101,60 @@ export function LessonView({ onNavigate, lessonId = 9 }: LessonViewProps) {
     setActivity('lesson_start', 4000);
   }, [lessonId, setActivity]);
 
-  // 🎯 Initialize quiz with randomized questions
+  // 🎯 Initialize quiz with AI-generated questions ONLY
   useEffect(() => {
     if (quizStarted && questions.length === 0) {
-      // Shuffle base questions for randomization
-      const shuffled = [...baseQuestions].sort(() => Math.random() - 0.5);
-      setQuestions(shuffled);
-      setQuestionsPool(shuffled);
-      resetPerformance();
-      toast.success('Quiz iniziato! Domande randomizzate 🎲');
+      // 🚀 Generate initial AI questions instead of using static ones
+      const initializeAIQuiz = async () => {
+        toast.loading('🤖 Generando quiz personalizzato...', { id: 'ai-quiz-init' });
+        
+        const lessonFullContent = lessonContent.sections
+          .map(s => `${s.title}: ${s.content}`)
+          .join('\n\n');
+        
+        // Generate first 3 questions with AI
+        const aiQuestions = [];
+        let failedAttempts = 0;
+        
+        for (let i = 0; i < 3; i++) {
+          const difficulty = i === 0 ? 'easy' : i === 1 ? 'easy' : 'medium';
+          const aiQuestion = await generateAIQuestion(
+            lessonId,
+            lessonContent.title,
+            lessonFullContent,
+            difficulty
+          );
+          
+          if (aiQuestion) {
+            aiQuestions.push(aiQuestion);
+          } else {
+            failedAttempts++;
+            console.warn(`Failed to generate AI question ${i + 1}/3`);
+          }
+        }
+        
+        if (aiQuestions.length > 0) {
+          setQuestions(aiQuestions);
+          setQuestionsPool(aiQuestions);
+          resetPerformance();
+          toast.success(`✨ Quiz AI pronto con ${aiQuestions.length} domande uniche!`, { id: 'ai-quiz-init' });
+        } else {
+          // 🆘 Fallback to base questions if all AI generation failed
+          console.error('All AI question generation failed, falling back to base questions');
+          const shuffled = [...baseQuestions].sort(() => Math.random() - 0.5);
+          setQuestions(shuffled);
+          setQuestionsPool(shuffled);
+          resetPerformance();
+          toast.warning('⚠️ Usando domande di backup (AI temporaneamente non disponibile)', { 
+            id: 'ai-quiz-init',
+            duration: 5000 
+          });
+        }
+      };
+      
+      initializeAIQuiz();
     }
-  }, [quizStarted, baseQuestions, questions.length, resetPerformance]);
+  }, [quizStarted, baseQuestions, questions.length, resetPerformance, lessonId, lessonContent, generateAIQuestion]);
 
   const handleNextSection = () => {
     if (currentStep < totalSteps - 1) {
@@ -179,8 +222,8 @@ export function LessonView({ onNavigate, lessonId = 9 }: LessonViewProps) {
         triggerXPGain(totalXP);
       }, 1100);
       
-      // 🎯 Generate new AI question every 2 correct answers (if first attempt)
-      if (isFirstAttempt && performance.correctAnswers % 2 === 0 && performance.correctAnswers > 0) {
+      // 🎯 Generate new AI question after EVERY correct answer (more dynamic!)
+      if (isFirstAttempt) {
         generateNewAIQuestion();
       }
     } else {

@@ -26,7 +26,7 @@ interface TableStatus {
 }
 
 export function SupabaseStatus() {
-  const { user, signIn, signUp, signOut } = useAuth();
+  const { user, signInWithEmail, signUpWithEmail, signOut } = useAuth();
   const [loading, setLoading] = useState(true);
   const [testing, setTesting] = useState(false);
   const [tableStatus, setTableStatus] = useState<TableStatus[]>([]);
@@ -51,7 +51,7 @@ export function SupabaseStatus() {
 
     try {
       // Test basic connection
-      const { error } = await supabase.from('kv_store_7c0f82ca').select('count', { count: 'exact', head: true });
+      const { data, error } = await supabase.from('kv_store_7c0f82ca').select('count', { count: 'exact', head: true });
       
       if (error) {
         console.error('Connection error:', error);
@@ -116,12 +116,12 @@ export function SupabaseStatus() {
     setTesting(true);
     try {
       if (action === 'signup') {
-        const result = await signUp(testEmail, testPassword, 'Test User');
+        const result = await signUpWithEmail(testEmail, testPassword, 'Test User');
         if (result.user) {
           toast.success('✅ Signup funzionante!');
         }
       } else {
-        const result = await signIn(testEmail, testPassword);
+        const result = await signInWithEmail(testEmail, testPassword);
         if (result.user) {
           toast.success('✅ Login funzionante!');
         }

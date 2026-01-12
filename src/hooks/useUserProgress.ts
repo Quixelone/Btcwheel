@@ -9,6 +9,7 @@ import {
   type UserProgressDB,
   type UserActivity,
 } from '../lib/supabase';
+import { storage } from '../lib/localStorage';
 import { useAuth } from './useAuth';
 import type { UserProgress } from '../App';
 
@@ -31,17 +32,15 @@ export function useUserProgress() {
   const [activities, setActivities] = useState<UserActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Load progress from localStorage or Supabase
   const loadProgress = useCallback(async () => {
     setLoading(true);
-    setError(null);
     
     try {
       // Use localStorage if Supabase is not configured or user not logged in
       if (useLocalStorage) {
-        const savedProgress = localStorage.getItem('btc-wheel-progress');
+        const savedProgress = storage.getItem('btc-wheel-progress');
         if (savedProgress) {
           const parsed = JSON.parse(savedProgress);
           setProgress({
@@ -58,13 +57,11 @@ export function useUserProgress() {
       // Load from Supabase if configured and user is logged in
       if (user) {
         let progressData = await getUserProgress(user.id);
-        console.log('Dati recuperati (UserProgress):', progressData);
 
         // If no progress exists, create new
         if (!progressData) {
           const username = user.user_metadata?.username || user.email?.split('@')[0] || 'User';
           progressData = await createUserProgress(user.id, username);
-          console.log('Nuovi dati creati:', progressData);
         }
 
         if (progressData) {
@@ -85,12 +82,10 @@ export function useUserProgress() {
 
         // Load recent activities
         const activitiesData = await getUserActivities(user.id, 10);
-        console.log('Dati recuperati (Activities):', activitiesData);
         setActivities(activitiesData);
       }
     } catch (error) {
       console.error('Error loading progress:', error);
-      setError('Impossibile caricare i dati dal server.');
     } finally {
       setLoading(false);
     }
@@ -108,7 +103,7 @@ export function useUserProgress() {
         const newProgress = { ...progress, ...updatedProgress };
         
         // Save to localStorage always (as backup)
-        localStorage.setItem('btc-wheel-progress', JSON.stringify(newProgress));
+        storage.setItem('btc-wheel-progress', JSON.stringify(newProgress));
         
         // Sync to Supabase if configured and user logged in
         if (!useLocalStorage && user) {
@@ -256,7 +251,6 @@ export function useUserProgress() {
     activities,
     loading,
     syncing,
-    error,
     addXP,
     completeLesson,
     addBadge,

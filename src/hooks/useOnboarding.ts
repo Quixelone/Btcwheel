@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './useAuth';
+import { storage } from '../lib/localStorage';
 import type { UserProfile, PersonalizedRecommendation } from '../lib/openai';
 import { analyzeUserProfile } from '../lib/openai';
 
@@ -32,7 +33,7 @@ export function useOnboarding() {
           ? `btc-wheel-onboarding-${user.id}` 
           : 'btc-wheel-onboarding';
         
-        const saved = localStorage.getItem(storageKey);
+        const saved = storage.getItem(storageKey);
         if (saved) {
           setOnboarding(JSON.parse(saved));
         }
@@ -77,7 +78,7 @@ export function useOnboarding() {
           : 'btc-wheel-onboarding';
         
         console.log('🟡 useOnboarding: Saving to localStorage with key:', storageKey);
-        localStorage.setItem(storageKey, JSON.stringify(newState));
+        storage.setItem(storageKey, JSON.stringify(newState));
         setOnboarding(newState);
         console.log('🟡 useOnboarding: State saved successfully');
 
@@ -97,7 +98,7 @@ export function useOnboarding() {
           : 'btc-wheel-onboarding';
         
         console.log('🟡 useOnboarding: Saving fallback state to localStorage');
-        localStorage.setItem(storageKey, JSON.stringify(fallbackState));
+        storage.setItem(storageKey, JSON.stringify(fallbackState));
         setOnboarding(fallbackState);
         console.log('🟡 useOnboarding: Fallback state saved');
         
@@ -122,7 +123,7 @@ export function useOnboarding() {
     const storageKey = user 
       ? `btc-wheel-onboarding-${user.id}` 
       : 'btc-wheel-onboarding';
-    localStorage.setItem(storageKey, JSON.stringify(defaultState));
+    storage.setItem(storageKey, JSON.stringify(defaultState));
     setOnboarding(defaultState);
   }, [user]);
 
@@ -131,7 +132,7 @@ export function useOnboarding() {
     const storageKey = user 
       ? `btc-wheel-onboarding-${user.id}` 
       : 'btc-wheel-onboarding';
-    localStorage.removeItem(storageKey);
+    storage.removeItem(storageKey);
     setOnboarding({
       completed: false,
       profile: null,

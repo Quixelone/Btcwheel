@@ -1,28 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
+import { useOnboarding } from './hooks/useOnboarding';
 import { LandingPage } from './components/LandingPage';
 import { HomePage } from "./components/HomePage";
 import { Dashboard } from "./components/Dashboard";
 import { LessonView } from "./components/LessonView";
+import { QuizView } from "./components/QuizView";
 import { LessonList } from "./components/LessonList";
 import { BadgeShowcase } from "./components/BadgeShowcase";
 import { SimulationView } from "./components/SimulationView";
+import { LongTermSimulator } from "./components/LongTermSimulator";
+import { WheelStrategyView } from "./components/WheelStrategyView";
 import { LeaderboardView } from "./components/LeaderboardView";
 import { SettingsView } from "./components/SettingsView";
+import { ExchangeView } from "./components/ExchangeView";
+import { AuthView } from "./components/AuthView";
 import { OnboardingView } from "./components/OnboardingView";
 import { OnboardingResults } from "./components/OnboardingResults";
-import { AuthView } from "./components/AuthView";
 import { MascotAI } from "./components/MascotAI";
-import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
-import { AppUpdatePrompt } from "./components/AppUpdatePrompt";
+import { Toaster } from "sonner@2.0.3";
 import { MobileOptimizations } from "./components/MobileOptimizations";
 import { MobileGestures } from "./components/MobileGestures";
-import { SupabaseTestView } from "./components/SupabaseTestView";
-import { SupabaseStatus } from "./components/SupabaseStatus";
+import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
+import { AppUpdatePrompt } from "./components/AppUpdatePrompt";
 import { ChatTutorTest } from "./components/ChatTutorTest";
-import { useOnboarding } from "./hooks/useOnboarding";
-import { Toaster } from "./components/ui/sonner";
-import { Layout } from "./components/Layout";
+import { SupabaseStatus } from "./components/SupabaseStatus";
+import { SupabaseTestView } from "./components/SupabaseTestView";
 
 export type View =
   | "landing"
@@ -32,8 +35,11 @@ export type View =
   | "lesson"
   | "badges"
   | "simulation"
+  | "longterm"
+  | "wheel-strategy"
   | "leaderboard"
   | "settings"
+  | "exchange"
   | "auth"
   | "onboarding";
 
@@ -52,50 +58,97 @@ export interface UserProgress {
 }
 
 function AppContent() {
-  // 🐛 DEBUG MODE: Bypass landing/auth to test mascot animations immediately
+  // 🐛 DEBUG MODE: Bypass landing/auth - v2.1 Emerald Design Update
   // TODO: Set DEBUG_MODE = false when done testing
-  const DEBUG_MODE = false; // ✅ ENABLED - Per testare il nuovo design
+  const DEBUG_MODE = false; // ❌ DISABLED - Testing authentication flow
   
+  // ALL HOOKS MUST BE CALLED FIRST - No conditional returns before all hooks are called
   const [currentView, setCurrentView] = useState<View>(DEBUG_MODE ? "dashboard" : "landing");
   const [currentLessonId, setCurrentLessonId] = useState<number>(9);
   const [hasSeenLanding, setHasSeenLanding] = useState(DEBUG_MODE ? true : false);
+  const [mascotVisible, setMascotVisible] = useState(true); // 🎯 NEW: Mascot visibility state
+  const [hasSeenAuth, setHasSeenAuth] = useState(false);
+  const [showTest, setShowTest] = useState(false);
+  const [shouldShowResults, setShouldShowResults] = useState(false);
+  
   const authResult = useAuth();
   const { user, loading: authLoading } = authResult || { user: null, loading: true };
   
-  const handleNavigation = (view: View, lessonId?: number) => {
-    // When navigating away from landing, mark it as seen
-    if (currentView === 'landing' && view !== 'landing') {
-      setHasSeenLanding(true);
-    }
-    setCurrentView(view);
-    if (lessonId !== undefined) {
-      setCurrentLessonId(lessonId);
-    }
-  };
   const {
     onboarding,
     shouldShowOnboarding,
     loading: onboardingLoading,
   } = useOnboarding();
-  const [shouldShowResults, setShouldShowResults] = useState(false);
+
+  // Memoize mascot toggle handler to prevent unnecessary re-renders
+  const handleMascotToggle = useCallback(() => {
+    setMascotVisible(true);
+  }, []);
 
   // On mount, ensure we start fresh - don't auto-show results on page reload
   useEffect(() => {
     setShouldShowResults(false);
   }, []);
 
-  // Redirect to dashboard if user is already logged in and on landing page
+  // Check URL for test mode
   useEffect(() => {
-    if (user && !authLoading && currentView === 'landing') {
-      console.log('[App] User logged in, redirecting from landing to dashboard');
-      setHasSeenLanding(true);
-      setCurrentView('dashboard');
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("test") === "supabase") {
+      setShowTest(true);
     }
-  }, [user, authLoading, currentView]);
+    if (params.get("test") === "chat") {
+      setShowTest(true);
+    }
+    if (params.get("status") === "supabase") {
+      setShowTest(true);
+    }
+  }, []);
+
+  // 🆕 Handle OAuth callback from Supabase
+  useEffect(() => {
+    // Check if URL contains OAuth callback params (access_token in hash or code in query)
+    const hash = window.location.hash;
+    const params = new URLSearchParams(window.location.search);
+    
+    const hasOAuthCallback = hash.includes('access_token') || 
+                             hash.includes('refresh_token') || 
+                             params.get('code') !== null;
+    
+    if (hasOAuthCallback) {
+      console.log('🔐 [App] OAuth callback detected!');
+      console.log('🔐 [App] User:', user ? user.email : 'NO USER');
+      console.log('🔐 [App] Hash:', hash);
+      console.log('🔐 [App] Params:', params.toString());
+      
+      if (user) {
+        console.log('✅ [App] OAuth callback with user - marking auth as seen');
+        setHasSeenAuth(true);
+        setHasSeenLanding(true);
+        
+        // Clean up URL
+        if (hash) {
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+        
+        // Navigate based on onboarding status
+        if (shouldShowOnboarding) {
+          console.log('🎯 [App] Redirecting to onboarding after OAuth');
+          setCurrentView('onboarding');
+        } else {
+          console.log('🏠 [App] Redirecting to home after OAuth');
+          setCurrentView('home');
+        }
+      } else {
+        console.warn('⚠️ [App] OAuth callback detected but NO USER found!');
+        console.warn('⚠️ [App] This usually means Google OAuth is not fully configured.');
+        console.warn('⚠️ [App] Check: 1) Test users in Google Cloud Console, 2) Redirect URIs, 3) Provider enabled in Supabase');
+      }
+    }
+  }, [user, shouldShowOnboarding]);
 
   // Check if we should show onboarding results after completion
   useEffect(() => {
-    if (onboarding.completed && onboarding.recommendations && user) {
+    if (onboarding.isComplete && onboarding.recommendations && user) {
       const resultsShown = localStorage.getItem('btcwheel_onboarding_results_shown');
       
       if (!resultsShown) {
@@ -109,8 +162,25 @@ function AppContent() {
       // Reset results flag if conditions not met (initial page load, etc.)
       setShouldShowResults(false);
     }
-  }, [onboarding.completed, onboarding.recommendations, user]);
+  }, [onboarding.isComplete, onboarding.recommendations, user]);
 
+  // Handler for navigation
+  const handleNavigation = (view: View, lessonId?: number) => {
+    // When navigating away from landing, mark it as seen
+    if (currentView === 'landing' && view !== 'landing') {
+      setHasSeenLanding(true);
+    }
+    setCurrentView(view);
+    if (lessonId !== undefined) {
+      setCurrentLessonId(lessonId);
+    }
+  };
+
+  // Check if user skipped auth (demo mode)
+  const isDemoMode = !user && hasSeenAuth;
+
+  // NOW we can do conditional returns - all hooks have been called
+  
   // Check URL params for test views
   if (typeof window !== 'undefined') {
     const params = new URLSearchParams(window.location.search);
@@ -139,10 +209,7 @@ function AppContent() {
 
   // Show loading while checking auth and onboarding state (only for non-landing views)
   // If we're on landing, don't show loading spinner - just show the landing page
-  // unless we are processing an auth redirect (user is logged in)
-  const isAuthRedirect = user && currentView === ('landing' as View);
-  
-  if ((authLoading || onboardingLoading) && !isAuthRedirect) {
+  if ((authLoading || onboardingLoading) && currentView !== 'landing') {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
         <div className="text-white text-center">
@@ -160,6 +227,7 @@ function AppContent() {
         <MobileOptimizations />
         <Toaster />
         <AuthView onAuthSuccess={() => {
+          setHasSeenAuth(true);
           // After auth, show onboarding if not completed, otherwise go to home
           if (shouldShowOnboarding) {
             setCurrentView('onboarding');
@@ -175,7 +243,7 @@ function AppContent() {
   // Show auth screen if no user and user has left the landing page
   // Auth is REQUIRED to access the app after leaving landing
   // SKIP in DEBUG_MODE
-  if (!DEBUG_MODE && !user && hasSeenLanding) {
+  if (!DEBUG_MODE && !user && hasSeenLanding && currentView !== 'landing' && currentView !== 'auth') {
     console.log('[App] No user found, showing auth');
     return (
       <>
@@ -183,14 +251,12 @@ function AppContent() {
         <Toaster />
         <AuthView 
           onAuthSuccess={() => {
-            // After auth, show onboarding if not completed, otherwise go to dashboard
-            // Also ensure landing page is marked as seen
-            setHasSeenLanding(true);
-            
+            setHasSeenAuth(true);
+            // After auth, show onboarding if not completed, otherwise go to home
             if (shouldShowOnboarding) {
               setCurrentView('onboarding');
             } else {
-              setCurrentView('dashboard');
+              setCurrentView('home');
             }
           }} 
         />
@@ -200,7 +266,7 @@ function AppContent() {
 
   // Show onboarding results only if flag is set AND we're not on landing
   // This ensures results only show right after completing onboarding, not on page reload
-  if (shouldShowResults && onboarding.recommendations && hasSeenLanding) {
+  if (shouldShowResults && onboarding.recommendations && currentView !== 'landing' && hasSeenLanding) {
     console.log('[App] Rendering onboarding results');
     return (
       <>
@@ -249,54 +315,66 @@ function AppContent() {
 
   // Normal app flow
   console.log('[App] Rendering normal app flow, currentView:', currentView);
+  
   return (
-    <div className="flex min-h-screen bg-[#050505] text-white overflow-hidden">
+    <div className="min-h-screen bg-gray-50">
       <MobileOptimizations />
       <MobileGestures />
       <Toaster />
       <PWAInstallPrompt />
       <AppUpdatePrompt />
-
-      {/* Main App Layout - Wraps all internal app views */}
-      <Layout currentView={currentView} onNavigate={handleNavigation}>
-        {currentView === "home" && (
-          <HomePage onNavigate={handleNavigation} />
-        )}
-        {currentView === "dashboard" && (
-          <Dashboard onNavigate={handleNavigation} />
-        )}
-        {currentView === "lessons" && (
-          <LessonList onNavigate={handleNavigation} />
-        )}
-        {currentView === "lesson" && (
-          <LessonView onNavigate={(view) => handleNavigation(view)} lessonId={currentLessonId} />
-        )}
-        {currentView === "badges" && (
-          <BadgeShowcase onNavigate={handleNavigation} />
-        )}
-        {currentView === "simulation" && (
-          <SimulationView onNavigate={handleNavigation} />
-        )}
-        {currentView === "leaderboard" && (
-          <LeaderboardView onNavigate={handleNavigation} />
-        )}
-        {currentView === "settings" && (
-          <SettingsView onNavigate={handleNavigation} />
-        )}
-      </Layout>
+      {currentView === "landing" && (
+        <LandingPage onNavigate={handleNavigation} />
+      )}
+      {currentView === "home" && (
+        <HomePage onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "dashboard" && (
+        <Dashboard onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "lessons" && (
+        <LessonList onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "lesson" && (
+        <LessonView onNavigate={(view) => handleNavigation(view)} lessonId={currentLessonId} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "badges" && (
+        <BadgeShowcase onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "simulation" && (
+        <SimulationView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "longterm" && (
+        <LongTermSimulator onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "wheel-strategy" && (
+        <WheelStrategyView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "leaderboard" && (
+        <LeaderboardView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "settings" && (
+        <SettingsView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
+      {currentView === "exchange" && (
+        <ExchangeView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+      )}
       
-      {/* AI-Powered Mascot - Available globally */}
-      <MascotAI 
-        lessonContext={
-          currentView === 'lesson' 
-            ? {
-                lessonId: currentLessonId,
-                lessonTitle: `Lezione ${currentLessonId}`,
-              }
-            : undefined
-        }
-        currentView={currentView}
-      />
+      {/* AI-Powered Mascot - Available globally (except landing) */}
+      {currentView !== 'landing' && (
+        <MascotAI 
+          lessonContext={
+            currentView === 'lesson' 
+              ? {
+                  lessonId: currentLessonId,
+                  lessonTitle: `Lezione ${currentLessonId}`,
+                }
+              : undefined
+          }
+          isVisible={mascotVisible}
+          onVisibilityChange={setMascotVisible}
+        />
+      )}
     </div>
   );
 }

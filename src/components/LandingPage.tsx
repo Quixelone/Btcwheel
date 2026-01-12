@@ -19,20 +19,27 @@ import {
   Sparkles,
   BarChart3,
   BookOpen,
+  Award,
+  Globe,
   ArrowRight,
+  Bitcoin,
   Flame,
-  Lock
+  Lock,
+  Unlock
 } from 'lucide-react';
 import type { View } from '../App';
 
 // Prof Satoshi mascot images - NEW professional 3D renders
-const profSatoshiExcited = '/mascot-excited.png'; // Thumbs up
+import profSatoshiExcited from 'figma:asset/ab3d59171ab68c537dd57d97d7e9d4de0a06850d.png'; // Jumping with confetti
+import profSatoshiNormal from 'figma:asset/f29b56f4742151c06a28cc25bd25d8102cbe4d79.png'; // Double thumbs up
+import profSatoshiConfident from 'figma:asset/7d386e671a6e8284b17426eaf3e9958b6a264ae0.png'; // Hands on hips
 
 // btcwheel logo - NEW circular emerald design (transparent)
-const btcwheelLogoPng = '/logo.svg';
+import btcwheelLogoPng from 'figma:asset/b2ebfbbeb483ffdf078e6ecdca686b1e139921dc.png';
 
 // For backward compatibility with existing code
 const mascotExcitedImage = profSatoshiExcited;
+const mascotNormalImage = profSatoshiNormal;
 const btcwheelLogo = btcwheelLogoPng;
 
 interface LandingPageProps {
@@ -91,16 +98,17 @@ function FloatingOrb({ delay = 0, color }: { delay?: number; color: string }) {
 
 export function LandingPage({ onNavigate }: LandingPageProps) {
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null);
+  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
   const heroRef = useRef<HTMLDivElement>(null);
   
   // Parallax removed - hero content stays visible while scrolling
 
   useEffect(() => {
-    // const handleMouseMove = (e: MouseEvent) => {
-    //   setMousePosition({ x: e.clientX, y: e.clientY });
-    // };
-    // window.addEventListener('mousemove', handleMouseMove);
-    // return () => window.removeEventListener('mousemove', handleMouseMove);
+    const handleMouseMove = (e: MouseEvent) => {
+      setMousePosition({ x: e.clientX, y: e.clientY });
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
   const features = [

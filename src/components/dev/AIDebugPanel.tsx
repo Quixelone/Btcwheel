@@ -8,10 +8,11 @@ interface AIDebugPanelProps {
     correctAnswers: number;
     wrongAnswers: number;
     consecutiveWrong: number;
-    accuracy: number;
+    consecutiveCorrect: number;
     difficultyLevel: 'easy' | 'medium' | 'hard';
-    previousQuestions: string[];
     weakTopics: string[];
+    questionsAsked: string[];
+    totalAttempts: number;
   };
   isGenerating: boolean;
   onGenerateTest?: () => void;
@@ -19,6 +20,12 @@ interface AIDebugPanelProps {
 
 export function AIDebugPanel({ performance, isGenerating, onGenerateTest }: AIDebugPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
+
+  // Calculate accuracy from performance data
+  const totalQuestions = performance.correctAnswers + performance.wrongAnswers;
+  const accuracy = totalQuestions > 0 
+    ? (performance.correctAnswers / totalQuestions) * 100 
+    : 0;
 
   if (!isOpen) {
     return (
@@ -78,21 +85,21 @@ export function AIDebugPanel({ performance, isGenerating, onGenerateTest }: AIDe
             <div className="flex items-center justify-between mb-1">
               <span className="text-gray-400 text-sm">Accuracy:</span>
               <span className={`font-semibold ${
-                performance.accuracy >= 70 ? 'text-green-400' :
-                performance.accuracy >= 50 ? 'text-yellow-400' :
+                accuracy >= 70 ? 'text-green-400' :
+                accuracy >= 50 ? 'text-yellow-400' :
                 'text-red-400'
               }`}>
-                {performance.accuracy.toFixed(1)}%
+                {accuracy.toFixed(1)}%
               </span>
             </div>
             <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
               <div 
                 className={`h-full transition-all ${
-                  performance.accuracy >= 70 ? 'bg-green-500' :
-                  performance.accuracy >= 50 ? 'bg-yellow-500' :
+                  accuracy >= 70 ? 'bg-green-500' :
+                  accuracy >= 50 ? 'bg-yellow-500' :
                   'bg-red-500'
                 }`}
-                style={{ width: `${performance.accuracy}%` }}
+                style={{ width: `${accuracy}%` }}
               />
             </div>
           </div>
@@ -124,7 +131,7 @@ export function AIDebugPanel({ performance, isGenerating, onGenerateTest }: AIDe
           {/* Previous Questions Count */}
           <div className="flex items-center justify-between text-sm">
             <span className="text-gray-400">Domande storico:</span>
-            <span className="text-white">{performance.previousQuestions.length}</span>
+            <span className="text-white">{performance.questionsAsked.length}</span>
           </div>
 
           {/* AI Status */}

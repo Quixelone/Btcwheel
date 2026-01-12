@@ -25,10 +25,7 @@ export type ActivityType =
   | 'ai_listening'
   | 'ai_thinking'
   | 'ai_responding'
-  | 'idle'
-  | 'excited'
-  | 'celebrating'
-  | 'disappointed';
+  | 'idle';
 
 interface MascotEmotionState {
   emotion: EmotionType;

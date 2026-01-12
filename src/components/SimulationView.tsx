@@ -1,21 +1,23 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Navigation } from './Navigation';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
 import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { useUserProgress } from '../hooks/useUserProgress';
-import { useDashboardData } from '../hooks/useDashboardData';
-import { useAuth } from '../hooks/useAuth';
-import { supabase } from '../lib/supabase';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, Target, Lock, CheckCircle2, HelpCircle, Wallet, Calendar, Percent, BarChart3 } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { TrendingUp, TrendingDown, DollarSign, ArrowLeft, Target, Trophy, Lock, CheckCircle2, Lightbulb, Rocket, HelpCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { motion } from 'motion/react';
 import { SimulationTutorial } from './SimulationTutorial';
 import type { View } from '../App';
 
 interface SimulationViewProps {
   onNavigate: (view: View) => void;
+  mascotVisible?: boolean;
+  onMascotToggle?: () => void;
 }
 
 interface Position {
@@ -48,7 +50,6 @@ interface Mission {
     step: number;
     title: string;
     content: string;
-    mascotEmotion?: 'excited' | 'normal' | 'teaching' | 'explaining' | 'celebrating' | 'happy';
   }[];
   status: 'locked' | 'active' | 'completed';
   unlockRequirement?: string;
@@ -73,20 +74,17 @@ const MISSIONS: Mission[] = [
       {
         step: 1,
         title: 'Cos\'è una Put?',
-        content: 'Vendere una put significa che accetti di comprare Bitcoin a un prezzo fisso (strike) se il prezzo scende. In cambio, ricevi subito un pagamento (premium).',
-        mascotEmotion: 'teaching'
+        content: 'Vendere una put significa che accetti di comprare Bitcoin a un prezzo fisso (strike) se il prezzo scende. In cambio, ricevi subito un pagamento (premium).'
       },
       {
         step: 2,
         title: 'Scegli lo Strike',
-        content: 'Seleziona uno strike price SOTTO il prezzo corrente di Bitcoin. Consiglio: inizia con 5-10% sotto il prezzo attuale per maggiore sicurezza.',
-        mascotEmotion: 'explaining'
+        content: 'Seleziona uno strike price SOTTO il prezzo corrente di Bitcoin. Consiglio: inizia con 5-10% sotto il prezzo attuale per maggiore sicurezza.'
       },
       {
         step: 3,
         title: 'Raccogli il Premium',
-        content: 'Il premium è il tuo guadagno immediato! Più basso è lo strike, più basso è il premium ma più sicura è la posizione.',
-        mascotEmotion: 'excited'
+        content: 'Il premium è il tuo guadagno immediato! Più basso è lo strike, più basso è il premium ma più sicura è la posizione.'
       }
     ],
     status: 'active',
@@ -109,14 +107,12 @@ const MISSIONS: Mission[] = [
       {
         step: 1,
         title: 'Diversifica le Posizioni',
-        content: 'Invece di vendere tutto in una volta, distribuisci le tue put in diversi strike price per gestire meglio il rischio.',
-        mascotEmotion: 'teaching'
+        content: 'Invece di vendere tutto in una volta, distribuisci le tue put in diversi strike price per gestire meglio il rischio.'
       },
       {
         step: 2,
         title: 'Timing del Mercato',
-        content: 'Il premium è più alto quando il mercato è volatile. Osserva il grafico e vendi quando vedi movimenti ampi.',
-        mascotEmotion: 'normal'
+        content: 'Il premium è più alto quando il mercato è volatile. Osserva il grafico e vendi quando vedi movimenti ampi.'
       }
     ],
     status: 'locked',
@@ -140,20 +136,17 @@ const MISSIONS: Mission[] = [
       {
         step: 1,
         title: 'Cosa è l\'Assegnazione?',
-        content: 'Se Bitcoin scende sotto il tuo strike, devi comprare BTC al prezzo dello strike. Non è una perdita - hai già guadagnato il premium!',
-        mascotEmotion: 'explaining'
+        content: 'Se Bitcoin scende sotto il tuo strike, devi comprare BTC al prezzo dello strike. Non è una perdita - hai già guadagnato il premium!'
       },
       {
         step: 2,
         title: 'Prezzo di Carico',
-        content: 'Il tuo prezzo effettivo è: Strike - Premium ricevuto. Esempio: Strike $40k, Premium $500 = Prezzo reale $39,500.',
-        mascotEmotion: 'teaching'
+        content: 'Il tuo prezzo effettivo è: Strike - Premium ricevuto. Esempio: Strike $40k, Premium $500 = Prezzo reale $39,500.'
       },
       {
         step: 3,
         title: 'Prossimo Step',
-        content: 'Ora che possiedi BTC, puoi vendere covered calls per generare più reddito. Questo è il cuore della Wheel Strategy!',
-        mascotEmotion: 'excited'
+        content: 'Ora che possiedi BTC, puoi vendere covered calls per generare più reddito. Questo è il cuore della Wheel Strategy!'
       }
     ],
     status: 'locked',
@@ -177,20 +170,17 @@ const MISSIONS: Mission[] = [
       {
         step: 1,
         title: 'Covered Call',
-        content: 'Vendere una call significa che accetti di vendere il tuo BTC a un prezzo più alto (strike) se il prezzo sale. Ricevi premium anche qui!',
-        mascotEmotion: 'teaching'
+        content: 'Vendere una call significa che accetti di vendere il tuo BTC a un prezzo più alto (strike) se il prezzo sale. Ricevi premium anche qui!'
       },
       {
         step: 2,
         title: 'Strike Sopra il Prezzo',
-        content: 'Scegli uno strike SOPRA il prezzo corrente. Se BTC sale sopra, vendi con profitto. Se no, tieni il premium e il BTC.',
-        mascotEmotion: 'explaining'
+        content: 'Scegli uno strike SOPRA il prezzo corrente. Se BTC sale sopra, vendi con profitto. Se no, tieni il premium e il BTC.'
       },
       {
         step: 3,
         title: 'Doppio Guadagno',
-        content: 'Hai già guadagnato dalla put, ora guadagni anche dalla call. È così che la Wheel genera rendimento costante!',
-        mascotEmotion: 'celebrating'
+        content: 'Hai già guadagnato dalla put, ora guadagni anche dalla call. È così che la Wheel genera rendimento costante!'
       }
     ],
     status: 'locked',
@@ -214,20 +204,17 @@ const MISSIONS: Mission[] = [
       {
         step: 1,
         title: 'Il Ciclo Completo',
-        content: 'Vendi put → Vieni assegnato → Vendi call → Bitcoin chiamato via → Ricomincia. Questo è come i professionisti generano reddito passivo.',
-        mascotEmotion: 'normal'
+        content: 'Vendi put → Vieni assegnato → Vendi call → Bitcoin chiamato via → Ricomincia. Questo è come i professionisti generano reddito passivo.'
       },
       {
         step: 2,
         title: 'Optimization',
-        content: 'Ogni ciclo genera profitto. Più cicli completi, più guadagni. L\'obiettivo è ripetere questo processo indefinitamente.',
-        mascotEmotion: 'explaining'
+        content: 'Ogni ciclo genera profitto. Più cicli completi, più guadagni. L\'obiettivo è ripetere questo processo indefinitamente.'
       },
       {
         step: 3,
         title: 'Congratulazioni!',
-        content: 'Hai padroneggiato la Wheel Strategy! Ora sei pronto per applicarla nel mondo reale con capitale vero.',
-        mascotEmotion: 'celebrating'
+        content: 'Hai padroneggiato la Wheel Strategy! Ora sei pronto per applicarla nel mondo reale con capitale vero.'
       }
     ],
     status: 'locked',
@@ -235,172 +222,24 @@ const MISSIONS: Mission[] = [
   }
 ];
 
-export function SimulationView({ onNavigate }: SimulationViewProps) {
-  const { user } = useAuth();
-  const { addXP } = useUserProgress();
-  const { gamification, journalStats } = useDashboardData();
-  const [btcPrice, setBtcPrice] = useState(96000);
-  const [cashBalance, setCashBalance] = useState(10000); // 🎯 Renamed from portfolioValue to track actual cash
+export function SimulationView({ onNavigate, mascotVisible, onMascotToggle }: SimulationViewProps) {
+  const { progress: userProgress, addXP } = useUserProgress();
+  const [btcPrice, setBtcPrice] = useState(96000); // 🎯 Prezzo reale dicembre 2024
+  const [portfolioValue, setPortfolioValue] = useState(10000);
   const [positions, setPositions] = useState<Position[]>([]);
   const [priceHistory, setPriceHistory] = useState<Array<{ time: string; price: number }>>([]);
   const [missions, setMissions] = useState<Mission[]>(MISSIONS);
   const [activeMission, setActiveMission] = useState<Mission | null>(MISSIONS[0]);
-  const [showMainTutorial, setShowMainTutorial] = useState(false);
+  const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(true);
+  const [showMainTutorial, setShowMainTutorial] = useState(true); // 🎯 NEW: Main tutorial modal
   const [btcOwned, setBtcOwned] = useState(0);
-
-  // 🎯 GENERATE MOCK HISTORICAL DATA (2 Months)
-  useEffect(() => {
-    // 1. Generate Price History (Last 60 days)
-    const history = [];
-    let currentPrice = 82000;
-    const volatility = 0.02; 
-    const trend = 0.002; 
-    const now = new Date();
-
-    for (let i = 60; i >= 0; i--) {
-      const date = new Date(now);
-      date.setDate(date.getDate() - i);
-      
-      const change = (Math.random() - 0.45) * volatility; 
-      currentPrice = currentPrice * (1 + change + trend);
-      
-      history.push({
-        time: date.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit' }),
-        price: Math.round(currentPrice)
-      });
-    }
-    
-    setPriceHistory(history);
-    setBtcPrice(Math.round(currentPrice));
-
-    // 2. Generate Historical Trades
-    const mockPositions: Position[] = [
-      {
-        id: 'pos-1',
-        type: 'put',
-        strike: 78000,
-        premium: 450,
-        quantity: 1,
-        openDate: new Date(now.getTime() - 45 * 24 * 60 * 60 * 1000), 
-        status: 'closed',
-        assignmentPrice: undefined // Expired
-      },
-      {
-        id: 'pos-2',
-        type: 'put',
-        strike: 84000,
-        premium: 600,
-        quantity: 1,
-        openDate: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), 
-        status: 'closed',
-        assignmentPrice: 84000 // Assigned
-      },
-      {
-        id: 'pos-3',
-        type: 'call',
-        strike: 98000,
-        premium: 300,
-        quantity: 1,
-        openDate: new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000), 
-        status: 'open'
-      },
-      {
-        id: 'pos-4',
-        type: 'put',
-        strike: 92000,
-        premium: 550,
-        quantity: 1,
-        openDate: new Date(now.getTime() - 2 * 24 * 60 * 60 * 1000), 
-        status: 'open'
-      }
-    ];
-
-    setPositions(mockPositions);
-    setBtcOwned(1); // Result of pos-2 assignment
-    setCashBalance(15000); // Simulate some cash
-  }, []);
-
-  // 🎯 FORCE TUTORIAL OFF - Temporary fix for HMR state preservation
-  useEffect(() => {
-    setShowMainTutorial(false);
-  }, []);
   
-  // Calculate Total Equity (Cash + BTC Value)
-  const totalEquity = cashBalance + (btcOwned * btcPrice);
-  const portfolioPnL = totalEquity - 10000;
-
-  // 🎯 Strategy & Break-even Calculations
-  const strategy = {
-    initialCapital: 10000,
-    recurringDeposit: 500,
-    dailyTarget: 0.15,
-    duration: 12 // months
-  };
-
-  const totalPremiumsAssigned = positions
-    .filter(p => p.type === 'put' && p.status === 'closed' && p.assignmentPrice !== undefined)
-    .reduce((acc, p) => acc + (p.premium * p.quantity), 0);
-  
-  // Calculate Average Entry Price (Cost Basis) for owned BTC
-  // Logic: Sum of strikes for assigned puts (where we bought BTC) divided by total assigned BTC
-  // Then subtract total premiums collected per BTC to get Break-even
-  const assignedPuts = positions.filter(p => p.type === 'put' && p.status === 'closed' && p.assignmentPrice !== undefined);
-  const totalAssignedBTC = assignedPuts.reduce((acc, p) => acc + p.quantity, 0);
-  const totalAssignmentCost = assignedPuts.reduce((acc, p) => acc + (p.strike * p.quantity), 0);
-  const averageEntryPrice = totalAssignedBTC > 0 ? totalAssignmentCost / totalAssignedBTC : 0;
-  const totalPremiumsCycle = positions.reduce((acc, p) => acc + (p.premium * p.quantity), 0);
-  const breakEvenPrice = btcOwned > 0 ? averageEntryPrice - (totalPremiumsCycle / btcOwned) : 0;
-  const dropPctVsStrike = averageEntryPrice > 0 ? ((averageEntryPrice - breakEvenPrice) / averageEntryPrice) * 100 : 0;
-
-  // Sync missions with Supabase data
-  useEffect(() => {
-    if (gamification || journalStats) {
-      setMissions(prevMissions => prevMissions.map(mission => {
-        const updatedObjectives = mission.objectives.map(obj => {
-          if (obj.type === 'sell_option' && journalStats.totalTrades) {
-            return { ...obj, current: Math.max(obj.current, journalStats.totalTrades) };
-          }
-          if (obj.type === 'collect_premium' && gamification?.trading_volume) {
-            return { ...obj, current: Math.max(obj.current, gamification.trading_volume) };
-          }
-          return obj;
-        });
-
-        // Check completion
-        const allCompleted = updatedObjectives.every(obj => obj.current >= obj.target);
-        const status = allCompleted ? 'completed' : mission.status;
-
-        return { ...mission, objectives: updatedObjectives, status };
-      }));
-    }
-  }, [gamification, journalStats]);
-
   // Form states
   const [optionType, setOptionType] = useState<'put' | 'call'>('put');
-  const [strikePrice, setStrikePrice] = useState('90000');
-  const [premium, setPremium] = useState('800');
+  const [strikePrice, setStrikePrice] = useState('90000'); // 🎯 Aggiornato
+  const [premium, setPremium] = useState('800'); // 🎯 Più realistico
   const [quantity, setQuantity] = useState('1');
-
-  const strikeNumeric = parseFloat(strikePrice || '0');
-  const qtyNumeric = parseInt(quantity || '1');
-  const premiumNumeric = parseFloat(premium || '0');
-  const distancePct = btcPrice > 0 && strikeNumeric > 0 ? Math.abs(strikeNumeric - btcPrice) / btcPrice * 100 : 0;
-  const riskLabel = distancePct > 5 ? 'Sicuro' : 'Rischioso';
-  const lastRiskRef = useRef(false);
-  useEffect(() => {
-    const highRisk = riskLabel === 'Rischioso' && distancePct < 2.5 && strikeNumeric > 0;
-    if (highRisk && !lastRiskRef.current) {
-      window.dispatchEvent(new CustomEvent('mascot:risk', { detail: { distancePct, strike: strikeNumeric, btcPrice } }));
-      lastRiskRef.current = true;
-    }
-    if (!highRisk) {
-      lastRiskRef.current = false;
-    }
-  }, [riskLabel, distancePct, strikeNumeric, btcPrice]);
-
-  useEffect(() => {
-    window.dispatchEvent(new CustomEvent('order:distance', { detail: { distancePct, riskLabel, strike: strikeNumeric, btcPrice } }));
-  }, [distancePct, riskLabel, strikeNumeric, btcPrice]);
 
   // 🎯 Calcolo automatico strike e premium intelligenti
   useEffect(() => {
@@ -427,30 +266,17 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     }
   }, [optionType, btcPrice]);
 
-  // Live BTC price fetch (30s)
+  // Simulate BTC price changes (range più realistico per 2024)
   useEffect(() => {
-    let cancelled = false;
+    const interval = setInterval(() => {
+      setBtcPrice(prev => {
+        const change = (Math.random() - 0.5) * 2000; // Volatilità maggiore
+        const newPrice = Math.max(85000, Math.min(105000, prev + change)); // Range $85k-$105k
+        return Math.round(newPrice);
+      });
+    }, 3000);
 
-    const fetchPrice = async () => {
-      try {
-        const res = await fetch('https://api.coinbase.com/v2/prices/BTC-USD/spot');
-        const json = await res.json();
-        const amt = parseFloat(json?.data?.amount);
-        if (!cancelled && !Number.isNaN(amt)) {
-          setBtcPrice(Math.round(amt));
-        }
-      } catch {
-        // Silent fallback: keep last price
-      }
-    };
-
-    // initial fetch and interval
-    fetchPrice();
-    const interval = setInterval(fetchPrice, 30000);
-    return () => {
-      cancelled = true;
-      clearInterval(interval);
-    };
+    return () => clearInterval(interval);
   }, []);
 
   // Update price history
@@ -460,35 +286,30 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     
     setPriceHistory(prev => {
       const newHistory = [...prev, { time: timeString, price: btcPrice }];
-      return newHistory.slice(-100); // Keep 100 points
+      return newHistory.slice(-20);
     });
   }, [btcPrice]);
 
   // Check for assignments when price changes
   useEffect(() => {
     positions.forEach(position => {
-      if (position.status === 'open' && !position.assignmentPrice) {
-        // Handle Put Assignment (Buy BTC)
-        if (position.type === 'put' && btcPrice < position.strike) {
+      if (position.status === 'open' && position.type === 'put' && !position.assignmentPrice) {
+        if (btcPrice < position.strike) {
+          // Simulate assignment
           handleAssignment(position.id);
-        }
-        // Handle Call Assignment (Sell BTC)
-        else if (position.type === 'call' && btcPrice > position.strike) {
-          handleCallAssignment(position.id);
         }
       }
     });
-  }, [btcPrice, positions]);
+  }, [btcPrice]);
 
   const handleAssignment = (positionId: string) => {
     const position = positions.find(p => p.id === positionId);
     if (!position) return;
 
     const btcQuantity = position.quantity;
-    const cost = position.strike * btcQuantity;
+    const costBasis = position.strike - position.premium;
 
     setBtcOwned(prev => prev + btcQuantity);
-    setCashBalance(prev => prev - cost); // Pay for BTC
     setPositions(positions.map(p => 
       p.id === positionId ? { ...p, status: 'closed' as const, assignmentPrice: btcPrice } : p
     ));
@@ -496,40 +317,17 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     // Update mission progress
     updateMissionProgress('handle_assignment', 1);
 
-    toast.success('⚡ Assegnazione Put (Acquisto)!', {
-      description: `Hai acquistato ${btcQuantity} BTC a $${position.strike}. Cash utilizzato: $${cost.toLocaleString()}`
+    toast.success('⚡ Assegnazione Ricevuta!', {
+      description: `Hai acquistato ${btcQuantity} BTC a $${position.strike}. Prezzo effettivo: $${costBasis.toFixed(0)} (dopo premium)`
     });
 
     addXP(300);
   };
 
-  const handleCallAssignment = (positionId: string) => {
-    const position = positions.find(p => p.id === positionId);
-    if (!position) return;
-
-    const btcQuantity = position.quantity;
-    const revenue = position.strike * btcQuantity;
-
-    setBtcOwned(prev => prev - btcQuantity);
-    setCashBalance(prev => prev + revenue); // Receive cash from sale
-    setPositions(positions.map(p => 
-      p.id === positionId ? { ...p, status: 'closed' as const, assignmentPrice: btcPrice } : p
-    ));
-
-    // Update mission progress
-    updateMissionProgress('complete_wheel', 1);
-
-    toast.success('⚡ Assegnazione Call (Vendita)!', {
-      description: `Hai venduto ${btcQuantity} BTC a $${position.strike}. Incasso: $${revenue.toLocaleString()}`
-    });
-
-    addXP(500);
-  };
-
-  const handleSellOption = async () => {
-    const strike = strikeNumeric;
-    const prem = premiumNumeric;
-    const qty = qtyNumeric;
+  const handleSellOption = () => {
+    const strike = parseFloat(strikePrice);
+    const prem = parseFloat(premium);
+    const qty = parseInt(quantity);
 
     if (isNaN(strike) || isNaN(prem) || isNaN(qty) || qty <= 0) {
       toast.error('Inserisci valori validi');
@@ -548,17 +346,6 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
       return;
     }
 
-    // Validation for cash-secured puts (optional warning)
-    if (optionType === 'put') {
-      const requiredCollateral = strike * qty;
-      if (cashBalance < requiredCollateral) {
-        toast.warning('Attenzione: Cash insufficiente per coprire l\'assegnazione', {
-          description: `Hai $${cashBalance.toLocaleString()}, servono $${requiredCollateral.toLocaleString()}`
-        });
-        // We allow it in simulation but warn
-      }
-    }
-
     const newPosition: Position = {
       id: Date.now().toString(),
       type: optionType,
@@ -570,7 +357,7 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     };
 
     setPositions([...positions, newPosition]);
-    setCashBalance(prev => prev + (prem * qty)); // Add premium to cash
+    setPortfolioValue(prev => prev + (prem * qty));
     
     // Update mission progress
     updateMissionProgress('sell_option', 1);
@@ -579,36 +366,14 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     const xpReward = optionType === 'call' ? 150 : 100;
     addXP(xpReward);
     
-    // Log to Supabase
-    if (user) {
-      try {
-        const { error } = await supabase.from('trades').insert({
-          user_id: user.id,
-          type: optionType,
-          asset: 'BTC',
-          strike_price: strike,
-          premium: prem,
-          quantity: qty,
-          entry_price: btcPrice,
-          status: 'OPEN',
-          opened_at: new Date().toISOString(),
-          total_premium: prem * qty,
-          distance_pct: distancePct
-        });
-        
-        if (error) {
-          console.error('Error logging trade to Supabase:', error);
-          // Don't show error to user as it's a background sync
-        }
-      } catch (err) {
-        console.error('Error logging trade:', err);
-      }
-    }
-
     toast.success(`✅ ${optionType === 'put' ? 'Put' : 'Call'} venduta!`, {
       description: `+$${prem * qty} premium raccolto | +${xpReward} XP`
     });
-    window.dispatchEvent(new CustomEvent('mascot:celebrate', { detail: { type: optionType, premium: prem * qty } }));
+
+    // Show next tutorial step if available
+    if (activeMission && currentTutorialStep < activeMission.tutorial.length - 1) {
+      setCurrentTutorialStep(prev => prev + 1);
+    }
   };
 
   const handleClosePosition = (positionId: string) => {
@@ -622,7 +387,7 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
     const premiumCollected = position.premium * position.quantity;
     const profit = premiumCollected - currentValue;
 
-    setCashBalance(prev => prev - currentValue); // Pay to close
+    setPortfolioValue(prev => prev - currentValue);
     setPositions(positions.map(p => 
       p.id === positionId ? { ...p, status: 'closed' as const } : p
     ));
@@ -709,6 +474,8 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
           status: 'active' as const
         };
         setActiveMission(nextMissionWithProgress);
+        setCurrentTutorialStep(0);
+        setShowTutorial(true);
         
         toast.success('🔓 Nuova Missione Attivata!', {
           description: nextMission.title,
@@ -734,459 +501,372 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
       return;
     }
     setActiveMission(mission);
+    setCurrentTutorialStep(0);
+    setShowTutorial(true);
   };
 
   const openPositions = positions.filter(p => p.status === 'open');
+  const totalPremiumCollected = positions.reduce((acc, p) => acc + (p.premium * p.quantity), 0);
+  const portfolioPnL = portfolioValue - 10000;
+
+  const getDifficultyColor = (difficulty: Mission['difficulty']) => {
+    switch (difficulty) {
+      case 'easy': return 'bg-green-100 text-green-700';
+      case 'medium': return 'bg-blue-100 text-blue-700';
+      case 'hard': return 'bg-orange-100 text-orange-700';
+      case 'expert': return 'bg-purple-100 text-purple-700';
+    }
+  };
 
   return (
-    <div className="min-h-screen pb-24 md:pb-0 bg-[#050505] text-white max-w-full overflow-x-hidden relative">
-      <Navigation currentView="simulation" onNavigate={onNavigate} />
+    <div className="min-h-screen md:pl-20 pb-24 md:pb-0 bg-gray-50">
+      <Navigation currentView="simulation" onNavigate={onNavigate} onMascotToggle={onMascotToggle} mascotVisible={mascotVisible} />
       
-      <header className="bg-zinc-900/50 backdrop-blur-md border-b border-white/10 sticky top-0 z-30">
-        <div className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <div>
-            <h1 className="text-white truncate font-bold text-xl">🎯 Trading Journal</h1>
-            <p className="text-gray-400 hidden md:block text-sm">Monitora le tue performance e gestisci il rischio</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="outline" size="sm" className="hidden md:flex border-white/10 text-gray-300 hover:text-white hover:bg-white/10">
-              <HelpCircle className="w-4 h-4 mr-2" />
-              Guida
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-4 py-4 md:px-6 sticky top-0 z-30 safe-area-top">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center gap-3 md:gap-4">
+            <Button variant="ghost" onClick={() => onNavigate('home')} size="sm" className="h-10">
+              <ArrowLeft className="w-5 h-5 md:w-4 md:h-4 mr-2" />
+              <span className="hidden md:inline">Indietro</span>
             </Button>
-            <div className="flex items-center gap-2 bg-zinc-800/50 px-3 py-1.5 rounded-full border border-white/10">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              <span className="text-xs font-medium text-emerald-400">Market Open</span>
+            <div className="flex-1 min-w-0">
+              <h1 className="text-gray-900 truncate">🎯 Trading Missions</h1>
+              <p className="text-gray-600 hidden md:block">Impara la Wheel Strategy passo dopo passo</p>
             </div>
+            <Button 
+              onClick={() => onNavigate('wheel-strategy')} 
+              size="sm"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <TrendingUp className="w-4 h-4 md:mr-2" />
+              <span className="hidden md:inline">Wheel Dashboard</span>
+            </Button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="max-w-screen-2xl mx-auto px-4 sm:px-6 py-5 md:py-8">
-        {/* Stats Cards - New Glassmorphism & Dynamic Data */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-          
-          {/* 1. BTC Price Live */}
-          <Card className="relative overflow-hidden p-4 bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white group hover:border-white/20 transition-all">
-            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-              <TrendingUp className="w-16 h-16 text-emerald-500" />
-            </div>
-            <div className="flex flex-col h-full justify-between relative z-10">
-              <div>
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">BTC Price Live</p>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-2xl font-bold">${btcPrice.toLocaleString()}</span>
-                  <span className="flex items-center text-xs text-emerald-400 font-medium bg-emerald-500/10 px-1.5 py-0.5 rounded">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse mr-1"></span>
-                    Live
-                  </span>
-                </div>
-              </div>
-              <div className="mt-3 text-xs text-gray-500 flex items-center gap-1">
-                <BarChart3 className="w-3 h-3" />
-                <span>Aggiornato in tempo reale</span>
-              </div>
+      <main className="max-w-7xl mx-auto px-4 py-5 md:px-6 md:py-8">
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6">
+          <Card className="p-4 md:p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+            <p className="text-blue-100 mb-2">BTC Price</p>
+            <p className="font-bold mb-2">${btcPrice.toLocaleString()}</p>
+            <div className="flex items-center gap-1 text-blue-100">
+              <TrendingUp className="w-4 h-4" />
+              <span>Live</span>
             </div>
           </Card>
 
-          {/* 2. Active Strategy Widget */}
-          <Card className="relative overflow-hidden p-4 bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white group hover:border-white/20 transition-all">
-            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Target className="w-16 h-16 text-blue-500" />
-            </div>
-            <div className="flex flex-col h-full relative z-10">
-              <div className="flex justify-between items-start mb-2">
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider">Strategia Attiva</p>
-                <Badge variant="outline" className="text-[10px] h-5 border-blue-500/30 text-blue-400 bg-blue-500/10">
-                  {strategy.duration} Mesi
-                </Badge>
-              </div>
-              <div className="grid grid-cols-2 gap-y-2 gap-x-4 mt-1">
-                <div>
-                  <div className="text-[10px] text-gray-500 flex items-center gap-1"><Wallet className="w-3 h-3" /> Capitale</div>
-                  <div className="font-bold text-sm">${strategy.initialCapital.toLocaleString()}</div>
-                </div>
-                <div>
-                  <div className="text-[10px] text-gray-500 flex items-center gap-1"><Calendar className="w-3 h-3" /> Ricorrente</div>
-                  <div className="font-bold text-sm">+${strategy.recurringDeposit}/mo</div>
-                </div>
-                <div className="col-span-2 pt-2 border-t border-white/5 mt-1">
-                   <div className="flex justify-between items-center">
-                     <span className="text-[10px] text-gray-500 flex items-center gap-1"><Percent className="w-3 h-3" /> Target Giornaliero</span>
-                     <span className="font-bold text-emerald-400 text-sm">{strategy.dailyTarget}%</span>
-                   </div>
-                   <Progress value={65} className="h-1 mt-1.5 bg-zinc-800" indicatorClassName="bg-emerald-500" />
-                </div>
-              </div>
+          <Card className="p-4 md:p-6">
+            <p className="text-gray-600 mb-2">Portfolio</p>
+            <p className="text-gray-900 mb-2 font-bold">${portfolioValue.toLocaleString()}</p>
+            <div className={`flex items-center gap-1 ${portfolioPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+              {portfolioPnL >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              <span>{portfolioPnL >= 0 ? '+' : ''}{portfolioPnL.toFixed(0)}</span>
             </div>
           </Card>
 
-          {/* 3. Break-even Price (Average Cost) */}
-          <Card className="relative overflow-hidden p-4 bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white group hover:border-white/20 transition-all">
-            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-              <Wallet className="w-16 h-16 text-orange-500" />
-            </div>
-            <div className="flex flex-col h-full justify-between relative z-10">
-              <div>
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Prezzo di Carico (BEP)</p>
-                {btcOwned > 0 ? (
-                  <>
-                    <div className="text-2xl font-bold text-white">
-                      ${breakEvenPrice > 0 ? breakEvenPrice.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '0'}
-                    </div>
-                    <div className="text-xs text-gray-400 mt-1">
-                      Avg. Entry: <span className="text-gray-300">${averageEntryPrice.toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                    </div>
-                    <div className="text-xs font-medium text-emerald-400 mt-1">-{dropPctVsStrike.toFixed(2)}% vs Strike</div>
-                  </>
-                ) : (
-                  <div className="text-sm text-gray-500 italic mt-2">Nessun BTC in portafoglio</div>
-                )}
-              </div>
-              <div className="mt-3">
-                 {btcOwned > 0 && (
-                   <div className={`text-xs font-medium flex items-center gap-1 ${btcPrice > breakEvenPrice ? 'text-emerald-400' : 'text-red-400'}`}>
-                     {btcPrice > breakEvenPrice ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
-                     {btcPrice > breakEvenPrice ? 'In Profitto' : 'Sotto BEP'}
-                     <span className="opacity-50 ml-1">
-                       ({((btcPrice - breakEvenPrice) / breakEvenPrice * 100).toFixed(2)}%)
-                     </span>
-                   </div>
-                 )}
-              </div>
+          <Card className="p-4 md:p-6">
+            <p className="text-gray-600 mb-2">Premium</p>
+            <p className="text-gray-900 mb-2 font-bold">${totalPremiumCollected.toLocaleString()}</p>
+            <div className="flex items-center gap-1 text-green-600">
+              <DollarSign className="w-4 h-4" />
+              <span>{positions.length} trades</span>
             </div>
           </Card>
 
-          {/* 4. Total Equity & PnL (Merged) */}
-          <Card className="relative overflow-hidden p-4 bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white group hover:border-white/20 transition-all">
-            <div className="absolute top-0 right-0 p-3 opacity-10 group-hover:opacity-20 transition-opacity">
-              <DollarSign className="w-16 h-16 text-purple-500" />
-            </div>
-            <div className="flex flex-col h-full justify-between relative z-10">
-              <div>
-                <p className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-1">Total Equity</p>
-                <div className="text-2xl font-bold">${totalEquity.toLocaleString()}</div>
-              </div>
-              
-              <div className="space-y-2 mt-2">
-                <div className="flex justify-between text-xs border-b border-white/5 pb-1">
-                  <span className="text-gray-500">Cash Available</span>
-                  <span className="text-white font-medium">${cashBalance.toLocaleString()}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                   <span className="text-gray-500">Total PnL</span>
-                   <span className={`font-bold ${portfolioPnL >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                     {portfolioPnL >= 0 ? '+' : ''}{portfolioPnL.toFixed(0)}
-                   </span>
-                </div>
-              </div>
+          <Card className="p-4 md:p-6">
+            <p className="text-gray-600 mb-2">BTC Owned</p>
+            <p className="text-gray-900 mb-2 font-bold">{btcOwned}</p>
+            <p className="text-gray-600">Bitcoin</p>
+          </Card>
+
+          <Card className="p-4 md:p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+            <p className="text-purple-100 mb-2">Missioni</p>
+            <p className="font-bold mb-2">{missions.filter(m => m.status === 'completed').length}/{missions.length}</p>
+            <div className="flex items-center gap-1 text-purple-100">
+              <Trophy className="w-4 h-4" />
+              <span>Completate</span>
             </div>
           </Card>
         </div>
 
-        {/* Expanded Layout without Goals */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 min-w-0">
-          {/* Chart (expanded) */}
-          <div className="lg:col-span-8 space-y-6">
-            
-            {/* BTC Chart */}
-            <Card className="p-4 bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white overflow-hidden">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-white font-bold text-sm flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-emerald-400" />
-                  BTC/USD Live Chart
-                </h2>
-                <div className="flex gap-2">
-                  <Badge variant="outline" className="bg-zinc-800 text-xs border-white/5">1H</Badge>
-                  <Badge variant="outline" className="bg-zinc-800 text-xs border-white/5">4H</Badge>
-                  <Badge variant="default" className="bg-blue-600 text-xs">1D</Badge>
-                </div>
-              </div>
-              <div className="h-[350px] w-full">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={priceHistory}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                    <XAxis 
-                      dataKey="time" 
-                      tick={{ fontSize: 10, fill: '#666' }} 
-                      stroke="rgba(255,255,255,0.1)" 
-                      tickLine={false}
-                      axisLine={false}
-                    />
-                    <YAxis 
-                      domain={['auto', 'auto']} 
-                      tick={{ fontSize: 10, fill: '#666' }} 
-                      stroke="rgba(255,255,255,0.1)" 
-                      tickLine={false}
-                      axisLine={false}
-                      tickFormatter={(value) => `$${value.toLocaleString()}`}
-                      width={60}
-                    />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#18181b', borderColor: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: '12px' }}
-                      itemStyle={{ color: '#fff' }}
-                      cursor={{ stroke: 'rgba(255,255,255,0.1)' }}
-                    />
-                    <Line 
-                      type="monotone" 
-                      dataKey="price" 
-                      stroke="#a855f7" 
-                      strokeWidth={2} 
-                      dot={false} 
-                      activeDot={{ r: 4, fill: '#a855f7', stroke: '#fff' }} 
-                    />
-                    {openPositions.map(p => (
-                      <ReferenceLine key={`strike-${p.id}`} y={p.strike} stroke="#ffffff" strokeDasharray="4 4" ifOverflow="hidden"/>
-                    ))}
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </Card>
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Mission List */}
+          <div className="space-y-4">
+            <h2 className="text-gray-900 flex items-center gap-2">
+              <Target className="w-5 h-5 text-blue-600" />
+              Le Tue Missioni
+            </h2>
 
-            {/* Trade History (Closed Positions) */}
-            <Card className="mt-6 bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white overflow-hidden">
-              <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                <h2 className="text-white font-bold text-sm">Trade History</h2>
-                <Badge variant="outline" className="border-white/10 text-gray-400 text-xs">
-                  {positions.filter(p => p.status === 'closed').length} Closed
-                </Badge>
-              </div>
-              
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm text-left">
-                  <thead className="text-xs text-gray-500 uppercase bg-white/5">
-                    <tr>
-                      <th className="px-4 py-3 font-medium">Type</th>
-                      <th className="px-4 py-3 font-medium">Strike</th>
-                      <th className="px-4 py-3 font-medium">Date</th>
-                      <th className="px-4 py-3 font-medium">Premium</th>
-                      <th className="px-4 py-3 font-medium">Result</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-white/5">
-                    {positions.filter(p => p.status === 'closed').map(position => {
-                      const isAssigned = position.assignmentPrice !== undefined;
-                      const resultText = isAssigned ? 'ASSIGNED' : 'EXPIRED';
-                      const resultColor = isAssigned ? 'text-yellow-400' : 'text-emerald-400';
-                      
-                      return (
-                        <tr key={position.id} className="hover:bg-white/5 transition-colors">
-                          <td className="px-4 py-3">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                              position.type === 'put' 
-                                ? 'bg-orange-500/10 text-orange-400' 
-                                : 'bg-blue-500/10 text-blue-400'
-                            }`}>
-                              {position.type.toUpperCase()}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 font-medium text-white">
-                            ${position.strike.toLocaleString()}
-                          </td>
-                          <td className="px-4 py-3 text-gray-400">
-                            {position.openDate.toLocaleDateString('it-IT')}
-                          </td>
-                          <td className="px-4 py-3 text-gray-300">
-                            +${(position.premium * position.quantity).toLocaleString()}
-                          </td>
-                          <td className={`px-4 py-3 font-bold ${resultColor}`}>
-                            {resultText}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                    {positions.filter(p => p.status === 'closed').length === 0 && (
-                       <tr>
-                         <td colSpan={5} className="px-4 py-8 text-center text-gray-500 text-xs">
-                           No closed positions history yet.
-                         </td>
-                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </Card>
-          </div>
-
-          {/* Right Column: Order Entry (expanded) */}
-          <div className="lg:col-span-4 space-y-6">
-            
-            {/* Trading Panel */}
-            <Card className="bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white sticky top-24 overflow-hidden">
-              <div className="p-4 border-b border-white/5 bg-white/5">
-                <h2 className="text-white font-bold text-sm flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-yellow-400" />
-                  Log New Trade
-                </h2>
-              </div>
-              
-            <div className="p-4 space-y-4">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setOptionType('put')}
-                    className={`py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                      optionType === 'put' 
-                        ? 'bg-orange-500 text-white shadow-lg shadow-orange-500/20' 
-                        : 'bg-zinc-800 text-gray-400 hover:bg-zinc-700'
-                    }`}
-                  >
-                    Sell Put
-                  </button>
-                  <button
-                    onClick={() => setOptionType('call')}
-                    disabled={btcOwned === 0}
-                    className={`py-2 px-4 rounded-lg text-sm font-medium transition-all ${
-                      optionType === 'call' 
-                        ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/20' 
-                        : 'bg-zinc-800 text-gray-400 hover:bg-zinc-700'
-                    } ${btcOwned === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    Sell Call
-                  </button>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <label className="text-gray-500 text-xs font-medium uppercase mb-1 block">Strike Price</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
-                      <input 
-                        type="number" 
-                        value={strikePrice}
-                        onChange={(e) => setStrikePrice(e.target.value)}
-                        className="w-full bg-black/20 border border-white/10 rounded-lg py-2.5 pl-7 pr-3 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                      />
+            {missions.map((mission, index) => (
+              <motion.div
+                key={mission.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Card 
+                  className={`p-4 cursor-pointer transition-all ${
+                    activeMission?.id === mission.id 
+                      ? 'ring-2 ring-blue-500 shadow-lg' 
+                      : mission.status === 'locked'
+                      ? 'opacity-60'
+                      : 'hover:shadow-md'
+                  }`}
+                  onClick={() => selectMission(mission)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="p-2 rounded-lg bg-gray-100">
+                      {mission.status === 'completed' ? (
+                        <CheckCircle2 className="w-6 h-6 text-green-600" />
+                      ) : mission.status === 'locked' ? (
+                        <Lock className="w-6 h-6 text-gray-400" />
+                      ) : (
+                        <Rocket className="w-6 h-6 text-blue-600" />
+                      )}
                     </div>
-                    <div className="mt-2 text-xs flex items-center gap-2">
-                      <span className={`px-2 py-0.5 rounded ${riskLabel === 'Sicuro' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>FinGenius: {riskLabel}</span>
-                      <span className="text-gray-500">Distanza: {distancePct.toFixed(2)}%</span>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-gray-500 text-xs font-medium uppercase mb-1 block">Premium</label>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 text-sm">$</span>
-                      <input 
-                        type="number" 
-                        value={premium}
-                        onChange={(e) => setPremium(e.target.value)}
-                        className="w-full bg-black/20 border border-white/10 rounded-lg py-2.5 pl-7 pr-3 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="text-gray-500 text-xs font-medium uppercase mb-1 block">Quantity</label>
-                    <input 
-                      type="number" 
-                      value={quantity}
-                      onChange={(e) => setQuantity(e.target.value)}
-                      min="1"
-                      className="w-full bg-black/20 border border-white/10 rounded-lg py-2.5 px-3 text-white text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                    />
-                  </div>
-
-                  <div className="bg-zinc-800/30 rounded-lg p-3 space-y-2">
-                    <div className="flex justify-between text-xs">
-                      <span className="text-gray-500">Total Premium</span>
-                      <span className="text-emerald-400 font-bold">+${(parseFloat(premium || '0') * parseInt(quantity || '1')).toLocaleString()}</span>
-                    </div>
-                    {optionType === 'put' && (
-                      <div className="flex justify-between text-xs">
-                        <span className="text-gray-500">Collateral</span>
-                        <span className="text-gray-300">${(parseFloat(strikePrice || '0') * parseInt(quantity || '1')).toLocaleString()}</span>
+                    
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-gray-900 truncate">{mission.title}</h3>
+                        <Badge className={getDifficultyColor(mission.difficulty)}>
+                          {mission.difficulty}
+                        </Badge>
                       </div>
-                    )}
+                      
+                      <p className="text-gray-600 mb-3">{mission.description}</p>
+                      
+                      {mission.status === 'active' && mission.objectives.map((obj, idx) => (
+                        <div key={idx} className="mb-2">
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-gray-600">{obj.description}</span>
+                            <span className="text-gray-900 font-semibold">
+                              {obj.current}/{obj.target}
+                            </span>
+                          </div>
+                          <Progress value={(obj.current / obj.target) * 100} className="h-2" />
+                        </div>
+                      ))}
+                      
+                      {mission.status === 'completed' && (
+                        <div className="flex items-center gap-2 text-green-600">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span className="font-semibold">Completata! +{mission.reward.xp} XP</span>
+                        </div>
+                      )}
+                      
+                      {mission.status === 'locked' && (
+                        <p className="text-gray-500 italic">{mission.unlockRequirement}</p>
+                      )}
+                    </div>
                   </div>
-
-                  <Button 
-                    onClick={handleSellOption}
-                    className={`w-full py-2.5 text-sm font-bold shadow-lg transition-all ${
-                      optionType === 'put' 
-                        ? 'bg-orange-500 hover:bg-orange-600 text-white' 
-                        : 'bg-blue-600 hover:bg-blue-700 text-white'
-                    }`}
-                  >
-                    Add to Journal
-                  </Button>
-                </div>
-              </div>
-            </Card>
+                </Card>
+              </motion.div>
+            ))}
           </div>
 
-          {/* Journal / Open Positions Table (Full Width Bottom) */}
-          <div className="col-span-1 lg:col-span-12">
-            <Card className="bg-zinc-900/50 backdrop-blur-md border border-white/10 text-white overflow-hidden">
-              <div className="p-4 border-b border-white/5 flex items-center justify-between">
-                <h2 className="text-white font-bold text-sm">Open Positions</h2>
-                <Badge variant="outline" className="border-white/10 text-gray-400 text-xs">
-                  {openPositions.length} Active
-                </Badge>
-              </div>
+          {/* Trading Area */}
+          <div className="md:col-span-2 space-y-6">
+            {/* Tutorial Card */}
+            {activeMission && showTutorial && activeMission.status === 'active' && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+              >
+                <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
+                  <div className="flex items-start gap-4">
+                    <div className="p-3 bg-blue-600 rounded-full">
+                      <Lightbulb className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <h3 className="text-gray-900">
+                          Step {currentTutorialStep + 1}/{activeMission.tutorial.length}: {activeMission.tutorial[currentTutorialStep].title}
+                        </h3>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => setShowTutorial(false)}
+                        >
+                          Chiudi
+                        </Button>
+                      </div>
+                      <p className="text-gray-700 mb-4">
+                        {activeMission.tutorial[currentTutorialStep].content}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        {activeMission.tutorial.map((_, idx) => (
+                          <div 
+                            key={idx}
+                            className={`h-2 flex-1 rounded-full ${
+                              idx <= currentTutorialStep ? 'bg-blue-600' : 'bg-gray-300'
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </motion.div>
+            )}
+
+            {/* BTC Chart */}
+            <Card className="p-6">
+              <h2 className="text-gray-900 mb-4">Bitcoin Price Chart</h2>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart data={priceHistory}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="time" tick={{ fontSize: 12 }} />
+                  <YAxis domain={['dataMin - 500', 'dataMax + 500']} tick={{ fontSize: 12 }} />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="price" stroke="#3b82f6" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Card>
+
+            {/* Trading Panel */}
+            <Card className="p-6">
+              <h2 className="text-gray-900 mb-4">Vendi Opzione</h2>
               
+              <div className="grid md:grid-cols-2 gap-4 mb-4">
+                <Button
+                  variant={optionType === 'put' ? 'default' : 'outline'}
+                  onClick={() => setOptionType('put')}
+                  className={optionType === 'put' ? 'bg-orange-600 hover:bg-orange-700' : ''}
+                >
+                  Sell Put
+                </Button>
+                <Button
+                  variant={optionType === 'call' ? 'default' : 'outline'}
+                  onClick={() => setOptionType('call')}
+                  disabled={btcOwned === 0}
+                  className={optionType === 'call' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                >
+                  Sell Call {btcOwned === 0 && '🔒'}
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                <div>
+                  <Label>Strike Price ($)</Label>
+                  <Input 
+                    type="number" 
+                    value={strikePrice}
+                    onChange={(e) => setStrikePrice(e.target.value)}
+                    placeholder={optionType === 'put' ? '40000' : '45000'}
+                    className="h-12"
+                  />
+                  <p className="text-gray-500 mt-1">
+                    BTC attuale: ${btcPrice.toLocaleString()} • {optionType === 'put' ? '7% sotto (sicuro)' : '7% sopra (profit target)'}
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Premium ($) <span className="text-xs text-gray-500">(auto-calcolato)</span></Label>
+                  <Input 
+                    type="number" 
+                    value={premium}
+                    onChange={(e) => setPremium(e.target.value)}
+                    placeholder="500"
+                    className="h-12"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    💡 Il premium è calcolato automaticamente in base alla distanza dallo strike. Puoi modificarlo manualmente.
+                  </p>
+                </div>
+
+                <div>
+                  <Label>Quantità</Label>
+                  <Input 
+                    type="number" 
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    placeholder="1"
+                    min="1"
+                    max={optionType === 'call' ? btcOwned : undefined}
+                    className="h-12"
+                  />
+                  {optionType === 'call' && (
+                    <p className="text-gray-500 mt-1">
+                      BTC disponibili: {btcOwned}
+                    </p>
+                  )}
+                </div>
+
+                <div className="bg-blue-50 p-4 rounded-lg">
+                  <p className="text-gray-700 mb-2 font-semibold">Riepilogo:</p>
+                  <p className="text-gray-900">Premium totale: ${parseFloat(premium || '0') * parseInt(quantity || '1')}</p>
+                  {optionType === 'put' && (
+                    <p className="text-gray-600">Capitale richiesto: ${parseFloat(strikePrice || '0') * parseInt(quantity || '1')}</p>
+                  )}
+                </div>
+
+                <Button 
+                  onClick={handleSellOption}
+                  className={`w-full h-12 ${
+                    optionType === 'put' 
+                      ? 'bg-orange-600 hover:bg-orange-700' 
+                      : 'bg-blue-600 hover:bg-blue-700'
+                  }`}
+                >
+                  Vendi {optionType === 'put' ? 'Put' : 'Call'}
+                </Button>
+              </div>
+            </Card>
+
+            {/* Open Positions */}
+            <Card className="p-6">
+              <h2 className="text-gray-900 mb-4">Posizioni Aperte ({openPositions.length})</h2>
               {openPositions.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-500 text-sm">No open positions.</p>
-                  <p className="text-gray-600 text-xs mt-1">Use the trading panel to open a new trade.</p>
+                <div className="text-center py-8">
+                  <p className="text-gray-600 mb-2">Nessuna posizione aperta</p>
+                  <p className="text-gray-500">Vendi la tua prima opzione per iniziare!</p>
                 </div>
               ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs text-gray-500 uppercase bg-white/5">
-                      <tr>
-                        <th className="px-4 py-3 font-medium">Type</th>
-                        <th className="px-4 py-3 font-medium">Strike</th>
-                        <th className="px-4 py-3 font-medium">Qty</th>
-                        <th className="px-4 py-3 font-medium">Premium</th>
-                        <th className="px-4 py-3 font-medium">P&L</th>
-                        <th className="px-4 py-3 font-medium text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/5">
-                      {openPositions.map(position => {
-                        const currentValue = position.type === 'put' 
-                          ? Math.max(0, position.strike - btcPrice) * position.quantity
-                          : Math.max(0, btcPrice - position.strike) * position.quantity;
-                        const premiumCollected = position.premium * position.quantity;
-                        const pnl = premiumCollected - currentValue;
+                <div className="space-y-3">
+                  {openPositions.map(position => {
+                    const currentValue = position.type === 'put' 
+                      ? Math.max(0, position.strike - btcPrice) * position.quantity
+                      : Math.max(0, btcPrice - position.strike) * position.quantity;
+                    const premiumCollected = position.premium * position.quantity;
+                    const pnl = premiumCollected - currentValue;
 
-                        return (
-                          <tr key={position.id} className="hover:bg-white/5 transition-colors">
-                            <td className="px-4 py-3">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${
-                                position.type === 'put' 
-                                  ? 'bg-orange-500/10 text-orange-400' 
-                                  : 'bg-blue-500/10 text-blue-400'
-                              }`}>
-                                {position.type.toUpperCase()}
-                              </span>
-                            </td>
-                            <td className="px-4 py-3 font-medium text-white">
-                              ${position.strike.toLocaleString()}
-                            </td>
-                            <td className="px-4 py-3 text-gray-400">
-                              {position.quantity}
-                            </td>
-                            <td className="px-4 py-3 text-gray-300">
-                              ${premiumCollected.toLocaleString()}
-                            </td>
-                            <td className={`px-4 py-3 font-bold ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
-                            </td>
-                            <td className="px-4 py-3 text-right">
-                              <button 
-                                onClick={() => handleClosePosition(position.id)}
-                                className="text-xs bg-white/5 hover:bg-white/10 text-gray-300 px-2 py-1 rounded border border-white/10 transition-colors"
-                              >
-                                Close
-                              </button>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                    return (
+                      <div key={position.id} className="p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <Badge className={
+                              position.type === 'put' 
+                                ? 'bg-orange-100 text-orange-700' 
+                                : 'bg-blue-100 text-blue-700'
+                            }>
+                              {position.type.toUpperCase()}
+                            </Badge>
+                            <span className="text-gray-900 font-semibold">${position.strike.toLocaleString()}</span>
+                            <span className="text-gray-600">x{position.quantity}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-gray-600">Premium: ${premiumCollected}</p>
+                            <p className={pnl >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
+                              P&L: {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
+                            </p>
+                          </div>
+                          <Button 
+                            onClick={() => handleClosePosition(position.id)}
+                            variant="outline"
+                            size="sm"
+                          >
+                            Chiudi
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
             </Card>
@@ -1206,6 +886,17 @@ export function SimulationView({ onNavigate }: SimulationViewProps) {
             toast.info('Tutorial saltato. Puoi riaprirlo dal pulsante "?"');
           }}
         />
+      )}
+
+      {/* 🎯 Floating Help Button to Reopen Tutorial */}
+      {!showMainTutorial && (
+        <Button
+          onClick={() => setShowMainTutorial(true)}
+          className="fixed bottom-24 md:bottom-8 right-4 md:right-8 w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 shadow-2xl z-40 flex items-center justify-center"
+          title="Rivedi Tutorial"
+        >
+          <HelpCircle className="w-6 h-6 text-white" />
+        </Button>
       )}
     </div>
   );

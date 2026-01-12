@@ -2,6 +2,16 @@ import { Hono } from "npm:hono";
 import { cors } from "npm:hono/cors";
 import { logger } from "npm:hono/logger";
 import * as kv from "./kv_store.tsx";
+import { 
+  getExchangeTrades, 
+  testExchangeConnection,
+  EXCHANGE_CONNECTORS 
+} from "./exchange-connectors.tsx";
+import wheelRoutes from "./wheel-routes.tsx";
+import dataMigration from "./data-migration.tsx";
+import adminMigration from "./admin-migration.tsx";
+import dbDuplicate, { duplicateUserData } from "./db-duplicate.tsx";
+
 const app = new Hono();
 
 // Enable logger
@@ -22,6 +32,75 @@ app.use(
 // Health check endpoint
 app.get("/make-server-7c0f82ca/health", (c) => {
   return c.json({ status: "ok" });
+});
+
+// 🔐 AUTH ENDPOINTS
+
+// Sign up endpoint - creates user with email confirmed automatically
+app.post("/make-server-7c0f82ca/auth/signup", async (c) => {
+  try {
+    const { email, password, name } = await c.req.json();
+    
+    if (!email || !password) {
+      return c.json({ error: "Email and password are required" }, 400);
+    }
+    
+    console.log(`📝 [Signup] Creating user: ${email}`);
+    
+    // Import createClient here
+    const { createClient } = await import("npm:@supabase/supabase-js@2");
+    
+    // Create admin client with service role key
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("❌ [Signup] Supabase credentials not configured");
+      return c.json({ error: "Server configuration error" }, 500);
+    }
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    
+    // Create user with admin API (auto-confirms email)
+    const { data, error } = await supabase.auth.admin.createUser({
+      email,
+      password,
+      user_metadata: { name: name || 'User' },
+      // Automatically confirm the user's email since an email server hasn't been configured.
+      email_confirm: true
+    });
+    
+    if (error) {
+      // Check if user already exists
+      if (error.code === 'email_exists' || error.message?.includes('already been registered')) {
+        console.log("⚠️ [Signup] User already exists - this is normal behavior, returning conflict status");
+        return c.json({ 
+          error: 'Un account con questa email esiste già. Vai alla pagina di login.',
+          code: 'email_exists',
+          suggestion: 'Usa il tab "Accedi" invece di "Registrati"'
+        }, 409); // 409 Conflict
+      }
+      
+      // Only log other errors (not email_exists)
+      console.error("❌ [Signup] Error creating user:", error);
+      
+      return c.json({ error: error.message }, 400);
+    }
+    
+    console.log(`✅ [Signup] User created successfully: ${email}`);
+    
+    return c.json({ 
+      user: data.user,
+      message: "Account created successfully! You can now sign in."
+    });
+    
+  } catch (error) {
+    console.error("❌ [Signup] Unexpected error:", error);
+    return c.json({ 
+      error: "Internal server error",
+      details: error.message 
+    }, 500);
+  }
 });
 
 // 🎯 AI Quiz Question Generator
@@ -126,20 +205,79 @@ REGOLE CRITICHE:
     const data = await response.json();
     const aiResponse = data.choices[0].message.content;
     
-    // Parse JSON response
+    console.log("🤖 Raw AI response:", aiResponse);
+    console.log("🤖 Response type:", typeof aiResponse);
+    console.log("🤖 Response length:", aiResponse?.length);
+    
+    // Parse JSON response with cleanup for markdown code blocks
     let question;
     try {
-      question = JSON.parse(aiResponse);
+      // Remove markdown code blocks if present (```json ... ``` or ``` ... ```)
+      let cleanedResponse = aiResponse.trim();
+      
+      // Remove opening markdown
+      if (cleanedResponse.startsWith('```json')) {
+        cleanedResponse = cleanedResponse.slice(7);
+      } else if (cleanedResponse.startsWith('```')) {
+        cleanedResponse = cleanedResponse.slice(3);
+      }
+      
+      // Remove closing markdown
+      if (cleanedResponse.endsWith('```')) {
+        cleanedResponse = cleanedResponse.slice(0, -3);
+      }
+      
+      cleanedResponse = cleanedResponse.trim();
+      
+      console.log("🧹 Cleaned AI response:", cleanedResponse);
+      console.log("🧹 Cleaned length:", cleanedResponse.length);
+      
+      // Try to parse
+      question = JSON.parse(cleanedResponse);
+      
+      console.log("📦 Parsed question object:", JSON.stringify(question, null, 2));
+      
+      // Validate required fields
+      if (!question.question || !question.options || !Array.isArray(question.options)) {
+        console.error("❌ Missing required fields:", {
+          hasQuestion: !!question.question,
+          hasOptions: !!question.options,
+          isArray: Array.isArray(question.options),
+          optionsLength: question.options?.length
+        });
+        throw new Error('Invalid question structure - missing required fields');
+      }
+      
+      if (question.options.length !== 4) {
+        console.error("❌ Invalid options length:", question.options.length);
+        throw new Error(`Invalid question structure - expected 4 options, got ${question.options.length}`);
+      }
+      
+      // Validate correctAnswer is within range
+      if (typeof question.correctAnswer !== 'number' || question.correctAnswer < 0 || question.correctAnswer > 3) {
+        console.error("❌ Invalid correctAnswer:", question.correctAnswer);
+        throw new Error(`Invalid correctAnswer: ${question.correctAnswer}`);
+      }
       
       // Adjust XP based on difficulty
       if (difficulty === 'medium') question.xp = 50;
       if (difficulty === 'hard') question.xp = 80;
       
+      console.log("✅ Successfully validated question");
+      
     } catch (parseError) {
-      console.error("Failed to parse AI response:", aiResponse);
-      return c.json({ error: "Invalid AI response" }, 500);
+      console.error("❌ Failed to parse AI response");
+      console.error("Parse error details:", parseError);
+      console.error("Raw response was:", aiResponse);
+      console.error("Cleaned response was:", cleanedResponse);
+      return c.json({ 
+        error: "Invalid AI response", 
+        details: String(parseError),
+        rawResponse: aiResponse?.substring(0, 200) + "..." // First 200 chars for debugging
+      }, 500);
     }
 
+    console.log("✅ Successfully generated question:", question.question);
     return c.json({ question });
     
   } catch (error) {
@@ -432,6 +570,374 @@ Fornisci risposte pertinenti al contesto della lezione quando appropriato.`;
     return c.json({ 
       response: "Si è verificato un errore. Riprova tra poco o continua con le lezioni! 📚"
     }, 200);
+  }
+});
+
+// 🔌 EXCHANGE CONNECTORS ENDPOINTS
+
+// Get list of supported exchanges
+app.get("/make-server-7c0f82ca/exchanges", (c) => {
+  const exchanges = Object.keys(EXCHANGE_CONNECTORS).map(key => ({
+    id: key,
+    name: EXCHANGE_CONNECTORS[key].name,
+    supportsOptions: !!EXCHANGE_CONNECTORS[key].getOptionTrades
+  }));
+  return c.json({ exchanges });
+});
+
+// Test exchange connection
+app.post("/make-server-7c0f82ca/exchanges/test-connection", async (c) => {
+  try {
+    const { exchange, apiKey, apiSecret } = await c.req.json();
+    
+    if (!exchange || !apiKey || !apiSecret) {
+      return c.json({ error: "Missing required fields" }, 400);
+    }
+    
+    const isConnected = await testExchangeConnection(exchange, apiKey, apiSecret);
+    
+    return c.json({ 
+      success: isConnected,
+      exchange: EXCHANGE_CONNECTORS[exchange.toLowerCase()]?.name
+    });
+  } catch (error) {
+    console.error("Error testing exchange connection:", error);
+    return c.json({ 
+      success: false,
+      error: error.message 
+    }, 500);
+  }
+});
+
+// Get trades from exchange
+app.post("/make-server-7c0f82ca/exchanges/get-trades", async (c) => {
+  try {
+    const { exchange, apiKey, apiSecret, startDate, endDate } = await c.req.json();
+    
+    if (!exchange || !apiKey || !apiSecret) {
+      return c.json({ error: "Missing required fields" }, 400);
+    }
+    
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 24 * 60 * 60 * 1000); // Default: last 24h
+    const end = endDate ? new Date(endDate) : new Date();
+    
+    console.log(`Fetching trades from ${exchange} for period ${start.toISOString()} to ${end.toISOString()}`);
+    
+    const trades = await getExchangeTrades(exchange, apiKey, apiSecret, start, end);
+    
+    // Filter wheel-related trades (options and BTC spot)
+    const wheelTrades = trades.filter(t => 
+      t.type === 'option' || 
+      (t.type === 'spot' && (t.symbol.includes('BTC') || t.symbol.includes('USDT')))
+    );
+    
+    // Calculate statistics
+    const stats = {
+      totalTrades: trades.length,
+      wheelTrades: wheelTrades.length,
+      optionTrades: trades.filter(t => t.type === 'option').length,
+      totalPremium: trades.reduce((sum, t) => sum + (t.premium || 0), 0),
+      totalFees: trades.reduce((sum, t) => sum + (t.fee || 0), 0)
+    };
+    
+    return c.json({ 
+      trades: wheelTrades,
+      stats,
+      exchange: EXCHANGE_CONNECTORS[exchange.toLowerCase()]?.name,
+      period: { start: start.toISOString(), end: end.toISOString() }
+    });
+  } catch (error) {
+    console.error("Error fetching trades:", error);
+    return c.json({ 
+      error: error.message,
+      trades: [],
+      stats: {}
+    }, 500);
+  }
+});
+
+// Save exchange API credentials (encrypted in KV store)
+app.post("/make-server-7c0f82ca/exchanges/save-credentials", async (c) => {
+  try {
+    const { userId, exchange, apiKey, apiSecret, passphrase } = await c.req.json();
+    
+    if (!userId || !exchange || !apiKey || !apiSecret) {
+      return c.json({ error: "Missing required fields" }, 400);
+    }
+    
+    // Test connection before saving
+    const isValid = await testExchangeConnection(exchange, apiKey, apiSecret);
+    if (!isValid) {
+      return c.json({ error: "Invalid API credentials" }, 401);
+    }
+    
+    // Save encrypted credentials to KV store
+    const credentialKey = `user:${userId}:exchange:${exchange}`;
+    await kv.set(credentialKey, {
+      exchange,
+      apiKey,
+      apiSecret: apiSecret.substring(0, 8) + '***', // Store only partial for security
+      passphrase: passphrase || null,
+      createdAt: new Date().toISOString(),
+      verified: true
+    });
+    
+    return c.json({ 
+      success: true,
+      message: `Credenziali per ${EXCHANGE_CONNECTORS[exchange.toLowerCase()]?.name} salvate con successo!`
+    });
+  } catch (error) {
+    console.error("Error saving credentials:", error);
+    return c.json({ 
+      error: error.message 
+    }, 500);
+  }
+});
+
+// Get saved exchanges for user
+app.get("/make-server-7c0f82ca/exchanges/user/:userId", async (c) => {
+  try {
+    const userId = c.req.param('userId');
+    
+    if (!userId) {
+      return c.json({ error: "Missing userId" }, 400);
+    }
+    
+    // Get all exchange credentials for this user
+    const prefix = `user:${userId}:exchange:`;
+    const credentials = await kv.getByPrefix(prefix);
+    
+    const exchanges = credentials.map(cred => ({
+      exchange: cred.value.exchange,
+      name: EXCHANGE_CONNECTORS[cred.value.exchange.toLowerCase()]?.name,
+      verified: cred.value.verified,
+      createdAt: cred.value.createdAt
+    }));
+    
+    return c.json({ exchanges });
+  } catch (error) {
+    console.error("Error fetching user exchanges:", error);
+    return c.json({ 
+      exchanges: [],
+      error: error.message 
+    }, 500);
+  }
+});
+
+// 🎯 WHEEL STRATEGY ROUTES - Mount the wheel routes
+app.route("/", wheelRoutes);
+
+// 🔄 DB DUPLICATE ROUTES - Mount the db duplicate routes
+app.route("/", dbDuplicate);
+
+// 👥 USER MANAGEMENT ROUTES - Mount the user management routes
+import userManagement from "./user-management.tsx";
+app.route("/", userManagement);
+
+// 💰 BILLING & INVOICING ROUTES - Mount the billing routes
+import adminBilling from "./admin-billing.tsx";
+app.route("/", adminBilling);
+
+// 📦 DATA MIGRATION & PORTING ROUTES
+
+// List available data prefixes
+app.get("/make-server-7c0f82ca/data/prefixes", async (c) => {
+  try {
+    const prefixes = await dataMigration.listDataPrefixes();
+    return c.json({ prefixes });
+  } catch (error) {
+    console.error("Error listing prefixes:", error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Export user data
+app.post("/make-server-7c0f82ca/data/export", async (c) => {
+  try {
+    const { userId, appPrefix = "btcwheel" } = await c.req.json();
+    
+    if (!userId) {
+      return c.json({ error: "Missing userId" }, 400);
+    }
+    
+    const exportData = await dataMigration.exportUserData(userId, appPrefix);
+    
+    return c.json({ 
+      success: true,
+      data: exportData,
+      summary: {
+        strategies: exportData.strategies.length,
+        trades: Object.keys(exportData.trades).length,
+        plans: exportData.plans.length,
+        hasActivePlan: !!exportData.activePlan,
+        hasUserProgress: !!exportData.userProgress
+      }
+    });
+  } catch (error) {
+    console.error("Error exporting data:", error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Import user data
+app.post("/make-server-7c0f82ca/data/import", async (c) => {
+  try {
+    const { userId, data, targetPrefix = "btcwheel", mergeMode = false } = await c.req.json();
+    
+    if (!userId || !data) {
+      return c.json({ error: "Missing userId or data" }, 400);
+    }
+    
+    const result = await dataMigration.importUserData(userId, data, targetPrefix, mergeMode);
+    
+    return c.json({ 
+      success: result.success,
+      importedCount: result.importedCount,
+      errors: result.errors
+    });
+  } catch (error) {
+    console.error("Error importing data:", error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Migrate data between prefixes
+app.post("/make-server-7c0f82ca/data/migrate", async (c) => {
+  try {
+    const { userId, sourcePrefix, targetPrefix = "btcwheel" } = await c.req.json();
+    
+    if (!sourcePrefix) {
+      return c.json({ error: "Missing sourcePrefix" }, 400);
+    }
+    
+    const result = await dataMigration.migrateData({
+      sourcePrefix,
+      targetPrefix,
+      userId
+    });
+    
+    return c.json({ 
+      success: result.success,
+      migratedCount: result.migratedCount,
+      errors: result.errors
+    });
+  } catch (error) {
+    console.error("Error migrating data:", error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// 👑 ADMIN MIGRATION ROUTES (Mass Migration)
+
+// Get database statistics
+app.get("/make-server-7c0f82ca/admin/stats", async (c) => {
+  try {
+    const stats = await adminMigration.getDatabaseStats();
+    return c.json({ stats });
+  } catch (error) {
+    console.error("Error getting database stats:", error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Scan for users with data in a specific prefix
+app.post("/make-server-7c0f82ca/admin/scan-users", async (c) => {
+  try {
+    const { sourcePrefix = "finanzacreativa" } = await c.req.json();
+    
+    const users = await adminMigration.scanUsersWithData(sourcePrefix);
+    
+    return c.json({ 
+      success: true,
+      userCount: users.length,
+      users 
+    });
+  } catch (error) {
+    console.error("Error scanning users:", error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Migrate all users or specific users in batch
+app.post("/make-server-7c0f82ca/admin/migrate-batch", async (c) => {
+  try {
+    const { 
+      sourcePrefix = "finanzacreativa", 
+      targetPrefix = "btcwheel",
+      userIds // Optional: array of specific user IDs to migrate
+    } = await c.req.json();
+    
+    console.log(`🚀 Starting batch migration: ${sourcePrefix} -> ${targetPrefix}`);
+    if (userIds) {
+      console.log(`  Migrating ${userIds.length} specific users`);
+    }
+    
+    const result = await adminMigration.migrateAllUsers(
+      sourcePrefix, 
+      targetPrefix, 
+      userIds
+    );
+    
+    return c.json({ 
+      success: result.failedCount === 0,
+      ...result
+    });
+  } catch (error) {
+    console.error("Error in batch migration:", error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// Delete all data for a prefix (DANGEROUS - use with caution)
+app.post("/make-server-7c0f82ca/admin/delete-prefix", async (c) => {
+  try {
+    const { prefix, userId, confirmToken } = await c.req.json();
+    
+    // Safety check: require confirmation token
+    if (confirmToken !== "DELETE_CONFIRMED") {
+      return c.json({ error: "Missing or invalid confirmation token" }, 403);
+    }
+    
+    if (!prefix) {
+      return c.json({ error: "Missing prefix" }, 400);
+    }
+    
+    console.log(`⚠️ WARNING: Deleting all data for prefix: ${prefix}`);
+    
+    const result = await adminMigration.deleteAllDataForPrefix(prefix, userId);
+    
+    return c.json({ 
+      success: result.errors.length === 0,
+      deletedCount: result.deletedCount,
+      errors: result.errors
+    });
+  } catch (error) {
+    console.error("Error deleting prefix data:", error);
+    return c.json({ error: error.message }, 500);
+  }
+});
+
+// DB DUPLICATE ROUTES
+
+// Duplicate a user's data from one prefix to another
+app.post("/make-server-7c0f82ca/admin/duplicate-user", async (c) => {
+  try {
+    const { userId, sourcePrefix, targetPrefix } = await c.req.json();
+    
+    if (!userId || !sourcePrefix || !targetPrefix) {
+      return c.json({ error: "Missing userId, sourcePrefix, or targetPrefix" }, 400);
+    }
+    
+    const result = await duplicateUserData(userId, sourcePrefix, targetPrefix);
+    
+    return c.json({ 
+      success: result.success,
+      duplicatedCount: result.duplicatedCount,
+      errors: result.errors
+    });
+  } catch (error: any) {
+    console.error("Error duplicating user data:", error);
+    return c.json({ error: error.message }, 500);
   }
 });
 

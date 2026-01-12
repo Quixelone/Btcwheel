@@ -13,7 +13,7 @@ interface UserMenuProps {
 }
 
 export function UserMenu({ onNavigate }: UserMenuProps) {
-  const { user } = useAuth();
+  const { user, signOut } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const supabase = getSupabaseClient();
 
@@ -28,8 +28,13 @@ export function UserMenu({ onNavigate }: UserMenuProps) {
     .slice(0, 2);
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    window.location.reload();
+    console.log('🚪 [UserMenu] Logging out...');
+    setIsOpen(false);
+    await signOut();
+    // Wait a bit for state to clear, then reload
+    setTimeout(() => {
+      window.location.reload();
+    }, 300);
   };
 
   return (
