@@ -10,13 +10,13 @@ import { useMascotSounds } from '../hooks/useMascotSounds';
 import { useUserProgress } from '../hooks/useUserProgress';
 import { useMascotEmotion } from '../hooks/useMascotEmotion';
 
-// Prof Satoshi mascot images
-const profSatoshiExcited = '/prof-satoshi-excited.png';
-const profSatoshiNormal = '/prof-satoshi-normal.png';
-const profSatoshiConfident = '/prof-satoshi-normal.png'; // Using normal as fallback
+// Prof Satoshi mascot images - USING SVG (committed to Git)
+const profSatoshiExcited = '/mascot-excited.svg';
+const profSatoshiNormal = '/mascot-normal.svg';
+const profSatoshiConfident = '/mascot-normal.svg';
 
 const mascotNormalImage = profSatoshiNormal;
-const mascotDisappointedImage = profSatoshiConfident;
+const mascotDisappointedImage = '/mascot-disappointed.svg';
 const mascotExcitedImage = profSatoshiExcited;
 
 interface Message {

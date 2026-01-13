@@ -3,8 +3,8 @@ import { useAuth } from '../hooks/useAuth';
 import { motion } from 'motion/react';
 import type { View } from '../App';
 
-// btcwheel logo - NEW circular emerald design (transparent)
-const btcwheelLogo = '/favicon.png';
+// btcwheel logo - USING SVG (committed to Git)
+const btcwheelLogo = '/favicon.svg';
 
 interface NavigationProps {
   currentView: View;

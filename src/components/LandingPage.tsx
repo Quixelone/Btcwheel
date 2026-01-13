@@ -29,13 +29,13 @@ import {
 } from 'lucide-react';
 import type { View } from '../App';
 
-// Prof Satoshi mascot images - NEW professional 3D renders
-const profSatoshiExcited = '/prof-satoshi-excited.png'; // Jumping with confetti
-const profSatoshiNormal = '/prof-satoshi-normal.png'; // Double thumbs up
-const profSatoshiConfident = '/prof-satoshi-normal.png'; // Hands on hips (using normal as fallback)
+// Prof Satoshi mascot images - USING SVG (committed to Git)
+const profSatoshiExcited = '/mascot-excited.svg';
+const profSatoshiNormal = '/mascot-normal.svg';
+const profSatoshiConfident = '/mascot-normal.svg';
 
-// btcwheel logo - NEW circular emerald design (transparent)
-const btcwheelLogoPng = '/favicon.png';
+// btcwheel logo - USING SVG (committed to Git)
+const btcwheelLogoPng = '/favicon.svg';
 
 // For backward compatibility with existing code
 const mascotExcitedImage = profSatoshiExcited;

@@ -24,8 +24,8 @@ export function figmaAssetsPlugin(): Plugin {
         // This prevents build errors when figma assets don't exist
         if (process.env.NODE_ENV === 'production' || process.env.VERCEL) {
           console.warn(`[figma-assets] Figma asset not found in production: ${filename}. Using fallback.`);
-          // Return a data URL placeholder or use a public asset
-          return `export default '/favicon.png'`;
+          // Return a data URL placeholder or use a public asset (SVG is committed to Git)
+          return `export default '/favicon.svg'`;
         }
         
         // In development: try to resolve the asset
