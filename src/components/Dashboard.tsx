@@ -29,8 +29,8 @@ import {
 } from 'lucide-react';
 import type { View } from '../App';
 
-// Import mascot image
-const mascotImage = '/prof-satoshi-normal.png';
+// Import mascot image - USING SVG (committed to Git)
+const mascotImage = '/mascot-normal.svg';
 
 interface DashboardProps {
   onNavigate: (view: View) => void;
