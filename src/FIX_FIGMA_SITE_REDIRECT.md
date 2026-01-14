@@ -69,7 +69,7 @@ https://finanzacreativa.live/*
 ```
 
 > ⚠️ **IMPORTANTE:** 
-> - **DEVI aggiungere `http://localhost:3002`** perché è la porta che stai usando ora!
+> - **Aggiungi gli URL `localhost` che usi in sviluppo** (es. `http://localhost:3002` o `http://localhost:5173`)
 > - Lascia anche `finanzacreativa.live` se vuoi che quella app continui a funzionare
 > - Il `/*` significa "tutte le sottopagine"
 

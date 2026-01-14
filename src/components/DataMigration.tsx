@@ -250,7 +250,7 @@ export function DataMigration() {
         window.location.reload();
       }, 1500);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Import error:', error);
       toast.error(`❌ Errore durante l'import: ${error.message}`);
     } finally {

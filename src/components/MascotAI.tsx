@@ -59,7 +59,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
   
   // Use streak property correctly
   const streak = progress?.streak || 0;
-  
+   
   const { emotion, message: emotionMessage, setActivity } = useMascotEmotion();
 
   const [soundEnabled, setSoundEnabled] = useState(() => {

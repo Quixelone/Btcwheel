@@ -67,7 +67,6 @@ function AppContent() {
   const [hasSeenLanding, setHasSeenLanding] = useState(DEBUG_MODE ? true : false);
   const [mascotVisible, setMascotVisible] = useState(true); // 🎯 NEW: Mascot visibility state
   const [hasSeenAuth, setHasSeenAuth] = useState(false);
-  const [showTest, setShowTest] = useState(false);
   const [shouldShowResults, setShouldShowResults] = useState(false);
   
   const authResult = useAuth();
@@ -89,65 +88,49 @@ function AppContent() {
     setShouldShowResults(false);
   }, []);
 
-  // Check URL for test mode
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("test") === "supabase") {
-      setShowTest(true);
-    }
-    if (params.get("test") === "chat") {
-      setShowTest(true);
-    }
-    if (params.get("status") === "supabase") {
-      setShowTest(true);
-    }
-  }, []);
-
   // Handle OAuth callback properly
   useEffect(() => {
-    // Se abbiamo un utente, forziamo la vista home
-    if (user && !authLoading) {
+    // Wait for auth loading to finish
+    if (authLoading) return;
+
+    // If we have a user
+    if (user) {
       console.log('👤 [App] User detected:', user.email);
       
-      // Se eravamo in un flusso OAuth (c'è hash o query params tipici)
+      // Check if we are in an OAuth flow or just landed
       const isOAuthFlow = window.location.hash.includes('access_token') || 
                          window.location.search.includes('code=') ||
-                         // O se siamo appena atterrati sulla root dopo un redirect
-                         (document.referrer.includes('google.com') || document.referrer.includes('supabase'));
+                         document.referrer.includes('google.com') || 
+                         document.referrer.includes('supabase');
 
       if (isOAuthFlow || currentView === 'landing') {
-        console.log('🔄 [App] Switching to HOME view after login');
-        setCurrentView('home');
-        // Puliamo l'URL per estetica
-        if (window.location.hash) {
-          window.history.replaceState(null, '', window.location.pathname);
+        console.log('🔄 [App] Authenticated user on landing/OAuth - redirecting...');
+        
+        // Clean URL if needed
+        if (window.location.hash.includes('access_token')) {
+           window.history.replaceState(null, '', window.location.pathname);
+        }
+
+        // Redirect based on onboarding state
+        if (shouldShowOnboarding) {
+           setCurrentView('onboarding');
+        } else {
+           setCurrentView('home');
         }
       }
+    } else if (!authLoading) {
+        // No user and not loading... check if we SHOULD have had a user (error case)
+        const hash = window.location.hash;
+        const search = window.location.search;
+        if (hash.includes('access_token') || search.includes('code=')) {
+             console.warn('⚠️ [App] OAuth params present but no user session found yet.');
+        }
     }
-  }, [user, authLoading]);
-
-  // Handle OAuth errors in URL
-  useEffect(() => {
-    const hash = window.location.hash;
-    const search = window.location.search;
-    
-    // Check for errors in URL
-    if (hash.includes('error=') || search.includes('error=')) {
-      console.error('❌ [App] OAuth error detected in URL');
-      // Extract error description if possible
-      const params = new URLSearchParams(hash.substring(1) || search); // Handle hash or search
-      const errorDesc = params.get('error_description') || params.get('error');
-      console.error('❌ [App] Error details:', errorDesc);
-      
-      if (errorDesc?.includes('Database error')) {
-        toast.error('Errore database durante la registrazione. Riprova più tardi.');
-      }
-    }
-  }, []);
+  }, [user, authLoading, shouldShowOnboarding, currentView]);
 
   // Check if we should show onboarding results after completion
   useEffect(() => {
-    if (onboarding.isComplete && onboarding.recommendations && user) {
+    if (onboarding.completed && onboarding.recommendations && user) {
       const resultsShown = localStorage.getItem('btcwheel_onboarding_results_shown');
       
       if (!resultsShown) {
@@ -161,7 +144,7 @@ function AppContent() {
       // Reset results flag if conditions not met (initial page load, etc.)
       setShouldShowResults(false);
     }
-  }, [onboarding.isComplete, onboarding.recommendations, user]);
+  }, [onboarding.completed, onboarding.recommendations, user]);
 
   // Handler for navigation
   const handleNavigation = (view: View, lessonId?: number) => {
@@ -174,9 +157,6 @@ function AppContent() {
       setCurrentLessonId(lessonId);
     }
   };
-
-  // Check if user skipped auth (demo mode)
-  const isDemoMode = !user && hasSeenAuth;
 
   // NOW we can do conditional returns - all hooks have been called
   
@@ -208,7 +188,7 @@ function AppContent() {
 
   // Show loading while checking auth and onboarding state (only for non-landing views)
   // If we're on landing, don't show loading spinner - just show the landing page
-  if ((authLoading || onboardingLoading) && currentView !== 'landing') {
+  if (authLoading || onboardingLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
         <div className="text-white text-center">
@@ -242,7 +222,7 @@ function AppContent() {
   // Show auth screen if no user and user has left the landing page
   // Auth is REQUIRED to access the app after leaving landing
   // SKIP in DEBUG_MODE
-  if (!DEBUG_MODE && !user && hasSeenLanding && currentView !== 'landing' && currentView !== 'auth') {
+  if (!DEBUG_MODE && !user && hasSeenLanding) {
     console.log('[App] No user found, showing auth');
     return (
       <>
@@ -265,7 +245,7 @@ function AppContent() {
 
   // Show onboarding results only if flag is set AND we're not on landing
   // This ensures results only show right after completing onboarding, not on page reload
-  if (shouldShowResults && onboarding.recommendations && currentView !== 'landing' && hasSeenLanding) {
+  if (shouldShowResults && onboarding.recommendations && hasSeenLanding) {
     console.log('[App] Rendering onboarding results');
     return (
       <>
@@ -322,9 +302,6 @@ function AppContent() {
       <Toaster />
       <PWAInstallPrompt />
       <AppUpdatePrompt />
-      {currentView === "landing" && (
-        <LandingPage onNavigate={handleNavigation} />
-      )}
       {currentView === "home" && (
         <HomePage onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
       )}
@@ -332,48 +309,46 @@ function AppContent() {
         <Dashboard onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
       )}
       {currentView === "lessons" && (
-        <LessonList onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+        <LessonList onNavigate={handleNavigation} />
       )}
       {currentView === "lesson" && (
-        <LessonView onNavigate={(view) => handleNavigation(view)} lessonId={currentLessonId} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+        <LessonView onNavigate={(view) => handleNavigation(view)} lessonId={currentLessonId} />
       )}
       {currentView === "badges" && (
-        <BadgeShowcase onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+        <BadgeShowcase onNavigate={handleNavigation} />
       )}
       {currentView === "simulation" && (
-        <SimulationView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+        <SimulationView onNavigate={handleNavigation} />
       )}
       {currentView === "longterm" && (
-        <LongTermSimulator onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+        <LongTermSimulator onNavigate={handleNavigation} />
       )}
       {currentView === "wheel-strategy" && (
-        <WheelStrategyView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+        <WheelStrategyView onNavigate={handleNavigation} />
       )}
       {currentView === "leaderboard" && (
-        <LeaderboardView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+        <LeaderboardView onNavigate={handleNavigation} />
       )}
       {currentView === "settings" && (
-        <SettingsView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
+        <SettingsView onNavigate={handleNavigation} />
       )}
       {currentView === "exchange" && (
         <ExchangeView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
       )}
       
       {/* AI-Powered Mascot - Available globally (except landing) */}
-      {currentView !== 'landing' && (
-        <MascotAI 
-          lessonContext={
-            currentView === 'lesson' 
-              ? {
-                  lessonId: currentLessonId,
-                  lessonTitle: `Lezione ${currentLessonId}`,
-                }
-              : undefined
-          }
-          isVisible={mascotVisible}
-          onVisibilityChange={setMascotVisible}
-        />
-      )}
+      <MascotAI 
+        lessonContext={
+          currentView === 'lesson' 
+            ? {
+                lessonId: currentLessonId,
+                lessonTitle: `Lezione ${currentLessonId}`,
+              }
+            : undefined
+        }
+        isVisible={mascotVisible}
+        onVisibilityChange={setMascotVisible}
+      />
     </div>
   );
 }

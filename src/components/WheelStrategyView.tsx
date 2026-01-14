@@ -40,12 +40,18 @@ interface Strategy {
   target_monthly_return?: number; // ROI mensile target % (es. 5)
   // Piano strategia (parametri obiettivo)
   plan?: {
-    targetPremiumPercent: number; // % premio target per trade
-    tradesPerMonth: number; // numero trade pianificati al mese
-    targetMonthlyReturn: number; // % ritorno mensile target
-    riskPerTrade: number; // % capitale a rischio per trade
-    strategy: 'wheel' | 'covered-call' | 'cash-secured-put'; // tipo strategia
+    // Campi legacy compatibili con LongTermSimulator
+    duration_months?: number;
+    target_monthly_return?: number;
+    // Parametri avanzati del piano
+    targetPremiumPercent?: number; // % premio target per trade
+    tradesPerMonth?: number; // numero trade pianificati al mese
+    targetMonthlyReturn?: number; // % ritorno mensile target
+    riskPerTrade?: number; // % capitale a rischio per trade
+    strategy?: 'wheel' | 'covered-call' | 'cash-secured-put'; // tipo strategia
   };
+  // Campi opzionali per compatibilità futura
+  targetMonthlyReturn?: number;
 }
 
 interface Stats {
@@ -1023,7 +1029,7 @@ export function WheelStrategyView({ onNavigate }: WheelStrategyViewProps) {
                       {(() => {
                         // Usa valori di default se non impostati - supporta sia le colonne legacy che il piano JSON
                         const planMonths = selectedStrategy.plan_duration_months || selectedStrategy.plan?.duration_months || 12;
-                        const monthlyReturn = selectedStrategy.target_monthly_return || selectedStrategy.plan?.target_monthly_return || 5;
+                        const monthlyReturn = selectedStrategy.target_monthly_return || selectedStrategy.plan?.targetMonthlyReturn || 5;
                         
                         const startDate = new Date(selectedStrategy.created_at);
                         const endDate = new Date(startDate);
@@ -1241,13 +1247,29 @@ export function WheelStrategyView({ onNavigate }: WheelStrategyViewProps) {
             )}
 
             {/* Piano vs Reale Comparison */}
-            {selectedStrategy && stats && trades.length > 0 && (
-              <PlanVsReal 
-                trades={trades} 
-                stats={stats} 
-                plan={selectedStrategy.plan}
-              />
-            )}
+            {selectedStrategy && stats && trades.length > 0 && (() => {
+              const rawPlan = selectedStrategy.plan;
+              const planForComparison = rawPlan
+                ? {
+                    targetPremiumPercent: rawPlan.targetPremiumPercent ?? 2,
+                    tradesPerMonth: rawPlan.tradesPerMonth ?? 8,
+                    targetMonthlyReturn:
+                      rawPlan.targetMonthlyReturn ??
+                      selectedStrategy.target_monthly_return ??
+                      5,
+                    riskPerTrade: rawPlan.riskPerTrade ?? 10,
+                    strategy: rawPlan.strategy ?? 'wheel',
+                  }
+                : undefined;
+
+              return (
+                <PlanVsReal 
+                  trades={trades} 
+                  stats={stats} 
+                  plan={planForComparison}
+                />
+              );
+            })()}
             
             {/* Trade Journal - Only show if strategy selected */}
             {selectedStrategy && (

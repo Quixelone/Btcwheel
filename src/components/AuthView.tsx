@@ -234,7 +234,7 @@ export function AuthView({ onAuthSuccess }: AuthViewProps) {
       // More helpful error message for OAuth configuration issues
       const errorMsg = err.message || '';
       if (errorMsg.includes('provider') || errorMsg.includes('not enabled') || errorMsg.includes('configured')) {
-        setError('❌ Google OAuth non configurato. Usa email/password oppure segui GOOGLE_OAUTH_CONFIG.md per configurare Google.');
+        setError('❌ Google OAuth non configurato. Usa email/password.');
       } else {
         setError(`Errore Google OAuth: ${errorMsg}. Usa email/password come alternativa.`);
       }
@@ -340,14 +340,7 @@ export function AuthView({ onAuthSuccess }: AuthViewProps) {
             )}
           </AnimatePresence>
 
-          <Alert className="mb-4 border-orange-300 bg-orange-50">
-            <AlertCircle className="h-4 w-4 text-orange-600" />
-            <AlertDescription className="text-orange-900 text-sm">
-              <strong>Google OAuth è attivo.</strong>
-              <br />
-              Puoi accedere con Google oppure usare email e password.
-            </AlertDescription>
-          </Alert>
+
 
           {/* Social Login */}
           <div className="space-y-3 mb-6">

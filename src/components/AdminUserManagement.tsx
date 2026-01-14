@@ -105,14 +105,16 @@ export function AdminUserManagement() {
       const { stats } = await response.json();
       console.log('✅ Stats loaded successfully:', stats);
       setStats(stats);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching stats:', error);
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
       
       // Don't show toast if we already showed session error
       if (!error?.message?.includes('session')) {
-        toast.error('Errore nel caricamento statistiche');
+        toast.error('Errore nel recupero delle statistiche');
       }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -168,7 +170,7 @@ export function AdminUserManagement() {
       console.log('✅ Users loaded successfully:', fetchedUsers.length, 'users');
       setUsers(fetchedUsers);
       setTotalPages(pagination.totalPages);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching users:', error);
       
       // Don't show toast if we already showed session error

@@ -1,12 +1,10 @@
-import { useState, useRef } from 'react';
+import { useRef } from 'react';
 import { Navigation } from './Navigation';
 import { UserMenu } from './UserMenu';
 import { Progress } from './ui/progress';
 import { Card } from './ui/card';
-import { Badge } from './ui/badge';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useUserProgress } from '../hooks/useUserProgress';
-import { ActivePlanProgress } from './ActivePlanProgress';
 import { motion, useInView } from 'motion/react';
 import { 
   Trophy, 
@@ -28,9 +26,6 @@ import {
   CheckCircle
 } from 'lucide-react';
 import type { View } from '../App';
-
-// Import mascot image - USING SVG for reliability
-const mascotImage = '/mascot-normal.svg';
 
 interface DashboardProps {
   onNavigate: (view: View) => void;
@@ -120,7 +115,7 @@ export function Dashboard({ onNavigate, mascotVisible, onMascotToggle }: Dashboa
       description: 'Quiz Intelligenti AI',
       icon: Brain,
       gradient: 'from-orange-500 to-red-600',
-      action: () => onNavigate('quiz')
+      action: () => onNavigate('lessons')
     }
   ];
 

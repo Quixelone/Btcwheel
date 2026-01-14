@@ -50,6 +50,7 @@ app.post("/make-server-7c0f82ca/auth/signup", async (c) => {
     // Import createClient here
     const { createClient } = await import("npm:@supabase/supabase-js");
     
+    
     // Create admin client with service role key
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
