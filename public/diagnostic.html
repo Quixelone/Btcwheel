@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🔍 Diagnostica btcwheel</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+    
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 2rem;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+    
+    .status {
+      background: rgba(255, 255, 255, 0.2);
+      padding: 1rem;
+      border-radius: 10px;
+      margin: 1rem 0;
+    }
+    
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .status-item:last-child {
+      border-bottom: none;
+    }
+    
+    .label {
+      font-weight: 600;
+    }
+    
+    .value {
+      font-family: 'Courier New', monospace;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.25rem 0.5rem;
+      border-radius: 5px;
+      font-size: 0.9rem;
+      word-break: break-all;
+      max-width: 60%;
+      text-align: right;
+    }
+    
+    .correct {
+      color: #4ade80;
+    }
+    
+    .warning {
+      color: #fbbf24;
+    }
+    
+    .error {
+      color: #f87171;
+    }
+    
+    .section-title {
+      font-size: 1.5rem;
+      margin-top: 2rem;
+      margin-bottom: 1rem;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+      padding-bottom: 0.5rem;
+    }
+    
+    .alert {
+      background: rgba(239, 68, 68, 0.2);
+      border-left: 4px solid #f87171;
+      padding: 1rem;
+      border-radius: 5px;
+      margin: 1rem 0;
+    }
+    
+    .success {
+      background: rgba(74, 222, 128, 0.2);
+      border-left: 4px solid #4ade80;
+      padding: 1rem;
+      border-radius: 5px;
+      margin: 1rem 0;
+    }
+    
+    button {
+      background: #4ade80;
+      color: #000;
+      border: none;
+      padding: 1rem 2rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 1rem;
+      transition: transform 0.2s;
+    }
+    
+    button:hover {
+      transform: translateY(-2px);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    pre {
+      background: rgba(0, 0, 0, 0.5);
+      padding: 1rem;
+      border-radius: 5px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      margin: 1rem 0;
+    }
+    
+    .copy-btn {
+      background: #3b82f6;
+      color: #fff;
+      padding: 0.5rem 1rem;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 Diagnostica btcwheel</h1>
+    <p style="text-align: center; margin-bottom: 2rem; opacity: 0.9;">
+      Verifica immediata della configurazione dell'app
+    </p>
+
+    <!-- Current URL -->
+    <div class="section-title">🌐 Informazioni URL</div>
+    <div class="status">
+      <div class="status-item">
+        <span class="label">URL Corrente:</span>
+        <span class="value" id="current-url">-</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Origin:</span>
+        <span class="value" id="origin">-</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Hostname:</span>
+        <span class="value" id="hostname">-</span>
+      </div>
+    </div>
+
+    <!-- Package Info -->
+    <div class="section-title">📦 Informazioni App</div>
+    <div class="status">
+      <div class="status-item">
+        <span class="label">Nome App:</span>
+        <span class="value" id="app-name">btcwheel</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Versione:</span>
+        <span class="value" id="app-version">1.0.0</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Descrizione:</span>
+        <span class="value" style="max-width: 70%;">Bitcoin Wheel Strategy</span>
+      </div>
+    </div>
+
+    <!-- Check Results -->
+    <div class="section-title">✅ Verifica Configurazione</div>
+    
+    <div id="check-result-url"></div>
+    <div id="check-result-title"></div>
+    <div id="check-result-storage"></div>
+
+    <!-- Supabase Status -->
+    <div class="section-title">☁️ Supabase</div>
+    <div class="status">
+      <div class="status-item">
+        <span class="label">Project ID:</span>
+        <span class="value" id="supabase-id">tzorfzsdhyceyumhlfdp</span>
+      </div>
+      <div class="status-item">
+        <span class="label">Storage Prefix:</span>
+        <span class="value" id="storage-prefix">btcwheel_</span>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="section-title">🛠️ Azioni</div>
+    <button onclick="copyDiagnostic()">📋 Copia Report Diagnostico</button>
+    <button onclick="clearStorage()" style="background: #f59e0b; margin-top: 0.5rem;">
+      🗑️ Pulisci localStorage (Fix Conflitti)
+    </button>
+    <button onclick="window.location.href='/'" style="background: #10b981; margin-top: 0.5rem;">
+      🏠 Vai all'App
+    </button>
+
+    <!-- Instructions -->
+    <div class="section-title">📖 Istruzioni</div>
+    <div style="background: rgba(255, 255, 255, 0.1); padding: 1rem; border-radius: 10px; font-size: 0.9rem;">
+      <p><strong>Se vedi "finanzacreativa" in questa pagina:</strong></p>
+      <ol style="margin-left: 1.5rem; margin-top: 0.5rem; line-height: 1.8;">
+        <li>Il problema è nella <strong>configurazione Vercel</strong></li>
+        <li>Vercel sta servendo il repository sbagliato</li>
+        <li>Devi creare un nuovo progetto Vercel</li>
+        <li>Leggi <code>/DEPLOY_VERCEL_NUOVO.md</code></li>
+      </ol>
+      
+      <p style="margin-top: 1rem;"><strong>Se tutto appare corretto (btcwheel):</strong></p>
+      <ol style="margin-left: 1.5rem; margin-top: 0.5rem; line-height: 1.8;">
+        <li>✅ L'app è configurata correttamente</li>
+        <li>Il problema potrebbe essere nel redirect Supabase</li>
+        <li>Leggi <code>/SUPABASE_REDIRECT_FIX.md</code></li>
+      </ol>
+    </div>
+
+    <div id="diagnostic-output" style="display: none;"></div>
+  </div>
+
+  <script>
+    // Populate current URL info
+    document.getElementById('current-url').textContent = window.location.href;
+    document.getElementById('origin').textContent = window.location.origin;
+    document.getElementById('hostname').textContent = window.location.hostname;
+
+    // Check URL
+    const hostname = window.location.hostname;
+    let urlCheck = '';
+    if (hostname.includes('finanzacreativa')) {
+      urlCheck = `
+        <div class="alert">
+          <strong>❌ PROBLEMA TROVATO!</strong><br>
+          Sei su <strong>finanzacreativa.live</strong> invece di btcwheel!<br>
+          <strong>Causa:</strong> Vercel sta servendo il repository sbagliato.<br>
+          <strong>Soluzione:</strong> Crea un nuovo progetto Vercel e importa il repository btcwheel.
+        </div>
+      `;
+    } else if (hostname.includes('btcwheel') || hostname.includes('localhost') || hostname.includes('vercel.app')) {
+      urlCheck = `
+        <div class="success">
+          <strong>✅ URL CORRETTA!</strong><br>
+          L'URL è corretta per btcwheel.
+        </div>
+      `;
+    } else {
+      urlCheck = `
+        <div class="alert">
+          <strong>⚠️ URL SCONOSCIUTA</strong><br>
+          Non riconosco questa URL. Verifica manualmente.
+        </div>
+      `;
+    }
+    document.getElementById('check-result-url').innerHTML = urlCheck;
+
+    // Check page title
+    const pageTitle = document.title;
+    let titleCheck = '';
+    if (pageTitle.includes('finanzacreativa') || pageTitle.includes('Finanza Creativa')) {
+      titleCheck = `
+        <div class="alert">
+          <strong>❌ TITOLO SBAGLIATO!</strong><br>
+          Il titolo della pagina è: <strong>${pageTitle}</strong><br>
+          Dovrebbe essere: <strong>btcwheel - Impara la Bitcoin Wheel Strategy</strong><br>
+          <strong>Causa:</strong> Vercel sta servendo l'app sbagliata.
+        </div>
+      `;
+    } else if (pageTitle.includes('btcwheel') || pageTitle.includes('Bitcoin Wheel')) {
+      titleCheck = `
+        <div class="success">
+          <strong>✅ TITOLO CORRETTO!</strong><br>
+          Il titolo è: <strong>${pageTitle}</strong>
+        </div>
+      `;
+    }
+    document.getElementById('check-result-title').innerHTML = titleCheck;
+
+    // Check localStorage
+    const storageKeys = Object.keys(localStorage);
+    const hasFinanzacreativa = storageKeys.some(key => key.includes('finanzacreativa'));
+    const hasBtcwheel = storageKeys.some(key => key.includes('btcwheel'));
+    
+    let storageCheck = '';
+    if (hasFinanzacreativa) {
+      storageCheck = `
+        <div class="alert">
+          <strong>⚠️ CONFLITTO localStorage!</strong><br>
+          Trovate chiavi di finanzacreativa nel localStorage.<br>
+          <strong>Soluzione:</strong> Clicca "Pulisci localStorage" qui sotto.
+        </div>
+      `;
+    } else if (hasBtcwheel) {
+      storageCheck = `
+        <div class="success">
+          <strong>✅ localStorage CORRETTO!</strong><br>
+          Trovate solo chiavi btcwheel (con prefisso corretto).
+        </div>
+      `;
+    } else {
+      storageCheck = `
+        <div class="success">
+          <strong>✅ localStorage PULITO!</strong><br>
+          Nessun dato conflittuale trovato.
+        </div>
+      `;
+    }
+    document.getElementById('check-result-storage').innerHTML = storageCheck;
+
+    // Copy diagnostic function
+    function copyDiagnostic() {
+      const report = `
+🔍 REPORT DIAGNOSTICO btcwheel
+================================
+
+📅 Data: ${new Date().toLocaleString('it-IT')}
+
+🌐 INFORMAZIONI URL:
+- URL Corrente: ${window.location.href}
+- Origin: ${window.location.origin}
+- Hostname: ${window.location.hostname}
+- Path: ${window.location.pathname}
+
+📦 INFORMAZIONI APP:
+- Nome: btcwheel
+- Versione: 1.0.0
+- Titolo Pagina: ${document.title}
+- User Agent: ${navigator.userAgent}
+
+☁️ SUPABASE:
+- Project ID: tzorfzsdhyceyumhlfdp
+- Storage Prefix: btcwheel_
+
+🔍 VERIFICA:
+${hostname.includes('finanzacreativa') ? '❌ PROBLEMA: Sei su finanzacreativa.live invece di btcwheel!' : '✅ URL corretta'}
+${pageTitle.includes('finanzacreativa') ? '❌ PROBLEMA: Titolo pagina contiene "finanzacreativa"' : '✅ Titolo pagina corretto'}
+${hasFinanzacreativa ? '⚠️ WARNING: localStorage contiene chiavi di finanzacreativa' : '✅ localStorage pulito'}
+
+📋 localStorage KEYS (prime 10):
+${storageKeys.slice(0, 10).join('\n')}
+
+🎯 CONCLUSIONE:
+${hostname.includes('finanzacreativa') ? 
+  '❌ Vercel sta servendo il repository sbagliato. Devi creare un nuovo progetto Vercel.' : 
+  '✅ La configurazione sembra corretta. Se hai problemi di redirect, controlla Supabase Auth settings.'}
+
+📖 DOCUMENTAZIONE:
+- /DEPLOY_VERCEL_NUOVO.md - Come creare nuovo progetto Vercel
+- /SUPABASE_REDIRECT_FIX.md - Fix redirect Supabase
+- /CHECK_VERCEL_CONFIG.md - Checklist configurazione Vercel
+      `.trim();
+
+      navigator.clipboard.writeText(report).then(() => {
+        alert('✅ Report copiato negli appunti!');
+      }).catch(err => {
+        alert('❌ Errore nella copia: ' + err);
+        console.log(report);
+      });
+    }
+
+    // Clear storage function
+    function clearStorage() {
+      if (confirm('⚠️ Sei sicuro? Questo cancellerà TUTTI i dati locali (progresso, settings, ecc).')) {
+        localStorage.clear();
+        sessionStorage.clear();
+        alert('✅ Storage pulito! Ricarico la pagina...');
+        window.location.reload();
+      }
+    }
+  </script>
+</body>
+</html>
