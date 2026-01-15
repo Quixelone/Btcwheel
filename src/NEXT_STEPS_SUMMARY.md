@@ -124,8 +124,8 @@ ADD COLUMN accumulation_history JSONB DEFAULT '[]'::jsonb;
 ## 🚀 ROADMAP FUTURE DEVELOPMENT
 
 ### **Short Term (1-2 settimane)**
-- [ ] ✅ User Management (FATTO!)
-- [ ] ✅ Costo Medio BTC (DOCUMENTATO - da implementare)
+- [x] ✅ User Management (FATTO!)
+- [x] ✅ Costo Medio BTC (IMPLEMENTATO)
 - [ ] Notifiche email (piano in scadenza)
 - [ ] Export CSV utenti
 - [ ] Grafici analytics dashboard admin

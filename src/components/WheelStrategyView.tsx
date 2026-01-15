@@ -52,6 +52,11 @@ interface Strategy {
   };
   // Campi opzionali per compatibilità futura
   targetMonthlyReturn?: number;
+  
+  // 📊 Costo Medio BTC fields
+  total_btc_accumulated?: number;
+  total_btc_cost_basis?: number;
+  average_btc_price?: number;
 }
 
 interface Stats {
@@ -670,6 +675,34 @@ export function WheelStrategyView({ onNavigate }: WheelStrategyViewProps) {
         setTrades(updatedTrades);
         localStorage.setItem(`btcwheel_trades_${selectedStrategy.id}`, JSON.stringify(updatedTrades));
         
+        // 📊 AUTO-UPDATE ACCUMULATION (Local)
+        if (formData.action === 'assigned') {
+          const currentQty = selectedStrategy.total_btc_accumulated || 0;
+          const currentCost = selectedStrategy.total_btc_cost_basis || 0;
+          
+          const tradeQty = parseInt(formData.quantity);
+          const tradeStrike = parseFloat(formData.strike);
+          
+          const newQty = currentQty + tradeQty;
+          const newCost = currentCost + (tradeQty * tradeStrike);
+          const newAvg = newQty > 0 ? newCost / newQty : 0;
+          
+          const updatedStrategy = {
+            ...selectedStrategy,
+            total_btc_accumulated: newQty,
+            total_btc_cost_basis: newCost,
+            average_btc_price: newAvg
+          };
+          
+          // Update strategy in list and state
+          const newStrategies = strategies.map(s => s.id === updatedStrategy.id ? updatedStrategy : s);
+          setStrategies(newStrategies);
+          localStorage.setItem('btcwheel_strategies', JSON.stringify(newStrategies));
+          setSelectedStrategy(updatedStrategy);
+          
+          console.log(`✅ [Local] Updated BTC accumulation: ${newQty} BTC @ $${newAvg.toFixed(2)}`);
+        }
+
         // Recalculate stats with updated trades
         const activeTrades = updatedTrades.filter(t => t.status === 'open').length;
         const closedTrades = updatedTrades.filter(t => t.status === 'closed');
@@ -763,6 +796,90 @@ export function WheelStrategyView({ onNavigate }: WheelStrategyViewProps) {
     } catch (error) {
       console.error('Error adding trade:', error);
       alert('Errore nell\'aggiunta del trade. Riprova.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleCloseTrade = async (tradeId: string) => {
+    if (!selectedStrategy) {
+      alert('Seleziona una strategia prima di gestire i trade');
+      return;
+    }
+
+    setSaving(true);
+
+    try {
+      if (!accessToken) {
+        const updatedTrades = trades.map((t) =>
+          t.id === tradeId ? { ...t, status: 'closed' as const } : t
+        );
+
+        setTrades(updatedTrades);
+        localStorage.setItem(
+          `btcwheel_trades_${selectedStrategy.id}`,
+          JSON.stringify(updatedTrades)
+        );
+
+        const activeTrades = updatedTrades.filter((t) => t.status === 'open').length;
+        const closedTrades = updatedTrades.filter((t) => t.status === 'closed');
+        const totalPnL = updatedTrades.reduce((sum, t) => sum + t.pnl, 0);
+        const totalPremiumCollected = closedTrades.reduce(
+          (sum, t) => sum + t.premium * t.quantity,
+          0
+        );
+        const winningTrades = closedTrades.filter((t) => t.pnl > 0).length;
+        const losingTrades = closedTrades.filter((t) => t.pnl < 0).length;
+        const winRate =
+          closedTrades.length > 0 ? (winningTrades / closedTrades.length) * 100 : 0;
+        const returnOnCapital =
+          selectedStrategy.total_capital > 0
+            ? (totalPnL / selectedStrategy.total_capital) * 100
+            : 0;
+
+        setStats({
+          totalPnL,
+          activeTrades,
+          closedTrades: closedTrades.length,
+          totalTrades: updatedTrades.length,
+          winRate,
+          totalPremiumCollected,
+          returnOnCapital,
+          winningTrades,
+          losingTrades,
+          initialCapital: selectedStrategy.total_capital,
+          currentCapital: selectedStrategy.total_capital + totalPnL,
+        });
+
+        toast.success('Trade chiuso');
+        return;
+      }
+
+      const response = await fetch(
+        `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/wheel/trades/${tradeId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status: 'closed' }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to update trade status');
+      }
+
+      if (selectedStrategy.id) {
+        await fetchTrades(selectedStrategy.id);
+        await fetchStats(selectedStrategy.id);
+      }
+
+      toast.success('Trade chiuso');
+    } catch (error) {
+      console.error('Error closing trade:', error);
+      toast.error('Errore nella chiusura del trade');
     } finally {
       setSaving(false);
     }
@@ -1236,6 +1353,32 @@ export function WheelStrategyView({ onNavigate }: WheelStrategyViewProps) {
                     </div>
                   </div>
                 </div>
+
+                {/* BTC Accumulation Card */}
+                {selectedStrategy && selectedStrategy.total_btc_accumulated && selectedStrategy.total_btc_accumulated > 0 ? (
+                  <div className="bg-gradient-to-br from-slate-800/50 to-slate-900/50 backdrop-blur-xl border border-orange-500/50 rounded-xl shadow-md hover:shadow-xl transition-all duration-300 hover:border-orange-400/50 overflow-hidden relative group">
+                    {/* Top gradient bar */}
+                    <div className="h-2 bg-gradient-to-r from-orange-500 to-amber-500" />
+                    <div className="p-6">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-gray-400 text-sm">BTC Accumulati</span>
+                        <div className="w-6 h-6 rounded-full bg-orange-500/20 flex items-center justify-center text-orange-400 font-bold text-sm">₿</div>
+                      </div>
+                      <div className="text-2xl font-bold text-white">
+                        {selectedStrategy.total_btc_accumulated.toFixed(4)} <span className="text-sm font-normal text-gray-400">BTC</span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="text-xs text-gray-400">
+                          Costo Medio: <span className="text-orange-400 font-bold">${selectedStrategy.average_btc_price?.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                        </div>
+                        {/* Tooltip hint */}
+                        <div className="hidden group-hover:block absolute top-12 right-4 bg-black/80 text-white text-xs px-2 py-1 rounded border border-gray-700">
+                          Prezzo di pareggio
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
               </div>
             )}
 
@@ -1446,6 +1589,24 @@ export function WheelStrategyView({ onNavigate }: WheelStrategyViewProps) {
                         </p>
                       </div>
                     )}
+
+                    {/* Warning Vendita CALL sotto costo medio */}
+                    {formData.type === 'call' && formData.action === 'sell' && selectedStrategy?.average_btc_price && selectedStrategy.average_btc_price > 0 && parseFloat(formData.strike) < selectedStrategy.average_btc_price && (
+                      <div className="mt-3 p-3 bg-red-500/10 border-l-4 border-red-500 rounded-lg">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <p className="text-sm font-bold text-red-400">⚠️ ATTENZIONE: Strike Price Sotto Costo Medio!</p>
+                            <p className="text-xs text-red-300/80 mt-1">
+                              Stai vendendo una CALL a <span className="text-white font-mono">${parseFloat(formData.strike).toLocaleString()}</span> ma il tuo costo medio di carico è <span className="text-white font-mono">${selectedStrategy.average_btc_price.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>.
+                            </p>
+                            <p className="text-xs text-red-300/80 mt-1">
+                              Se vieni assegnato, realizzerai una <strong>perdita</strong> sul capitale accumulato.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                     
                     {/* Calcolo Automatico - Mostra entrambi i valori */}
                     {formData.capital && formData.premium && (
@@ -1513,16 +1674,25 @@ export function WheelStrategyView({ onNavigate }: WheelStrategyViewProps) {
                             </div>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <div className={`text-lg ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                            {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(2)}
-                          </div>
-                          <div className="text-sm text-gray-500">{trade.date}</div>
+                      <div className="text-right">
+                        <div className={`text-lg ${trade.pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          {trade.pnl >= 0 ? '+' : ''}{trade.pnl.toFixed(2)}
                         </div>
+                        <div className="text-sm text-gray-500">{trade.date}</div>
+                        {trade.status === 'open' && (
+                          <button
+                            onClick={() => handleCloseTrade(trade.id)}
+                            disabled={saving}
+                            className="mt-2 px-3 py-1 bg-slate-700 text-gray-100 rounded text-xs hover:bg-slate-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            Chiudi trade
+                          </button>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                )}
+                    </div>
+                  ))}
+                </div>
+              )}
               </div>
             )}
           </>

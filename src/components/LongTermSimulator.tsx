@@ -15,7 +15,8 @@ import {
   Download,
   BarChart3,
   Target,
-  Zap
+  Zap,
+  Loader2
 } from 'lucide-react';
 import { 
   LineChart, 
@@ -78,6 +79,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
     return saved ? JSON.parse(saved) : [];
   });
   const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [planName, setPlanName] = useState('');
   
   // Calculate simulation data
@@ -152,113 +154,120 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
       return;
     }
     
-    const newPlan: SavedPlan = {
-      id: Date.now().toString(),
-      name: planName.trim(),
-      initialCapital,
-      pacAmount,
-      pacFrequency,
-      dailyInterest,
-      years,
-      finalCapital,
-      totalProfit,
-      roi,
-      createdAt: new Date()
-    };
+    if (isSaving) return;
+    setIsSaving(true);
     
-    const updatedPlans = [...savedPlans, newPlan];
-    setSavedPlans(updatedPlans);
-    localStorage.setItem('btcwheel_longterm_plans', JSON.stringify(updatedPlans));
-    
-    // 📊 Calcola il ritorno mensile corretto dall'interesse GIORNALIERO composto
-    // Formula: (1 + dailyRate)^30 - 1
-    const totalMonths = years * 12;
-    const dailyRate = dailyInterest / 100;
-    const monthlyReturnRate = (Math.pow(1 + dailyRate, 30) - 1) * 100; // Interesse mensile equivalente
-    
-    const wheelStrategy = {
-      id: newPlan.id,
-      name: planName.trim(),
-      ticker: 'BTC',
-      total_capital: initialCapital,
-      // Store plan data in JSON format (matching database schema)
-      plan: {
-        duration_months: totalMonths,
-        target_monthly_return: parseFloat(monthlyReturnRate.toFixed(2)),
-      },
-      // Legacy fields for backward compatibility
-      plan_duration_months: totalMonths,
-      target_monthly_return: parseFloat(monthlyReturnRate.toFixed(2)),
-      created_at: new Date().toISOString(),
-    };
-    
-    // 🎯 SALVA IN LOCALSTORAGE (sempre)
-    const existingStrategies = JSON.parse(localStorage.getItem('btcwheel_strategies') || '[]');
-    existingStrategies.push(wheelStrategy);
-    localStorage.setItem('btcwheel_strategies', JSON.stringify(existingStrategies));
-    
-    // ☁️ SALVA ANCHE NEL DATABASE CLOUD (se loggato)
     try {
-      if (isSupabaseConfigured) {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session?.access_token) {
-          console.log('☁️ [LongTermSimulator] User logged in - saving strategy to cloud...');
+      const newPlan: SavedPlan = {
+        id: Date.now().toString(),
+        name: planName.trim(),
+        initialCapital,
+        pacAmount,
+        pacFrequency,
+        dailyInterest,
+        years,
+        finalCapital,
+        totalProfit,
+        roi,
+        createdAt: new Date()
+      };
+      
+      const updatedPlans = [...savedPlans, newPlan];
+      setSavedPlans(updatedPlans);
+      localStorage.setItem('btcwheel_longterm_plans', JSON.stringify(updatedPlans));
+      
+      // 📊 Calcola il ritorno mensile corretto dall'interesse GIORNALIERO composto
+      // Formula: (1 + dailyRate)^30 - 1
+      const totalMonths = years * 12;
+      const dailyRate = dailyInterest / 100;
+      const monthlyReturnRate = (Math.pow(1 + dailyRate, 30) - 1) * 100; // Interesse mensile equivalente
+      
+      const wheelStrategy = {
+        id: newPlan.id,
+        name: planName.trim(),
+        ticker: 'BTC',
+        total_capital: initialCapital,
+        // Store plan data in JSON format (matching database schema)
+        plan: {
+          duration_months: totalMonths,
+          target_monthly_return: parseFloat(monthlyReturnRate.toFixed(2)),
+        },
+        // Legacy fields for backward compatibility
+        plan_duration_months: totalMonths,
+        target_monthly_return: parseFloat(monthlyReturnRate.toFixed(2)),
+        created_at: new Date().toISOString(),
+      };
+      
+      // 🎯 SALVA IN LOCALSTORAGE (sempre)
+      const existingStrategies = JSON.parse(localStorage.getItem('btcwheel_strategies') || '[]');
+      existingStrategies.push(wheelStrategy);
+      localStorage.setItem('btcwheel_strategies', JSON.stringify(existingStrategies));
+      
+      // ☁️ SALVA ANCHE NEL DATABASE CLOUD (se loggato)
+      try {
+        if (isSupabaseConfigured) {
+          const { data: { session } } = await supabase.auth.getSession();
           
-          const response = await fetch(
-            `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/wheel/strategies`,
-            {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${session.access_token}`,
-              },
-              body: JSON.stringify({
-                name: wheelStrategy.name,
-                ticker: wheelStrategy.ticker,
-                totalCapital: wheelStrategy.total_capital,
-                planDurationMonths: wheelStrategy.plan_duration_months,
-                targetMonthlyReturn: wheelStrategy.target_monthly_return,
-              }),
+          if (session?.access_token) {
+            console.log('☁️ [LongTermSimulator] User logged in - saving strategy to cloud...');
+            
+            const response = await fetch(
+              `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/wheel/strategies`,
+              {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  Authorization: `Bearer ${session.access_token}`,
+                },
+                body: JSON.stringify({
+                  name: wheelStrategy.name,
+                  ticker: wheelStrategy.ticker,
+                  totalCapital: wheelStrategy.total_capital,
+                  planDurationMonths: wheelStrategy.plan_duration_months,
+                  targetMonthlyReturn: wheelStrategy.target_monthly_return,
+                }),
+              }
+            );
+            
+            if (!response.ok) {
+              console.error('❌ [LongTermSimulator] Failed to save to cloud:', await response.text());
+              toast.warning('Piano salvato localmente', {
+                description: 'Impossibile sincronizzare con il cloud, ma è salvato sul tuo dispositivo',
+              });
+            } else {
+              console.log('✅ [LongTermSimulator] Strategy saved to cloud successfully!');
+              toast.success('Piano salvato con successo!', {
+                description: `${planName.trim()} sincronizzato con il cloud e disponibile nella dashboard`,
+              });
             }
-          );
-          
-          if (!response.ok) {
-            console.error('❌ [LongTermSimulator] Failed to save to cloud:', await response.text());
-            toast.warning('Piano salvato localmente', {
-              description: 'Impossibile sincronizzare con il cloud, ma è salvato sul tuo dispositivo',
-            });
           } else {
-            console.log('✅ [LongTermSimulator] Strategy saved to cloud successfully!');
+            console.log('⚠️ [LongTermSimulator] No session - saving locally only');
             toast.success('Piano salvato con successo!', {
-              description: `${planName.trim()} sincronizzato con il cloud e disponibile nella dashboard`,
+              description: `${planName.trim()} aggiunto ai tuoi piani locali`,
             });
           }
         } else {
-          console.log('⚠️ [LongTermSimulator] No session - saving locally only');
+          console.log('📦 [LongTermSimulator] Supabase not configured - local mode only');
           toast.success('Piano salvato con successo!', {
-            description: `${planName.trim()} aggiunto ai tuoi piani locali`,
+            description: `${planName.trim()} aggiunto ai tuoi piani`,
           });
         }
-      } else {
-        console.log('📦 [LongTermSimulator] Supabase not configured - local mode only');
-        toast.success('Piano salvato con successo!', {
-          description: `${planName.trim()} aggiunto ai tuoi piani`,
+      } catch (error) {
+        console.error('❌ [LongTermSimulator] Error saving to cloud:', error);
+        toast.warning('Piano salvato localmente', {
+          description: 'Errore nella sincronizzazione cloud, ma il piano è salvato sul dispositivo',
         });
       }
-    } catch (error) {
-      console.error('❌ [LongTermSimulator] Error saving to cloud:', error);
-      toast.warning('Piano salvato localmente', {
-        description: 'Errore nella sincronizzazione cloud, ma il piano è salvato sul dispositivo',
-      });
+      
+      // Reset dialog
+      setShowSaveDialog(false);
+      setPlanName('');
+      
+      // 🔔 Notify other components that strategies have been updated
+      window.dispatchEvent(new CustomEvent('btcwheel-strategies-updated'));
+    } finally {
+      setIsSaving(false);
     }
-    
-    // Reset dialog
-    setShowSaveDialog(false);
-    setPlanName('');
-    
-    // 🔔 Notify other components that strategies have been updated
-    window.dispatchEvent(new CustomEvent('btcwheel-strategies-updated'));
   };
   
   const handleSetAsActive = () => {
@@ -877,10 +886,20 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
               </Button>
               <Button
                 onClick={confirmSavePlan}
-                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500"
+                disabled={isSaving}
+                className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <Save className="w-4 h-4 mr-2" />
-                Salva
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Salvataggio...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Salva
+                  </>
+                )}
               </Button>
             </div>
           </motion.div>

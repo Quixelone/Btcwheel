@@ -211,16 +211,19 @@ Wheel Strategy View
 
 ## 🔧 Integrazione Future
 
-### **Backend Integration** (TODO)
+### **Backend Integration** (Parzialmente implementato)
 ```typescript
-// Edge Function endpoints da creare
-POST /make-server-7c0f82ca/open-position
-POST /make-server-7c0f82ca/close-position
-GET  /make-server-7c0f82ca/positions
-GET  /make-server-7c0f82ca/performance-stats
+// Edge Function endpoints attivi (wheel-routes.tsx)
+GET  /make-server-7c0f82ca/wheel/strategies
+POST /make-server-7c0f82ca/wheel/strategies
+GET  /make-server-7c0f82ca/wheel/trades/:strategyId
+POST /make-server-7c0f82ca/wheel/trades
+GET  /make-server-7c0f82ca/wheel/strategies/:strategyId/stats
+
+// TODO (futuro): real-time sync e notifiche push
 ```
 
-### **Database Schema** (TODO)
+### **Database Schema** (Parzialmente implementato)
 ```sql
 -- Tabella posizioni
 CREATE TABLE wheel_positions (
@@ -271,11 +274,11 @@ CREATE TABLE wheel_performance (
 - ✅ Responsive design
 - ✅ Guida strategia
 
-### **Fase 2: Backend Integration** (TODO)
-- [ ] API endpoints Supabase
-- [ ] Database schema creation
+### **Fase 2: Backend Integration** (Parzialmente implementato)
+- [x] API endpoints Supabase (strategie, trade, stats per strategia)
+- [x] Database schema base (`wheel_strategies`, `wheel_trades`)
 - [ ] Real-time data sync
-- [ ] Position CRUD operations
+- [ ] Position CRUD operations avanzate (posizioni derivate, performance aggregate)
 
 ### **Fase 3: Advanced Features** (TODO)
 - [ ] Automated 0DTE trading signals

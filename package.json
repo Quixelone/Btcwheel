@@ -52,7 +52,9 @@
             "tailwind-merge": "*",
             "url": "*",
             "vaul": "^1.1.2",
-            "vite": "*"
+            "vite": "*",
+            "vite-plugin-pwa": "^1.2.0",
+            "workbox-window": "^7.4.0"
       },
       "devDependencies": {
             "@tailwindcss/vite": "^4.1.18",

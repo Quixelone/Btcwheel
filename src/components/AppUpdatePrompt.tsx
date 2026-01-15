@@ -1,70 +1,34 @@
-import { useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { toast } from 'sonner';
+import { useRegisterSW } from 'virtual:pwa-register/react';
 
 export function AppUpdatePrompt() {
-  const [showUpdatePrompt, setShowUpdatePrompt] = useState(false);
-  const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
-
-  useEffect(() => {
-    // TEMPORARILY DISABLED - Service Worker not implemented yet
-    // TODO: Implement proper PWA service worker with Workbox
-    /*
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        setRegistration(reg);
-
-        // Check for updates every hour
-        setInterval(() => {
-          reg.update();
-        }, 60 * 60 * 1000);
-
-        // Listen for new service worker
-        reg.addEventListener('updatefound', () => {
-          const newWorker = reg.installing;
-          
-          if (newWorker) {
-            newWorker.addEventListener('statechange', () => {
-              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                setShowUpdatePrompt(true);
-              }
-            });
-          }
-        });
-      });
-
-      // Listen for controller change
-      let refreshing = false;
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        if (!refreshing) {
-          refreshing = true;
-          window.location.reload();
-        }
-      });
-    }
-    */
-  }, []);
+  const {
+    needRefresh: [needRefresh, setNeedRefresh],
+    updateServiceWorker,
+  } = useRegisterSW({
+    onRegistered(r) {
+      console.log('SW Registered: ' + r)
+    },
+    onRegisterError(error) {
+      console.log('SW registration error', error)
+    },
+  });
 
   const handleUpdate = () => {
-    if (registration?.waiting) {
-      registration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      setShowUpdatePrompt(false);
-      toast.success('Aggiornamento in corso...', {
-        description: 'L\'app verrà ricaricata tra poco'
-      });
-    }
+    updateServiceWorker(true);
   };
 
   const handleDismiss = () => {
-    setShowUpdatePrompt(false);
+    setNeedRefresh(false);
     toast.info('Aggiornamento rimandato', {
       description: 'Ricarica la pagina manualmente per aggiornare'
     });
   };
 
-  if (!showUpdatePrompt) return null;
+  if (!needRefresh) return null;
 
   return (
     <div className="fixed top-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50 animate-in slide-in-from-top-4">

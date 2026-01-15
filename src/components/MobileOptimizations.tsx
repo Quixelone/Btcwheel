@@ -69,20 +69,8 @@ export function MobileOptimizations() {
       });
     }
 
-    // Register service worker
-    // TEMPORARILY DISABLED - TODO: Implement proper PWA service worker
-    /*
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/service-worker.js')
-        .then((registration) => {
-          console.log('Service Worker registered:', registration);
-        })
-        .catch((error) => {
-          console.log('Service Worker registration failed:', error);
-        });
-    }
-    */
+    // Service Worker registration is now handled by vite-plugin-pwa
+    // and AppUpdatePrompt component handles the updates.
 
     // Handle online/offline status
     const handleOnline = () => {

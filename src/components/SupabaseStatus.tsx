@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { projectId } from '../utils/supabase/info';
 import { useAuth } from '../hooks/useAuth';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
@@ -209,10 +210,10 @@ export function SupabaseStatus() {
                   <div>
                     <p className="text-emerald-900 mb-1">✅ Connesso a Supabase</p>
                     <p className="text-sm text-emerald-700">
-                      Project ID: <code className="bg-emerald-100 px-2 py-0.5 rounded">rsmvjsokqolxgczclqjv</code>
+                      Project ID: <code className="bg-emerald-100 px-2 py-0.5 rounded">{projectId}</code>
                     </p>
                     <a
-                      href="https://supabase.com/dashboard/project/rsmvjsokqolxgczclqjv"
+                      href={`https://supabase.com/dashboard/project/${projectId}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 text-sm text-emerald-600 hover:text-emerald-700 mt-2"

@@ -50,6 +50,16 @@ CREATE TABLE IF NOT EXISTS wheel_trades (
 );
 
 -- ========================================
+-- AGGIORNAMENTO SCHEMA PER COSTO MEDIO BTC (Wheel Dashboard v2)
+-- ========================================
+ALTER TABLE wheel_strategies
+ADD COLUMN IF NOT EXISTS total_btc_accumulated DECIMAL(18,8) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS total_btc_cost_basis DECIMAL(18,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS average_btc_price DECIMAL(18,2) DEFAULT 0,
+ADD COLUMN IF NOT EXISTS last_accumulation_date TIMESTAMPTZ,
+ADD COLUMN IF NOT EXISTS accumulation_history JSONB DEFAULT '[]'::jsonb;
+
+-- ========================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
 -- ========================================
 

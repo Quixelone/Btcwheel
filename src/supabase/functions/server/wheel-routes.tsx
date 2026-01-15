@@ -32,6 +32,100 @@ const getUserId = async (authHeader?: string): Promise<string | null> => {
   return data.user.id;
 };
 
+// 📊 HELPER: BTC Accumulation Logic
+interface AccumulationEntry {
+  date: string;
+  btc_qty: number;
+  price: number;
+  total_cost: number;
+}
+
+async function updateBTCAccumulation(
+  supabase: any,
+  strategyId: string,
+  assignmentTrade: {
+    btc_qty: number;
+    strike_price: number;
+    assignment_date: string;
+  }
+) {
+  // Get current strategy data
+  const { data: strategy, error } = await supabase
+    .from('wheel_strategies')
+    .select('*')
+    .eq('id', strategyId)
+    .single();
+  
+  if (error || !strategy) {
+    console.error('Strategy not found for accumulation update:', error);
+    return;
+  }
+  
+  // Calculate new totals
+  const currentQty = Number(strategy.total_btc_accumulated || 0);
+  const currentCost = Number(strategy.total_btc_cost_basis || 0);
+  
+  const newBTCQty = currentQty + assignmentTrade.btc_qty;
+  const newCostBasis = currentCost + (assignmentTrade.btc_qty * assignmentTrade.strike_price);
+  const newAveragePrice = newBTCQty > 0 ? newCostBasis / newBTCQty : 0;
+  
+  // Add to history
+  const history: AccumulationEntry[] = strategy.accumulation_history || [];
+  history.push({
+    date: assignmentTrade.assignment_date,
+    btc_qty: assignmentTrade.btc_qty,
+    price: assignmentTrade.strike_price,
+    total_cost: assignmentTrade.btc_qty * assignmentTrade.strike_price
+  });
+  
+  // Update strategy
+  const { error: updateError } = await supabase
+    .from('wheel_strategies')
+    .update({
+      total_btc_accumulated: newBTCQty,
+      total_btc_cost_basis: newCostBasis,
+      average_btc_price: newAveragePrice,
+      last_accumulation_date: assignmentTrade.assignment_date,
+      accumulation_history: history
+    })
+    .eq('id', strategyId);
+  
+  if (updateError) {
+    console.error('Failed to update BTC accumulation:', updateError);
+  } else {
+    console.log(`✅ Updated BTC accumulation: ${newBTCQty} BTC @ $${newAveragePrice.toFixed(2)}`);
+  }
+}
+
+// 📊 HELPER: Can Sell Call Logic
+function canSellCallCheck(
+  currentPrice: number,
+  averageCost: number,
+  targetPremiumPercent: number = 2
+) {
+  // Minimum sell price to break even + target premium
+  // If average cost is $45,000, and we want 2% premium,
+  // we need the strike to be at least slightly above cost basis?
+  // Actually, we usually want Strike >= Cost Basis.
+  // The premium is extra profit.
+  // But strictly speaking, if Strike < Cost Basis, we lock in a loss on the underlying (unless premium > difference).
+  
+  // Rule: Strike should be >= Cost Basis.
+  // Also, we want to collect some premium.
+  // The "warning" is if current price is too low to sell a CALL at a strike >= Cost Basis with decent premium.
+  
+  const minimumStrike = averageCost;
+  const minimumPriceForCall = minimumStrike; // Simplified
+  
+  return {
+    canSell: currentPrice >= minimumPriceForCall * 0.95, // Allow selling if within 5% of cost basis (can roll up)
+    averageCost,
+    minimumStrike,
+    gap: currentPrice - averageCost,
+    gapPercent: ((currentPrice - averageCost) / averageCost) * 100
+  };
+}
+
 // 📊 CREATE STRATEGY
 app.post("/make-server-7c0f82ca/wheel/strategies", async (c) => {
   try {
@@ -182,6 +276,18 @@ app.post("/make-server-7c0f82ca/wheel/trades", async (c) => {
     }
     
     console.log(`✅ Trade created: ${data.id} for strategy ${strategyId}`);
+    
+    // 📊 AUTO-UPDATE ACCUMULATION
+    // If trade is 'assigned' (PUT assignment), update BTC accumulation
+    if (action === 'assigned') {
+      console.log('🔄 Triggering BTC accumulation update for assignment...');
+      await updateBTCAccumulation(supabase, strategyId, {
+        btc_qty: Number(quantity),
+        strike_price: Number(strike),
+        assignment_date: data.created_at
+      });
+    }
+
     return c.json({ trade: data }, 201);
     
   } catch (error) {
@@ -359,6 +465,49 @@ app.get("/make-server-7c0f82ca/wheel/strategies/:strategyId/stats", async (c) =>
     
   } catch (error) {
     console.error("Error in GET /wheel/strategies/:strategyId/stats:", error);
+    return c.json({ error: "Internal server error" }, 500);
+  }
+});
+
+// 🛡️ CHECK IF CAN SELL CALL (Cost Basis Protection)
+app.get("/make-server-7c0f82ca/wheel/strategies/:strategyId/can-sell-call", async (c) => {
+  try {
+    const authHeader = c.req.header("Authorization");
+    const userId = await getUserId(authHeader);
+    
+    if (!userId) {
+      return c.json({ error: "Unauthorized" }, 401);
+    }
+    
+    const strategyId = c.req.param("strategyId");
+    const currentPrice = Number(c.req.query("currentPrice"));
+    
+    if (!currentPrice || isNaN(currentPrice)) {
+      return c.json({ error: "Missing or invalid currentPrice query param" }, 400);
+    }
+    
+    const supabase = getSupabaseClient();
+    
+    const { data: strategy, error } = await supabase
+      .from("wheel_strategies")
+      .select("average_btc_price, total_btc_accumulated")
+      .eq("id", strategyId)
+      .single();
+    
+    if (error || !strategy) {
+      return c.json({ error: "Strategy not found" }, 404);
+    }
+    
+    const averageCost = Number(strategy.average_btc_price || 0);
+    const result = canSellCallCheck(currentPrice, averageCost);
+    
+    return c.json({
+      ...result,
+      btcAccumulated: Number(strategy.total_btc_accumulated || 0)
+    });
+    
+  } catch (error) {
+    console.error("Error in GET /can-sell-call:", error);
     return c.json({ error: "Internal server error" }, 500);
   }
 });
