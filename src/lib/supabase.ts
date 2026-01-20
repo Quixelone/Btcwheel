@@ -19,16 +19,20 @@ export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabas
 
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storage: typeof window !== 'undefined' ? customStorage : undefined,
-      },
-    })
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? customStorage : undefined,
+    },
+  })
   : null as any;
 
 export const getSupabaseClient = () => supabase;
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+const isUuid = (value: string) => UUID_REGEX.test(value);
 
 if (typeof window !== 'undefined' && env.DEV) {
   if (isSupabaseConfigured) {
@@ -95,6 +99,10 @@ export async function getUserProgress(userId: string): Promise<UserProgressDB | 
     return null;
   }
 
+  if (!isUuid(userId)) {
+    return null;
+  }
+
   try {
     const { data, error } = await supabase
       .from('user_progress')
@@ -104,7 +112,7 @@ export async function getUserProgress(userId: string): Promise<UserProgressDB | 
 
     if (error) {
       // Silently ignore table/column not found errors and SQL errors from missing schema
-      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809'];
+      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809', '22P02'];
       const errorCode = error.code || '';
       if (!silentErrors.includes(errorCode)) {
         console.error('Error fetching user progress:', error);
@@ -121,6 +129,10 @@ export async function getUserProgress(userId: string): Promise<UserProgressDB | 
 
 export async function createUserProgress(userId: string, username: string): Promise<UserProgressDB | null> {
   if (!isSupabaseConfigured || !supabase) {
+    return null;
+  }
+
+  if (!isUuid(userId)) {
     return null;
   }
 
@@ -145,7 +157,7 @@ export async function createUserProgress(userId: string, username: string): Prom
 
     if (error) {
       // Silently ignore table/column not found errors and SQL errors from missing schema
-      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809'];
+      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809', '22P02'];
       const errorCode = error.code || '';
       if (!silentErrors.includes(errorCode)) {
         console.error('Error creating user progress:', error);
@@ -180,6 +192,10 @@ export async function updateUserProgress(
     return false;
   }
 
+  if (!isUuid(userId)) {
+    return false;
+  }
+
   try {
     const { error } = await supabase
       .from('user_progress')
@@ -188,7 +204,7 @@ export async function updateUserProgress(
 
     if (error) {
       // Silently ignore table/column not found errors and SQL errors from missing schema
-      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809'];
+      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809', '22P02'];
       const errorCode = error.code || '';
       if (!silentErrors.includes(errorCode)) {
         console.error('Error updating user progress:', error);
@@ -245,6 +261,8 @@ export async function addUserActivity(
 ): Promise<boolean> {
   if (!isSupabaseConfigured || !supabase) return false;
 
+  if (!isUuid(userId)) return false;
+
   try {
     const { error } = await supabase.from('user_activities').insert({
       user_id: userId,
@@ -269,6 +287,8 @@ export async function addUserActivity(
 export async function getUserActivities(userId: string, limit = 10): Promise<UserActivity[]> {
   if (!isSupabaseConfigured || !supabase) return [];
 
+  if (!isUuid(userId)) return [];
+
   try {
     const { data, error } = await supabase
       .from('user_activities')
@@ -279,7 +299,7 @@ export async function getUserActivities(userId: string, limit = 10): Promise<Use
 
     if (error) {
       // Silently ignore table/column not found errors and SQL errors from missing schema
-      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809'];
+      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809', '22P02'];
       const errorCode = error.code || '';
       if (!silentErrors.includes(errorCode)) {
         console.error('Error fetching user activities:', error);
@@ -330,6 +350,8 @@ export async function saveTradingSimulation(
 ): Promise<string | null> {
   if (!isSupabaseConfigured || !supabase) return null;
 
+  if (!isUuid(userId)) return null;
+
   try {
     const { data, error } = await supabase
       .from('trading_simulations')
@@ -344,7 +366,7 @@ export async function saveTradingSimulation(
 
     if (error) {
       // Silently ignore table/column not found errors and SQL errors from missing schema
-      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809'];
+      const silentErrors = ['42P01', 'PGRST116', 'PGRST204', 'PGRST205', '42703', '42809', '22P02'];
       const errorCode = error.code || '';
       if (!silentErrors.includes(errorCode)) {
         console.error('Error saving simulation:', error);
@@ -391,5 +413,48 @@ export async function completeTradingSimulation(
   } catch (err) {
     // Silently catch any unexpected errors
     return false;
+  }
+}
+export async function saveSimulationState(userId: string, state: any): Promise<boolean> {
+  if (!isSupabaseConfigured || !supabase) return false;
+
+  try {
+    const { error } = await supabase.from('kv_store_7c0f82ca').upsert({
+      key: `sim_state_${userId}`,
+      value: state,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (error) {
+      console.error('Error saving simulation state to Supabase:', error);
+      return false;
+    }
+
+    return true;
+  } catch (err) {
+    console.error('Unexpected error saving simulation state:', err);
+    return false;
+  }
+}
+
+export async function getSimulationState(userId: string): Promise<any | null> {
+  if (!isSupabaseConfigured || !supabase) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('kv_store_7c0f82ca')
+      .select('value')
+      .eq('key', `sim_state_${userId}`)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching simulation state from Supabase:', error);
+      return null;
+    }
+
+    return data?.value || null;
+  } catch (err) {
+    console.error('Unexpected error fetching simulation state:', err);
+    return null;
   }
 }

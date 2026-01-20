@@ -1,6 +1,5 @@
 import { motion } from 'motion/react';
 import { Lightbulb, X } from 'lucide-react';
-import { Button } from './ui/button';
 
 interface HintCardProps {
   hint: string;
@@ -32,7 +31,7 @@ export function HintCard({ hint, onClose }: HintCardProps) {
           >
             <Lightbulb className="w-6 h-6 text-yellow-600" />
           </motion.div>
-          
+
           <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
               <h4 className="text-gray-900 font-semibold">💡 Suggerimento da Prof Satoshi</h4>
@@ -47,7 +46,7 @@ export function HintCard({ hint, onClose }: HintCardProps) {
             <p className="text-gray-700 leading-relaxed">{hint}</p>
           </div>
         </div>
-        
+
         {/* Pulsing border effect */}
         <motion.div
           className="absolute inset-0 rounded-xl border-2 border-yellow-400 pointer-events-none"

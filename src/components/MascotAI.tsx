@@ -9,17 +9,15 @@ import { useHaptics } from '../hooks/useHaptics';
 import { useMascotSounds } from '../hooks/useMascotSounds';
 import { useUserProgress } from '../hooks/useUserProgress';
 import { useMascotEmotion } from '../hooks/useMascotEmotion';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 // Prof Satoshi mascot images - USING PNG for reliability
 const profSatoshiExcited = '/mascot-excited.png';
 const profSatoshiNormal = '/mascot-normal.png';
-const profSatoshiConfident = '/mascot-normal.png';
-const profSatoshiThinking = '/mascot-thinking.png';
 
 const mascotNormalImage = profSatoshiNormal;
 const mascotDisappointedImage = '/mascot-disappointed.png';
 const mascotExcitedImage = profSatoshiExcited;
-const mascotThinkingImage = profSatoshiThinking;
 
 interface Message {
   id: string;
@@ -49,20 +47,20 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
     const saved = localStorage.getItem('mascot-position');
     return saved ? JSON.parse(saved) : { x: 0, y: 0 };
   });
-  
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dragControls = useDragControls();
   const haptics = useHaptics();
   const sounds = useMascotSounds();
   const { progress } = useUserProgress();
-  
+
   // Use streak property correctly
   const streak = progress?.streak || 0;
-   
+
   const { emotion, message: emotionMessage, setActivity } = useMascotEmotion();
 
-  const [soundEnabled, setSoundEnabled] = useState(() => {
+  const [soundEnabled] = useState(() => {
     return localStorage.getItem('mascotSoundEnabled') !== 'false';
   });
 
@@ -132,32 +130,32 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
   };
 
   const handleMascotClick = () => {
+    console.log('🎭 Mascot clicked! isOpen:', isOpen);
+
     if (!isOpen) {
-      // First click: open dialog
+      // 1st click: Open the chat dialog
+      console.log('🎭 Opening chat dialog');
       setIsOpen(true);
       playSound(() => {
         sounds.click();
         sounds.tipShow();
       });
       haptics.medium();
-      
+
       if (messages.length === 0) {
         setActivity('excited', 2000);
       }
-    } else {
-      // Second click: close dialog AND hide mascot
-      setIsOpen(false);
-      setActivity('idle');
-      playSound(() => sounds.click());
-      haptics.light();
-      
-      // Hide mascot
-      if (onVisibilityChange) {
-        onVisibilityChange(false);
-        // Toast removed to avoid clutter
-        // toast.info('Prof Satoshi nascosto. Richiamalo dal menu! 👋');
-      }
+      return;
     }
+
+    // 2nd click: Close the dialog AND hide the mascot
+    console.log('🎭 Closing dialog and hiding mascot');
+    setIsOpen(false);
+    setActivity('idle');
+    playSound(() => sounds.click());
+    haptics.light();
+    console.log('🎭 Calling onVisibilityChange(false)');
+    onVisibilityChange?.(false);
   };
 
   const handleClose = () => {
@@ -165,6 +163,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
     setActivity('idle');
     playSound(() => sounds.click());
     haptics.light();
+    onVisibilityChange?.(false);
   };
 
   const sendMessage = async () => {
@@ -181,14 +180,14 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
     setInput('');
     setIsLoading(true);
     setActivity('ai_thinking');
-    
+
     playSound(() => sounds.click());
     haptics.light();
 
     try {
-      const { projectId, publicAnonKey } = await import('../utils/supabase/info');
-      const apiUrl = `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/chat-tutor`;
-      
+      // Use local n8n webhook that bridges to NotebookLM
+      const apiUrl = 'http://localhost:5678/webhook/btcwheel-chat';
+
       const conversationHistory = messages.slice(-4).map(msg => ({
         role: msg.role,
         content: msg.content
@@ -209,7 +208,6 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
         },
         body: JSON.stringify({
           message: userMessage.content,
@@ -222,7 +220,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
       }
 
       const data = await response.json();
-      
+
       if (data.response) {
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
@@ -242,17 +240,17 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
       }
     } catch (error) {
       console.error('AI Chat error:', error);
-      
+
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: "Mi dispiace, ho avuto un problema tecnico. Riprova tra poco! 🔧",
         timestamp: new Date()
       };
-      
+
       setMessages(prev => [...prev, errorMessage]);
       setActivity('disappointed', 3000);
-      
+
       toast.error('Errore di connessione AI');
       playSound(() => sounds.disappointed());
       haptics.error();
@@ -332,39 +330,9 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
 
   const colors = getMoodColors();
 
-  // 🔄 NEW: Show FAB button when mascot is hidden
+  // 🔄 REMOVED: FAB button logic moved to Navigation menu
   if (!isVisible) {
-    return (
-      <motion.div
-        initial={{ scale: 0, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0, opacity: 0 }}
-        className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-50 safe-area-bottom"
-      >
-        <button
-          onClick={() => {
-            onVisibilityChange?.(true);
-            playSound(() => sounds.appear());
-            haptics.light();
-          }}
-          className="relative group"
-          aria-label="Apri Prof Satoshi"
-        >
-          {/* Pulsing ring animation */}
-          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-emerald-500 to-orange-500 opacity-75 group-hover:opacity-100 animate-pulse blur-md"></div>
-          
-          {/* FAB Button */}
-          <div className="relative w-14 h-14 md:w-16 md:h-16 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-full shadow-lg flex items-center justify-center border-2 border-white group-hover:scale-110 transition-transform">
-            <Sparkles className="w-7 h-7 md:w-8 md:h-8 text-white" />
-            
-            {/* AI Badge */}
-            <div className="absolute -top-1 -right-1 w-6 h-6 bg-orange-500 rounded-full flex items-center justify-center text-white text-xs font-bold border-2 border-white shadow-md">
-              AI
-            </div>
-          </div>
-        </button>
-      </motion.div>
-    );
+    return null;
   }
 
   return (
@@ -387,7 +355,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
         dragControls={dragControls}
         dragMomentum={false}
         dragElastic={0.1}
-        onDragEnd={(event, info) => {
+        onDragEnd={(_event, info) => {
           setPosition({ x: info.offset.x, y: info.offset.y });
         }}
         style={{ x: position.x, y: position.y }}
@@ -410,9 +378,9 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-3">
                         <div className="relative w-12 h-12">
-                          <img 
-                            src={getMascotImage()} 
-                            alt="Prof Satoshi AI" 
+                          <img
+                            src={getMascotImage()}
+                            alt="Prof Satoshi AI"
                             className="w-full h-full object-contain"
                           />
                           <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
@@ -488,27 +456,25 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
                             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
-                              className={`max-w-[80%] rounded-2xl p-3 ${
-                                message.role === 'user'
-                                  ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                                  : 'bg-gray-100 text-gray-900'
-                              }`}
+                              className={`max-w-[80%] rounded-2xl p-3 ${message.role === 'user'
+                                ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                                : 'bg-gray-100 text-gray-900'
+                                }`}
                             >
                               <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                              <p className={`text-xs mt-1 ${
-                                message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
-                              }`}>
-                                {message.timestamp.toLocaleTimeString('it-IT', { 
-                                  hour: '2-digit', 
-                                  minute: '2-digit' 
+                              <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                                }`}>
+                                {message.timestamp.toLocaleTimeString('it-IT', {
+                                  hour: '2-digit',
+                                  minute: '2-digit'
                                 })}
                               </p>
                             </div>
                           </motion.div>
                         ))}
-                        
+
                         {isLoading && <ChatTypingBubble />}
-                        
+
                         <div ref={messagesEndRef} />
                       </>
                     )}
@@ -573,22 +539,22 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
             {/* Animated rings */}
             {!isOpen && (
               <>
-                <motion.div 
+                <motion.div
                   className={`absolute inset-0 rounded-full ${colors.ring} opacity-30`}
                   animate={{ scale: [1, 1.3, 1], opacity: [0.3, 0, 0.3] }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
                 />
-                <motion.div 
+                <motion.div
                   className={`absolute inset-0 rounded-full ${colors.ring} opacity-20`}
                   animate={{ scale: [1, 1.5, 1], opacity: [0.2, 0, 0.2] }}
                   transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
                 />
               </>
             )}
-            
+
             {/* Glow effect */}
             {(isHovering || isOpen) && (
-              <motion.div 
+              <motion.div
                 className={`absolute inset-0 rounded-full bg-gradient-to-br ${colors.gradient} blur-xl`}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -613,13 +579,13 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
             </AnimatePresence>
 
             {/* Mascot Image */}
-            <motion.div 
+            <motion.div
               className={`relative w-full h-full flex items-center justify-center ${getMascotAnimation()}`}
               key={emotion}
             >
-              <motion.img 
-                src={getMascotImage()} 
-                alt="Prof Satoshi AI Mascot" 
+              <motion.img
+                src={getMascotImage()}
+                alt="Prof Satoshi AI Mascot"
                 className="w-full h-full object-contain"
                 style={{
                   filter: 'drop-shadow(0 15px 30px rgba(0, 0, 0, 0.3))'
@@ -686,7 +652,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
             )}
 
             {/* AI Badge */}
-            <motion.div 
+            <motion.div
               className="absolute top-1 right-1 md:top-2 md:right-2 px-2 py-0.5 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-full text-xs shadow-lg border border-white"
               animate={{ scale: isOpen ? 1 : [1, 1.1, 1] }}
               transition={{ duration: 2, repeat: isOpen ? 0 : Infinity }}

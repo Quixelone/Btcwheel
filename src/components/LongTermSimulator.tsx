@@ -1,14 +1,15 @@
 import { useState, useMemo, useCallback } from 'react';
+// Navigation now uses MainNavigation internally
 import { Navigation } from './Navigation';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { motion } from 'motion/react';
-import { 
-  TrendingUp, 
-  Calendar, 
-  DollarSign, 
-  Percent, 
+import {
+  TrendingUp,
+  Calendar,
+  DollarSign,
+  Percent,
   PiggyBank,
   Save,
   Sparkles,
@@ -18,17 +19,17 @@ import {
   Zap,
   Loader2
 } from 'lucide-react';
-import { 
-  LineChart, 
-  Line, 
+import {
+  LineChart,
+  Line,
   AreaChart,
   Area,
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
-  Legend 
+  Legend
 } from 'recharts';
 import type { View } from '../App';
 import { toast } from "sonner";
@@ -71,7 +72,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
   const [pacFrequency, setPacFrequency] = useState<'weekly' | 'monthly'>('monthly');
   const [dailyInterest, setDailyInterest] = useState(0.5);
   const [years, setYears] = useState(5);
-  
+
   // UI states
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>(() => {
@@ -81,20 +82,20 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [planName, setPlanName] = useState('');
-  
+
   // Calculate simulation data
   const simulationData = useMemo(() => {
     const results: SimulationResult[] = [];
     const totalDays = years * 365;
     const dailyRate = dailyInterest / 100;
-    
+
     let currentCapital = initialCapital;
     let totalInvested = initialCapital;
     let dayCounter = 0;
-    
+
     // Store data points periodically for chart (every month)
     const dataPointInterval = 30; // Store every 30 days
-    
+
     for (let day = 0; day <= totalDays; day++) {
       // Add PAC contribution at the right frequency
       if (day > 0) {
@@ -108,15 +109,15 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
           totalInvested += pacAmount;
         }
       }
-      
+
       // Apply daily compound interest
       currentCapital = currentCapital * (1 + dailyRate);
-      
+
       // Store data point every month (30 days) or at the end
       if (day % dataPointInterval === 0 || day === totalDays) {
         const month = Math.floor(day / 30);
         const profit = currentCapital - totalInvested;
-        
+
         results.push({
           month,
           year: Math.floor(day / 365),
@@ -126,10 +127,10 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
           label: day === 0 ? 'Inizio' : `M${month}`
         });
       }
-      
+
       dayCounter++;
     }
-    
+
     return results;
   }, [initialCapital, pacAmount, pacFrequency, dailyInterest, years]);
 
@@ -139,24 +140,24 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
   const finalCapital = finalResult?.totalCapital || 0;
   const totalProfit = finalResult?.profit || 0;
   const roi = totalInvested > 0 ? ((totalProfit / totalInvested) * 100) : 0;
-  
+
   // Monthly profit estimation
   const monthlyProfit = totalProfit / (years * 12);
-  
+
   // Save plan function
   const handleSavePlan = () => {
     setShowSaveDialog(true);
   };
-  
+
   const confirmSavePlan = async () => {
     if (!planName.trim()) {
       toast.error('Inserisci un nome per il piano');
       return;
     }
-    
+
     if (isSaving) return;
     setIsSaving(true);
-    
+
     try {
       const newPlan: SavedPlan = {
         id: Date.now().toString(),
@@ -171,17 +172,17 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
         roi,
         createdAt: new Date()
       };
-      
+
       const updatedPlans = [...savedPlans, newPlan];
       setSavedPlans(updatedPlans);
       localStorage.setItem('btcwheel_longterm_plans', JSON.stringify(updatedPlans));
-      
+
       // 📊 Calcola il ritorno mensile corretto dall'interesse GIORNALIERO composto
       // Formula: (1 + dailyRate)^30 - 1
       const totalMonths = years * 12;
       const dailyRate = dailyInterest / 100;
       const monthlyReturnRate = (Math.pow(1 + dailyRate, 30) - 1) * 100; // Interesse mensile equivalente
-      
+
       const wheelStrategy = {
         id: newPlan.id,
         name: planName.trim(),
@@ -197,20 +198,20 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
         target_monthly_return: parseFloat(monthlyReturnRate.toFixed(2)),
         created_at: new Date().toISOString(),
       };
-      
+
       // 🎯 SALVA IN LOCALSTORAGE (sempre)
       const existingStrategies = JSON.parse(localStorage.getItem('btcwheel_strategies') || '[]');
       existingStrategies.push(wheelStrategy);
       localStorage.setItem('btcwheel_strategies', JSON.stringify(existingStrategies));
-      
+
       // ☁️ SALVA ANCHE NEL DATABASE CLOUD (se loggato)
       try {
         if (isSupabaseConfigured) {
           const { data: { session } } = await supabase.auth.getSession();
-          
+
           if (session?.access_token) {
             console.log('☁️ [LongTermSimulator] User logged in - saving strategy to cloud...');
-            
+
             const response = await fetch(
               `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/wheel/strategies`,
               {
@@ -228,7 +229,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
                 }),
               }
             );
-            
+
             if (!response.ok) {
               console.error('❌ [LongTermSimulator] Failed to save to cloud:', await response.text());
               toast.warning('Piano salvato localmente', {
@@ -258,18 +259,18 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
           description: 'Errore nella sincronizzazione cloud, ma il piano è salvato sul dispositivo',
         });
       }
-      
+
       // Reset dialog
       setShowSaveDialog(false);
       setPlanName('');
-      
+
       // 🔔 Notify other components that strategies have been updated
       window.dispatchEvent(new CustomEvent('btcwheel-strategies-updated'));
     } finally {
       setIsSaving(false);
     }
   };
-  
+
   const handleSetAsActive = () => {
     const activePlan = {
       id: Date.now().toString(),
@@ -279,21 +280,21 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
       pacFrequency,
       dailyInterest,
       years,
-      startDate: new Date('2024-08-10'), // Fixed start date
+      startDate: new Date(), // Use current date when creating new plan
       targetCapital: finalCapital
     };
-    
+
     localStorage.setItem('btcwheel_active_plan', JSON.stringify(activePlan));
-    
+
     // 🎯 SALVA ANCHE COME STRATEGIA WHEEL per la Dashboard
     const existingStrategies = JSON.parse(localStorage.getItem('btcwheel_strategies') || '[]');
-    
+
     // 📊 Calcola il ritorno mensile corretto dall'interesse GIORNALIERO composto
     // Formula: (1 + dailyRate)^30 - 1
     const totalMonths = years * 12;
     const dailyRate = dailyInterest / 100;
     const monthlyReturnRate = (Math.pow(1 + dailyRate, 30) - 1) * 100; // Interesse mensile equivalente
-    
+
     const wheelStrategy = {
       id: activePlan.id,
       name: activePlan.name,
@@ -309,7 +310,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
       target_monthly_return: parseFloat(monthlyReturnRate.toFixed(2)),
       created_at: new Date().toISOString(),
     };
-    
+
     // Check if already exists, otherwise add
     const existingIndex = existingStrategies.findIndex((s: any) => s.name === activePlan.name);
     if (existingIndex >= 0) {
@@ -318,7 +319,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
       existingStrategies.push(wheelStrategy);
     }
     localStorage.setItem('btcwheel_strategies', JSON.stringify(existingStrategies));
-    
+
     toast.success('Piano impostato come attivo!', {
       description: 'Visibile nella Dashboard con tracking in tempo reale',
     });
@@ -328,12 +329,12 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
     const updatedPlans = savedPlans.filter(p => p.id !== id);
     setSavedPlans(updatedPlans);
     localStorage.setItem('btcwheel_longterm_plans', JSON.stringify(updatedPlans));
-    
+
     // 🎯 ELIMINA ANCHE DALLA STRATEGIA WHEEL
     const existingStrategies = JSON.parse(localStorage.getItem('btcwheel_strategies') || '[]');
     const filteredStrategies = existingStrategies.filter((s: any) => s.id !== id);
     localStorage.setItem('btcwheel_strategies', JSON.stringify(filteredStrategies));
-    
+
     toast.success('Piano eliminato');
   };
 
@@ -347,8 +348,8 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
   };
 
   return (
-    <div className="min-h-screen md:pl-20 pb-24 md:pb-0 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white relative">
-      
+    <div className="min-h-screen pb-24 md:pb-0 bg-[#030305] text-white relative">
+
       {/* Background effects */}
       <div className="fixed inset-0 opacity-[0.02] pointer-events-none">
         <div className="absolute inset-0" style={{
@@ -361,8 +362,8 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
       <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px] pointer-events-none" />
       <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[150px] pointer-events-none" />
 
-      <Navigation 
-        currentView="simulation" 
+      <Navigation
+        currentView="simulation"
         onNavigate={onNavigate}
         mascotVisible={mascotVisible}
         onMascotToggle={onMascotToggle}
@@ -388,7 +389,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
                 Simulatore Lungo Termine
               </h1>
               <motion.div
-                animate={{ 
+                animate={{
                   rotate: [0, 14, -14, 14, 0],
                   scale: [1, 1.1, 1.1, 1.1, 1]
                 }}
@@ -405,7 +406,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
       </motion.header>
 
       <main className="relative max-w-7xl mx-auto px-4 py-6 md:px-6 space-y-6">
-        
+
         {/* Input Parameters */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -417,7 +418,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
               <Target className="w-6 h-6 text-emerald-400" />
               Parametri di Simulazione
             </h2>
-            
+
             <div className="grid md:grid-cols-2 gap-6">
               {/* Initial Capital */}
               <div>
@@ -444,7 +445,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
               <div>
                 <label className="flex items-center gap-2 text-gray-300 mb-3">
                   <PiggyBank className="w-5 h-5 text-purple-400" />
-                  PAC {pacFrequency === 'monthly' ? 'Mensile' : 'Settimanale'}: 
+                  PAC {pacFrequency === 'monthly' ? 'Mensile' : 'Settimanale'}:
                   <span className="font-bold text-white">${pacAmount}</span>
                 </label>
                 <input
@@ -470,21 +471,19 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
                 <div className="flex gap-3">
                   <Button
                     onClick={() => setPacFrequency('weekly')}
-                    className={`flex-1 ${
-                      pacFrequency === 'weekly'
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500'
-                        : 'bg-gray-700 hover:bg-gray-600'
-                    }`}
+                    className={`flex-1 ${pacFrequency === 'weekly'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500'
+                      : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
                   >
                     Settimanale
                   </Button>
                   <Button
                     onClick={() => setPacFrequency('monthly')}
-                    className={`flex-1 ${
-                      pacFrequency === 'monthly'
-                        ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500'
-                        : 'bg-gray-700 hover:bg-gray-600'
-                    }`}
+                    className={`flex-1 ${pacFrequency === 'monthly'
+                      ? 'bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500'
+                      : 'bg-gray-700 hover:bg-gray-600'
+                      }`}
                   >
                     Mensile
                   </Button>
@@ -661,27 +660,27 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
               <AreaChart data={simulationData}>
                 <defs>
                   <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorInvested" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-                <XAxis 
-                  dataKey="label" 
+                <XAxis
+                  dataKey="label"
                   stroke="#9ca3af"
                   style={{ fontSize: '12px' }}
                 />
-                <YAxis 
+                <YAxis
                   stroke="#9ca3af"
                   style={{ fontSize: '12px' }}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}k`}
                 />
-                <Tooltip 
-                  contentStyle={{ 
+                <Tooltip
+                  contentStyle={{
                     backgroundColor: '#1f2937',
                     border: '1px solid #374151',
                     borderRadius: '8px',
@@ -725,7 +724,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
                 <Save className="w-6 h-6 text-blue-400" />
                 Piani Salvati ({savedPlans.length})
               </h3>
-              
+
               <div className="space-y-3">
                 {savedPlans.map((plan) => (
                   <div
@@ -756,7 +755,7 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
                         </Button>
                       </div>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                       <div>
                         <p className="text-gray-500">Capitale Iniziale</p>

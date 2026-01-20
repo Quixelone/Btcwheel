@@ -1,25 +1,24 @@
-import { useState } from 'react';
 import { Navigation } from './Navigation';
 import { UserMenu } from './UserMenu';
-import { Progress } from './ui/progress';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
 import { useUserProgress } from '../hooks/useUserProgress';
 import { motion } from 'motion/react';
-import { 
-  Zap, 
-  Target, 
-  Trophy, 
-  Flame, 
-  BookOpen, 
-  TrendingUp, 
-  Lock,
-  Check,
-  Star,
+import { StatCard, StatCardSmall } from './ui/stat-card';
+import { LessonCard } from './ui/lesson-card';
+import { PageWrapper, PageContent, PageHeader, SectionHeader } from './layout/PageWrapper';
+import {
+  Zap,
+  Target,
+  Trophy,
+  Flame,
+  BookOpen,
   Play,
-  ChevronRight,
-  Sparkles
+  Sparkles,
+  ArrowRight,
+  Star,
+  TrendingUp
 } from 'lucide-react';
 import type { View } from '../App';
 
@@ -31,381 +30,169 @@ interface HomePageProps {
 
 export function HomePage({ onNavigate, mascotVisible, onMascotToggle }: HomePageProps) {
   const { progress: userProgress } = useUserProgress();
-  const [hoveredLesson, setHoveredLesson] = useState<number | null>(null);
-  
+
+  const totalLessons = userProgress.totalLessons || 15;
+  const completedLessons = userProgress.lessonsCompleted || 0;
+  const progressPercentage = Math.round((completedLessons / totalLessons) * 100) || 0;
+
   const lessons = [
-    { id: 1, title: 'Introduzione al Bitcoin', status: 'completed', xp: 100, category: 'Fondamenti' },
-    { id: 2, title: 'Cos\'è la Wheel Strategy', status: 'completed', xp: 100, category: 'Fondamenti' },
-    { id: 3, title: 'Vendere Cash-Secured Puts', status: 'completed', xp: 150, category: 'Strategie Base' },
-    { id: 4, title: 'Vendere Covered Calls', status: 'completed', xp: 150, category: 'Strategie Base' },
-    { id: 5, title: 'Gestione del Rischio', status: 'completed', xp: 200, category: 'Risk Management' },
-    { id: 6, title: 'Calcolo della Volatilità', status: 'completed', xp: 200, category: 'Analisi Tecnica' },
-    { id: 7, title: 'Strike Selection', status: 'completed', xp: 200, category: 'Analisi Tecnica' },
-    { id: 8, title: 'Premium Collection', status: 'completed', xp: 250, category: 'Strategie Avanzate' },
-    { id: 9, title: 'Roll & Adjust', status: 'current', xp: 250, category: 'Strategie Avanzate' },
-    { id: 10, title: 'Trade Psychology', status: 'locked', xp: 300, category: 'Psicologia' },
-    { id: 11, title: 'Portfolio Sizing', status: 'locked', xp: 300, category: 'Portfolio Management' },
-    { id: 12, title: 'Market Analysis', status: 'locked', xp: 350, category: 'Analisi Mercato' },
-    { id: 13, title: 'Advanced Strategies', status: 'locked', xp: 400, category: 'Strategie Avanzate' },
-    { id: 14, title: 'Tax Considerations', status: 'locked', xp: 400, category: 'Fiscalità' },
-    { id: 15, title: 'Master Exam', status: 'locked', xp: 500, category: 'Certificazione' }
+    { id: 1, title: 'Introduzione al Bitcoin', status: 'completed' as const, xp: 100, category: 'Fondamenti' },
+    { id: 2, title: 'Cos\'è la Wheel Strategy', status: 'completed' as const, xp: 100, category: 'Fondamenti' },
+    { id: 3, title: 'Vendere Cash-Secured Puts', status: 'completed' as const, xp: 150, category: 'Strategie Base' },
+    { id: 4, title: 'Vendere Covered Calls', status: 'completed' as const, xp: 150, category: 'Strategie Base' },
+    { id: 5, title: 'Gestione del Rischio', status: 'completed' as const, xp: 200, category: 'Risk Management' },
+    { id: 6, title: 'Calcolo della Volatilità', status: 'completed' as const, xp: 200, category: 'Analisi Tecnica' },
+    { id: 7, title: 'Strike Selection', status: 'current' as const, xp: 200, category: 'Analisi Tecnica' },
+    { id: 8, title: 'Premium Collection', status: 'locked' as const, xp: 250, category: 'Strategie Avanzate' },
+    { id: 9, title: 'Roll & Adjust', status: 'locked' as const, xp: 250, category: 'Strategie Avanzate' }
   ];
 
-  const getCategoryColor = (category: string) => {
-    const colors: Record<string, string> = {
-      'Fondamenti': 'from-blue-500 to-cyan-500',
-      'Strategie Base': 'from-emerald-500 to-teal-500',
-      'Risk Management': 'from-orange-500 to-red-500',
-      'Analisi Tecnica': 'from-violet-500 to-purple-500',
-      'Strategie Avanzate': 'from-pink-500 to-rose-500',
-      'Psicologia': 'from-amber-500 to-yellow-500',
-      'Portfolio Management': 'from-indigo-500 to-blue-500',
-      'Analisi Mercato': 'from-teal-500 to-cyan-500',
-      'Fiscalità': 'from-slate-500 to-gray-500',
-      'Certificazione': 'from-yellow-400 to-orange-500'
-    };
-    return colors[category] || 'from-gray-500 to-gray-600';
-  };
-
   return (
-    <div className="min-h-screen md:pl-20 pb-24 md:pb-0 bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white">
-      
-      {/* Background effects */}
-      <div className="fixed inset-0 opacity-[0.02] pointer-events-none">
-        <div className="absolute inset-0" style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-                           linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-          backgroundSize: '50px 50px'
-        }} />
-      </div>
-
-      <div className="fixed top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[150px] pointer-events-none" />
-      <div className="fixed bottom-0 left-0 w-[500px] h-[500px] bg-orange-500/10 rounded-full blur-[150px] pointer-events-none" />
-
+    <PageWrapper>
       <Navigation currentView="home" onNavigate={onNavigate} onMascotToggle={onMascotToggle} mascotVisible={mascotVisible} />
-      
-      {/* Modern Header */}
-      <motion.header 
-        className="relative bg-gradient-to-br from-gray-900/50 to-gray-800/50 safe-area-top sticky top-0 z-40 backdrop-blur-xl border-b border-white/10"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-      >
-        <div className="px-4 py-5 md:px-6 md:py-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex-1 min-w-0">
-                <h1 className="text-2xl md:text-3xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent mb-1">
-                  Percorso di Apprendimento
-                </h1>
-                <p className="text-gray-400 text-sm">
-                  {userProgress.lessonsCompleted} di {userProgress.totalLessons} lezioni completate
-                </p>
-              </div>
-              <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-                <motion.div 
-                  className="flex items-center gap-2 bg-gradient-to-r from-orange-500/10 to-red-500/10 border border-orange-500/20 backdrop-blur-sm rounded-xl px-3 py-2"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <Flame className="w-4 h-4 text-orange-400 flex-shrink-0" />
-                  <span className="text-white font-semibold">{userProgress.streak}</span>
-                </motion.div>
-                <motion.div 
-                  className="flex items-center gap-2 bg-gradient-to-r from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 backdrop-blur-sm rounded-xl px-3 py-2"
-                  whileHover={{ scale: 1.05 }}
-                >
-                  <Zap className="w-4 h-4 text-yellow-400 flex-shrink-0" />
-                  <span className="text-white font-semibold">{userProgress.xp}</span>
-                </motion.div>
-                <div className="hidden md:block">
-                  <UserMenu onNavigate={onNavigate} />
-                </div>
-              </div>
+
+      <PageContent>
+        {/* Header */}
+        <PageHeader
+          title="Accademia Bitcoin"
+          subtitle={`${completedLessons}/${totalLessons} lezioni completate • ${progressPercentage}% del percorso`}
+          badge={
+            <Badge className="bg-purple-500/10 text-purple-400 border-purple-500/20 px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider">
+              <Star className="w-3.5 h-3.5 mr-2 fill-current" />
+              Il Tuo Percorso
+            </Badge>
+          }
+          actions={
+            <div className="flex items-center gap-3">
+              <StatCardSmall label="Streak" value={userProgress.streak || 0} icon={Flame} color="orange" />
+              <StatCardSmall label="XP" value={userProgress.xp || 0} icon={Zap} color="yellow" />
+              <UserMenu onNavigate={onNavigate} />
             </div>
+          }
+        />
 
-            {/* Overall Progress */}
-            <motion.div 
-              className="mt-6"
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm text-gray-400">Completamento Corso</span>
-                <span className="text-sm font-bold text-emerald-400">
-                  {Math.round((userProgress.lessonsCompleted / userProgress.totalLessons) * 100)}%
-                </span>
-              </div>
-              <div className="relative h-2 bg-white/5 rounded-full overflow-hidden backdrop-blur-sm border border-white/10">
-                <motion.div
-                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(userProgress.lessonsCompleted / userProgress.totalLessons) * 100}%` }}
-                  transition={{ duration: 1, ease: "easeOut", delay: 0.3 }}
-                />
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </motion.header>
-
-      {/* Main Content */}
-      <main className="relative max-w-6xl mx-auto px-4 py-6 md:px-6 md:py-8">
-        
-        {/* Quick Stats */}
-        <motion.div 
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
+        {/* Progress Hero Card */}
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.2 }}
         >
-          <Card className="p-4 bg-gradient-to-br from-emerald-600 to-teal-600 border-0 text-white">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <Target className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-emerald-100 text-sm">Livello</p>
-                <p className="text-2xl font-bold">{userProgress.level}</p>
-              </div>
-            </div>
-          </Card>
+          <div className="bg-[#0A0A0C] border border-white/[0.08] rounded-[32px] p-8 md:p-12 relative overflow-hidden shadow-2xl">
+            <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-purple-600/10 rounded-full blur-[120px] -mr-32 -mt-32 pointer-events-none" />
 
-          <Card className="p-4 bg-gradient-to-br from-orange-600 to-red-600 border-0 text-white">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <Flame className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-orange-100 text-sm">Streak</p>
-                <p className="text-2xl font-bold">{userProgress.streak}</p>
-              </div>
-            </div>
-          </Card>
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-12">
+              <div className="flex-1">
+                <div className="flex items-center gap-6 mb-8">
+                  <div className="w-16 h-16 bg-purple-500/10 border border-purple-500/20 rounded-2xl flex items-center justify-center shadow-[0_0_30px_-10px_rgba(168,85,247,0.3)]">
+                    <TrendingUp className="w-8 h-8 text-purple-400" />
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-bold text-white tracking-tight">Verso il Livello {(userProgress.level || 1) + 1}</h3>
+                    <p className="text-purple-400 text-xs font-bold uppercase tracking-widest mt-2">Continua così!</p>
+                  </div>
+                </div>
 
-          <Card className="p-4 bg-gradient-to-br from-violet-600 to-purple-600 border-0 text-white">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <Trophy className="w-5 h-5" />
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+                    <span className="text-[#666677]">Progresso</span>
+                    <span className="text-white">{progressPercentage}%</span>
+                  </div>
+                  <div className="h-4 bg-[#050506] rounded-full overflow-hidden border border-white/[0.05]">
+                    <motion.div
+                      className="h-full bg-gradient-to-r from-purple-600 to-indigo-600 shadow-[0_0_20px_rgba(147,51,234,0.4)]"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressPercentage}%` }}
+                      transition={{ duration: 1.5, ease: [0.22, 1, 0.36, 1] }}
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <p className="text-purple-100 text-sm">Badge</p>
-                <p className="text-2xl font-bold">{userProgress.badges.length}</p>
-              </div>
-            </div>
-          </Card>
 
-          <Card className="p-4 bg-gradient-to-br from-blue-600 to-cyan-600 border-0 text-white">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-white/20 rounded-xl backdrop-blur-sm">
-                <BookOpen className="w-5 h-5" />
-              </div>
-              <div>
-                <p className="text-blue-100 text-sm">Lezioni</p>
-                <p className="text-2xl font-bold">{userProgress.lessonsCompleted}</p>
+              <div className="flex flex-col items-center px-12 py-6 bg-white/[0.02] rounded-[24px] border border-white/[0.05]">
+                <p className="text-6xl font-bold text-white tracking-tighter">{userProgress.level || 1}</p>
+                <p className="text-xs font-bold text-[#666677] uppercase tracking-widest mt-2">Livello</p>
               </div>
             </div>
-          </Card>
+          </div>
         </motion.div>
 
-        {/* Lessons List */}
-        <div>
-          <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-            <BookOpen className="w-5 h-5 text-emerald-400" />
-            Tutte le Lezioni
-          </h2>
-
-          <div className="space-y-3">
-            {lessons.map((lesson, index) => {
-              const isLocked = lesson.status === 'locked';
-              const isCurrent = lesson.status === 'current';
-              const isCompleted = lesson.status === 'completed';
-
-              return (
-                <motion.div
-                  key={lesson.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 + index * 0.05 }}
-                  onHoverStart={() => setHoveredLesson(lesson.id)}
-                  onHoverEnd={() => setHoveredLesson(null)}
-                  whileHover={!isLocked ? { x: 4 } : {}}
-                >
-                  <Card 
-                    className={`
-                      relative overflow-hidden transition-all
-                      ${isLocked ? 
-                        'bg-gray-800/20 border-white/5 cursor-not-allowed' : 
-                        'bg-gradient-to-br from-gray-800/50 to-gray-900/50 border-white/10 hover:border-white/20 cursor-pointer'
-                      }
-                      ${isCurrent ? 'ring-2 ring-emerald-500/50 ring-offset-2 ring-offset-gray-950' : ''}
-                    `}
-                    onClick={() => !isLocked && onNavigate('lesson')}
-                  >
-                    {/* Animated gradient overlay for current lesson */}
-                    {isCurrent && (
-                      <motion.div
-                        className="absolute inset-0 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10"
-                        animate={{ 
-                          backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                        }}
-                        transition={{ 
-                          duration: 3, 
-                          repeat: Infinity, 
-                          ease: "linear" 
-                        }}
-                        style={{ backgroundSize: '200% 100%' }}
-                      />
-                    )}
-
-                    <div className="relative p-4 md:p-5 flex items-center gap-4">
-                      {/* Status Icon */}
-                      <div className={`
-                        relative flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center
-                        ${isCompleted ? 'bg-gradient-to-br from-emerald-500 to-teal-500' : 
-                          isCurrent ? 'bg-gradient-to-br from-orange-500 to-red-500' :
-                          'bg-gray-700/50'}
-                      `}>
-                        {isCompleted && <Check className="w-6 h-6 text-white" />}
-                        {isCurrent && (
-                          <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                          >
-                            <Play className="w-6 h-6 text-white" />
-                          </motion.div>
-                        )}
-                        {isLocked && <Lock className="w-6 h-6 text-gray-500" />}
-
-                        {/* Pulse effect for current lesson */}
-                        {isCurrent && (
-                          <motion.div
-                            className="absolute inset-0 rounded-xl bg-orange-500"
-                            initial={{ scale: 1, opacity: 0.5 }}
-                            animate={{ scale: 1.5, opacity: 0 }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                          />
-                        )}
-                      </div>
-
-                      {/* Lesson Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-3 mb-1">
-                          <h3 className={`font-semibold ${isLocked ? 'text-gray-500' : 'text-white'}`}>
-                            {lesson.title}
-                          </h3>
-                          {isCurrent && (
-                            <motion.div
-                              animate={{ rotate: [0, 14, -14, 14, 0] }}
-                              transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
-                            >
-                              <Sparkles className="w-5 h-5 text-yellow-400 flex-shrink-0" />
-                            </motion.div>
-                          )}
-                        </div>
-
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <Badge 
-                            className={`
-                              text-xs border-0
-                              ${isLocked ? 'bg-gray-700/50 text-gray-500' : 
-                                `bg-gradient-to-r ${getCategoryColor(lesson.category)} text-white`}
-                            `}
-                          >
-                            {lesson.category}
-                          </Badge>
-
-                          <div className="flex items-center gap-1 text-xs">
-                            <Zap className={`w-3 h-3 ${isLocked ? 'text-gray-600' : 'text-yellow-400'}`} />
-                            <span className={isLocked ? 'text-gray-600' : 'text-gray-400'}>
-                              {lesson.xp} XP
-                            </span>
-                          </div>
-
-                          {isCompleted && (
-                            <Badge variant="outline" className="text-xs border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
-                              Completata
-                            </Badge>
-                          )}
-
-                          {isCurrent && (
-                            <Badge variant="outline" className="text-xs border-orange-500/30 text-orange-400 bg-orange-500/10">
-                              In Corso
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Action Icon */}
-                      {!isLocked && (
-                        <motion.div
-                          animate={hoveredLesson === lesson.id ? { x: [0, 4, 0] } : {}}
-                          transition={{ duration: 1, repeat: Infinity }}
-                        >
-                          <ChevronRight className="w-5 h-5 text-gray-500 flex-shrink-0" />
-                        </motion.div>
-                      )}
-                    </div>
-
-                    {/* Progress bar for current lesson */}
-                    {isCurrent && (
-                      <div className="relative h-1 bg-white/5">
-                        <motion.div
-                          className="absolute inset-y-0 left-0 bg-gradient-to-r from-emerald-500 to-teal-500"
-                          initial={{ width: '0%' }}
-                          animate={{ width: '45%' }}
-                          transition={{ duration: 1, delay: 0.5 }}
-                        />
-                      </div>
-                    )}
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </div>
+        {/* Stats Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
+          <StatCard label="Livello" value={userProgress.level || 1} icon={Target} color="cyan" delay={0.3} />
+          <StatCard label="Streak" value={`${userProgress.streak || 0}d`} icon={Flame} color="orange" delay={0.35} />
+          <StatCard label="Badge" value={userProgress.badges?.length || 0} icon={Trophy} color="yellow" delay={0.4} />
+          <StatCard label="Lezioni" value={completedLessons} icon={BookOpen} color="green" delay={0.45} />
         </div>
 
-        {/* Call to Action */}
+        {/* Lessons Section */}
+        <section className="space-y-8">
+          <SectionHeader
+            title="Il Tuo Percorso"
+            subtitle="Completa le lezioni per sbloccare nuovi contenuti"
+            actions={
+              <Button
+                onClick={() => onNavigate('lessons')}
+                className="bg-purple-600 hover:bg-purple-500 text-white rounded-xl px-6 h-10 font-semibold shadow-[0_0_20px_rgba(139,92,246,0.3)] hover:shadow-[0_0_30px_rgba(139,92,246,0.5)] transition-all group text-sm"
+              >
+                Vedi Tutto
+                <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+              </Button>
+            }
+          />
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {lessons.map((lesson, index) => (
+              <LessonCard
+                key={lesson.id}
+                id={lesson.id}
+                title={lesson.title}
+                category={lesson.category}
+                xp={lesson.xp}
+                status={lesson.status}
+                onClick={() => onNavigate('lesson')}
+                delay={0.5 + index * 0.05}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* CTA Section */}
         <motion.div
-          className="mt-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1 }}
+          transition={{ delay: 0.8 }}
         >
-          <Card className="relative p-6 md:p-8 bg-gradient-to-br from-emerald-600 to-teal-600 border-0 text-white overflow-hidden">
-            <motion.div
-              className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl"
-              animate={{ 
-                scale: [1, 1.2, 1],
-                opacity: [0.1, 0.2, 0.1]
-              }}
-              transition={{ duration: 4, repeat: Infinity }}
-            />
+          <div className="p-12 bg-gradient-to-br from-purple-900/20 to-transparent border border-purple-500/20 rounded-[32px] text-center relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-purple-500/10 rounded-full blur-[100px] -mr-40 -mt-40 pointer-events-none" />
 
-            <div className="relative">
-              <div className="flex items-start gap-4 mb-4">
-                <div className="p-3 bg-white/20 rounded-xl backdrop-blur-sm">
-                  <Star className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold mb-2">Continua il tuo percorso!</h3>
-                  <p className="text-emerald-100">
-                    Hai completato {userProgress.lessonsCompleted} lezioni. Ancora {userProgress.totalLessons - userProgress.lessonsCompleted} da scoprire!
-                  </p>
-                </div>
-              </div>
+            <div className="relative z-10">
+              <motion.div
+                className="w-16 h-16 mx-auto mb-8 bg-purple-500/10 border border-purple-500/20 rounded-2xl flex items-center justify-center shadow-[0_0_30px_-10px_rgba(168,85,247,0.3)]"
+                animate={{ rotate: [0, 5, 0, -5, 0] }}
+                transition={{ duration: 4, repeat: Infinity }}
+              >
+                <Sparkles className="w-8 h-8 text-purple-400" />
+              </motion.div>
+
+              <h2 className="text-3xl md:text-4xl font-bold text-white mb-4 tracking-tight">
+                Pronto per la prossima <span className="text-purple-400">lezione?</span>
+              </h2>
+              <p className="text-[#888899] text-lg mb-10 max-w-lg mx-auto leading-relaxed">
+                Continua il tuo percorso verso la padronanza della Wheel Strategy
+              </p>
 
               <Button
                 onClick={() => onNavigate('lesson')}
-                className="bg-white text-emerald-600 hover:bg-gray-100 font-semibold"
+                className="h-14 px-10 bg-purple-600 hover:bg-purple-500 text-white rounded-xl font-bold shadow-[0_0_30px_rgba(139,92,246,0.4)] hover:shadow-[0_0_40px_rgba(139,92,246,0.6)] group transition-all hover:-translate-y-1"
               >
-                <Play className="w-4 h-4 mr-2" />
-                Riprendi Lezione
+                <Play className="w-5 h-5 mr-3 fill-current" />
+                Inizia Lezione
+                <ArrowRight className="w-5 h-5 ml-3 group-hover:translate-x-1 transition-transform" />
               </Button>
             </div>
-          </Card>
+          </div>
         </motion.div>
-
-      </main>
-    </div>
+      </PageContent>
+    </PageWrapper>
   );
 }

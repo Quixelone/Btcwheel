@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Progress } from './ui/progress';
-import { X, ChevronRight, ChevronLeft, Sparkles, Target, TrendingUp, DollarSign, RefreshCw } from 'lucide-react';
+import { X, ChevronRight, ChevronLeft, Sparkles, Target, TrendingUp, DollarSign, RefreshCw, GraduationCap, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface SimulationTutorialProps {
@@ -21,7 +21,8 @@ const TUTORIAL_STEPS = [
       'Capitale iniziale: $10,000 virtuali',
       'Nessun rischio reale',
       'Impara facendo pratica'
-    ]
+    ],
+    color: 'emerald'
   },
   {
     id: 2,
@@ -33,7 +34,8 @@ const TUTORIAL_STEPS = [
       'Genera reddito passivo',
       'Funziona in mercati laterali',
       'Riduce il rischio vs. solo holding'
-    ]
+    ],
+    color: 'blue'
   },
   {
     id: 3,
@@ -45,7 +47,8 @@ const TUTORIAL_STEPS = [
       'Scegli strike sotto il prezzo corrente',
       'Premium = guadagno immediato',
       'Più basso lo strike, più sicuro'
-    ]
+    ],
+    color: 'orange'
   },
   {
     id: 4,
@@ -57,7 +60,8 @@ const TUTORIAL_STEPS = [
       'Non è una perdita!',
       'Hai ridotto il costo grazie al premium',
       'Ora possiedi BTC per la fase 3'
-    ]
+    ],
+    color: 'purple'
   },
   {
     id: 5,
@@ -70,7 +74,8 @@ const TUTORIAL_STEPS = [
       'Guadagno 1: Premium della put',
       'Guadagno 2: Premium della call',
       'Guadagno 3: Profitto se chiamato via'
-    ]
+    ],
+    color: 'emerald'
   },
   {
     id: 6,
@@ -83,7 +88,8 @@ const TUTORIAL_STEPS = [
       'Tutorial integrati',
       'Feedback in tempo reale',
       'Nessun rischio, solo apprendimento!'
-    ]
+    ],
+    color: 'blue'
   }
 ];
 
@@ -108,75 +114,124 @@ export function SimulationTutorial({ onComplete, onSkip }: SimulationTutorialPro
 
   const IconComponent = step.icon;
 
+  const getColorClass = (color: string) => {
+    switch (color) {
+      case 'emerald': return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+      case 'blue': return 'text-blue-400 bg-blue-500/10 border-blue-500/20';
+      case 'orange': return 'text-orange-400 bg-orange-500/10 border-orange-500/20';
+      case 'purple': return 'text-purple-400 bg-purple-500/10 border-purple-500/20';
+      default: return 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20';
+    }
+  };
+
+  const getGradientClass = (color: string) => {
+    switch (color) {
+      case 'emerald': return 'from-emerald-600/20 to-teal-600/20';
+      case 'blue': return 'from-blue-600/20 to-indigo-600/20';
+      case 'orange': return 'from-orange-600/20 to-amber-600/20';
+      case 'purple': return 'from-purple-600/20 to-pink-600/20';
+      default: return 'from-emerald-600/20 to-teal-600/20';
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-slate-950/90 backdrop-blur-xl flex items-center justify-center z-50 p-4"
     >
-      <Card className="max-w-2xl w-full bg-white shadow-2xl border-2 border-emerald-500">
+      <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                           linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundSize: '40px 40px'
+        }} />
+      </div>
+
+      <Card className="max-w-2xl w-full bg-slate-900/80 shadow-2xl border border-white/10 overflow-hidden rounded-[2.5rem] relative">
+        <div className={`absolute top-0 right-0 w-64 h-64 bg-${step.color}-500/5 rounded-full blur-[100px] -mr-32 -mt-32 pointer-events-none transition-colors duration-500`} />
+
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-6 text-white relative">
+        <div className={`bg-gradient-to-r ${getGradientClass(step.color)} p-8 text-white relative border-b border-white/5 transition-all duration-500`}>
           <Button
             onClick={onSkip}
             variant="ghost"
             size="sm"
-            className="absolute top-4 right-4 text-white hover:bg-white/20"
+            className="absolute top-6 right-6 w-10 h-10 rounded-full text-slate-400 hover:text-white hover:bg-white/10"
           >
-            <X className="w-5 h-5" />
+            <X className="w-6 h-6" />
           </Button>
-          
-          <div className="flex items-center gap-4 mb-4">
-            {/* Prof Satoshi Avatar */}
-            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-4xl">🧑‍🏫</span>
-            </div>
+
+          <div className="flex items-center gap-6 mb-6">
+            <motion.div
+              key={currentStep}
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="w-20 h-20 bg-slate-950 rounded-3xl flex items-center justify-center flex-shrink-0 border border-white/10 shadow-xl"
+            >
+              <span className="text-5xl">🧑‍🏫</span>
+            </motion.div>
             <div className="flex-1">
-              <p className="text-emerald-100 text-sm mb-1">Prof Satoshi ti spiega...</p>
-              <h2 className="text-white">{step.title}</h2>
+              <div className="flex items-center gap-2 mb-1">
+                <GraduationCap className={`w-4 h-4 text-${step.color}-400`} />
+                <p className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em]">Prof Satoshi Academy</p>
+              </div>
+              <h2 className="text-2xl font-black text-white uppercase tracking-tight">{step.title}</h2>
             </div>
           </div>
-          
-          <Progress value={progress} className="h-2 bg-white/20" />
-          <p className="text-emerald-100 text-sm mt-2">
-            Passo {currentStep + 1} di {TUTORIAL_STEPS.length}
-          </p>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-500">
+              <span>Progresso Lezione</span>
+              <span className="text-white">{Math.round(progress)}%</span>
+            </div>
+            <Progress value={progress} className="h-2 bg-slate-950 border border-white/5" />
+          </div>
         </div>
 
         {/* Content */}
-        <div className="p-6">
+        <div className="p-8 md:p-10">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStep}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
             >
               {/* Icon */}
-              <div className="flex justify-center mb-6">
-                <div className="w-20 h-20 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-2xl flex items-center justify-center">
-                  <IconComponent className="w-10 h-10 text-emerald-600" />
+              <div className="flex justify-center mb-8">
+                <div className={`w-24 h-24 rounded-[2rem] flex items-center justify-center border-2 shadow-lg transition-all duration-500 ${getColorClass(step.color)}`}>
+                  <IconComponent className="w-12 h-12" />
                 </div>
               </div>
 
               {/* Main Content */}
-              <div className="mb-6">
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line text-center mb-6">
-                  {step.content}
+              <div className="mb-10">
+                <p className="text-slate-300 leading-relaxed text-center mb-8 font-medium text-lg">
+                  {step.content.split('\n').map((line, i) => (
+                    <span key={i} className="block mb-2">
+                      {line.includes('**') ? (
+                        line.split('**').map((part, j) => (
+                          j % 2 === 1 ? <strong key={j} className="text-white font-black">{part}</strong> : part
+                        ))
+                      ) : line}
+                    </span>
+                  ))}
                 </p>
 
                 {/* Tips */}
-                <div className="bg-emerald-50 border-2 border-emerald-200 rounded-lg p-4">
-                  <p className="text-emerald-900 font-semibold mb-3 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" />
-                    Punti Chiave:
+                <div className="bg-slate-950/50 border border-white/5 rounded-3xl p-6 relative overflow-hidden group">
+                  <div className={`absolute top-0 left-0 w-1 h-full bg-${step.color}-500/50`} />
+                  <p className="text-slate-500 font-black text-[10px] uppercase mb-4 flex items-center gap-2 tracking-widest">
+                    <Lightbulb className={`w-4 h-4 text-${step.color}-400`} />
+                    Punti Chiave della Lezione
                   </p>
-                  <ul className="space-y-2">
+                  <ul className="grid md:grid-cols-2 gap-4">
                     {step.tips.map((tip, index) => (
-                      <li key={index} className="flex items-start gap-2 text-gray-700">
-                        <span className="text-emerald-600 mt-1">✓</span>
+                      <li key={index} className="flex items-start gap-3 text-slate-400 text-sm font-bold group-hover:text-slate-300 transition-colors">
+                        <span className={`text-${step.color}-500 mt-0.5`}>✦</span>
                         <span>{tip}</span>
                       </li>
                     ))}
@@ -185,23 +240,27 @@ export function SimulationTutorial({ onComplete, onSkip }: SimulationTutorialPro
               </div>
 
               {/* Navigation */}
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center justify-between gap-6">
                 <Button
                   onClick={handlePrev}
-                  variant="outline"
+                  variant="ghost"
                   disabled={currentStep === 0}
-                  className="flex-1"
+                  className="flex-1 h-16 rounded-2xl text-slate-500 hover:text-white hover:bg-white/5 font-black uppercase text-xs tracking-widest disabled:opacity-0 transition-all"
                 >
-                  <ChevronLeft className="w-4 h-4 mr-2" />
+                  <ChevronLeft className="w-5 h-5 mr-2" />
                   Indietro
                 </Button>
-                
+
                 <Button
                   onClick={handleNext}
-                  className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
+                  className={`flex-[2] h-16 rounded-2xl text-white font-black uppercase text-xs tracking-widest shadow-xl transition-all duration-500 ${step.color === 'emerald' ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-600/20' :
+                      step.color === 'blue' ? 'bg-blue-600 hover:bg-blue-500 shadow-blue-600/20' :
+                        step.color === 'orange' ? 'bg-orange-600 hover:bg-orange-500 shadow-orange-600/20' :
+                          'bg-purple-600 hover:bg-purple-500 shadow-purple-600/20'
+                    }`}
                 >
-                  {currentStep === TUTORIAL_STEPS.length - 1 ? 'Inizia Simulazione' : 'Avanti'}
-                  <ChevronRight className="w-4 h-4 ml-2" />
+                  {currentStep === TUTORIAL_STEPS.length - 1 ? 'Inizia Simulazione' : 'Prossimo Passo'}
+                  <ChevronRight className="w-5 h-5 ml-2" />
                 </Button>
               </div>
 
@@ -209,9 +268,9 @@ export function SimulationTutorial({ onComplete, onSkip }: SimulationTutorialPro
               {currentStep < TUTORIAL_STEPS.length - 1 && (
                 <button
                   onClick={onSkip}
-                  className="w-full text-center text-gray-500 text-sm mt-4 hover:text-gray-700 transition-colors"
+                  className="w-full text-center text-slate-600 text-[10px] font-black uppercase mt-8 hover:text-slate-400 transition-colors tracking-[0.2em]"
                 >
-                  Salta tutorial (puoi rivederlo dopo)
+                  Salta il tutorial completo
                 </button>
               )}
             </motion.div>

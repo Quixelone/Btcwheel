@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
 import { Navigation } from './Navigation';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
-import { Progress } from './ui/progress';
 import { Badge } from './ui/badge';
 import { useUserProgress } from '../hooks/useUserProgress';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { TrendingUp, TrendingDown, DollarSign, ArrowLeft, Target, Trophy, Lock, CheckCircle2, Lightbulb, Rocket, HelpCircle } from 'lucide-react';
+import { useAuth } from '../hooks/useAuth';
+import { CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from 'recharts';
+import { DollarSign, Target, Lock, CheckCircle2, Lightbulb, Zap, TrendingUp, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
-import { motion } from 'motion/react';
-import { SimulationTutorial } from './SimulationTutorial';
+import { motion, AnimatePresence } from 'motion/react';
+import { storage } from '../lib/localStorage';
+import { saveSimulationState, getSimulationState } from '../lib/supabase';
+import { PageWrapper, PageContent, PageHeader } from './layout/PageWrapper';
+import { StatCardSmall } from './ui/stat-card';
 import type { View } from '../App';
 
 interface SimulationViewProps {
@@ -84,7 +86,7 @@ const MISSIONS: Mission[] = [
       {
         step: 3,
         title: 'Raccogli il Premium',
-        content: 'Il premium è il tuo guadagno immediato! Più basso è lo strike, più basso è il premium ma più sicura è la posizione.'
+        content: 'Il premium è il tuo guadagno immediato! Più basso è lo strike, più basso è le premium ma più sicura è la posizione.'
       }
     ],
     status: 'active',
@@ -99,255 +101,226 @@ const MISSIONS: Mission[] = [
         type: 'collect_premium',
         target: 1000,
         current: 0,
-        description: 'Raccogli $1,000 in premium totale'
+        description: 'Raccogli $1,000 in premium'
       }
     ],
-    reward: { xp: 350, badgeId: 'premium-collector' },
+    reward: { xp: 300 },
     tutorial: [
       {
         step: 1,
-        title: 'Diversifica le Posizioni',
-        content: 'Invece di vendere tutto in una volta, distribuisci le tue put in diversi strike price per gestire meglio il rischio.'
-      },
-      {
-        step: 2,
-        title: 'Timing del Mercato',
-        content: 'Il premium è più alto quando il mercato è volatile. Osserva il grafico e vendi quando vedi movimenti ampi.'
+        title: 'Gestione del Rischio',
+        content: 'Vendere più opzioni aumenta il tuo guadagno ma anche il capitale richiesto. Assicurati di avere abbastanza liquidità!'
       }
     ],
     status: 'locked',
-    unlockRequirement: 'Completa "Il Tuo Primo Premium"',
+    unlockRequirement: 'Completa la missione "Il Tuo Primo Premium"'
   },
   {
     id: 'mission-3',
-    title: 'Gestisci l\'Assegnazione',
-    description: 'Impara cosa succede quando la put va in-the-money e vieni assegnato',
-    difficulty: 'medium',
+    title: 'L\'Assegnazione',
+    description: 'Sperimenta cosa succede quando il prezzo scende sotto lo strike',
+    difficulty: 'hard',
     objectives: [
       {
         type: 'handle_assignment',
         target: 1,
         current: 0,
-        description: 'Ricevi 1 assegnazione e gestiscila'
+        description: 'Ricevi un\'assegnazione di BTC'
       }
     ],
-    reward: { xp: 400, badgeId: 'assignment-master' },
+    reward: { xp: 500, badgeId: 'bitcoin-owner' },
     tutorial: [
       {
         step: 1,
-        title: 'Cosa è l\'Assegnazione?',
-        content: 'Se Bitcoin scende sotto il tuo strike, devi comprare BTC al prezzo dello strike. Non è una perdita - hai già guadagnato il premium!'
-      },
-      {
-        step: 2,
-        title: 'Prezzo di Carico',
-        content: 'Il tuo prezzo effettivo è: Strike - Premium ricevuto. Esempio: Strike $40k, Premium $500 = Prezzo reale $39,500.'
-      },
-      {
-        step: 3,
-        title: 'Prossimo Step',
-        content: 'Ora che possiedi BTC, puoi vendere covered calls per generare più reddito. Questo è il cuore della Wheel Strategy!'
+        title: 'Essere Assegnati',
+        content: 'Se alla scadenza il prezzo di BTC è sotto il tuo strike, compri i BTC a quel prezzo. Non è un male: ora possiedi l\'asset e puoi vendere Call!'
       }
     ],
     status: 'locked',
-    unlockRequirement: 'Completa "Collezionista di Premium"',
+    unlockRequirement: 'Raccogli $1,000 in premium'
   },
   {
     id: 'mission-4',
-    title: 'Il Primo Covered Call',
-    description: 'Vendi una call coperta sul tuo Bitcoin assegnato',
-    difficulty: 'hard',
-    objectives: [
-      {
-        type: 'sell_option',
-        target: 1,
-        current: 0,
-        description: 'Vendi 1 covered call'
-      }
-    ],
-    reward: { xp: 500, badgeId: 'covered-call-pro' },
-    tutorial: [
-      {
-        step: 1,
-        title: 'Covered Call',
-        content: 'Vendere una call significa che accetti di vendere il tuo BTC a un prezzo più alto (strike) se il prezzo sale. Ricevi premium anche qui!'
-      },
-      {
-        step: 2,
-        title: 'Strike Sopra il Prezzo',
-        content: 'Scegli uno strike SOPRA il prezzo corrente. Se BTC sale sopra, vendi con profitto. Se no, tieni il premium e il BTC.'
-      },
-      {
-        step: 3,
-        title: 'Doppio Guadagno',
-        content: 'Hai già guadagnato dalla put, ora guadagni anche dalla call. È così che la Wheel genera rendimento costante!'
-      }
-    ],
-    status: 'locked',
-    unlockRequirement: 'Completa "Gestisci l\'Assegnazione"',
-  },
-  {
-    id: 'mission-5',
-    title: 'Wheel Strategy Master',
-    description: 'Completa un ciclo completo: Put → Assegnazione → Call → Profitto',
+    title: 'Chiudi il Cerchio (The Wheel)',
+    description: 'Vendi una Covered Call sui BTC che possiedi per completare la strategia',
     difficulty: 'expert',
     objectives: [
       {
         type: 'complete_wheel',
         target: 1,
         current: 0,
-        description: 'Completa 1 ciclo completo della Wheel'
+        description: 'Vendi una Call e chiudi il cerchio'
       }
     ],
     reward: { xp: 1000, badgeId: 'wheel-master' },
     tutorial: [
       {
         step: 1,
-        title: 'Il Ciclo Completo',
-        content: 'Vendi put → Vieni assegnato → Vendi call → Bitcoin chiamato via → Ricomincia. Questo è come i professionisti generano reddito passivo.'
-      },
-      {
-        step: 2,
-        title: 'Optimization',
-        content: 'Ogni ciclo genera profitto. Più cicli completi, più guadagni. L\'obiettivo è ripetere questo processo indefinitamente.'
-      },
-      {
-        step: 3,
-        title: 'Congratulazioni!',
-        content: 'Hai padroneggiato la Wheel Strategy! Ora sei pronto per applicarla nel mondo reale con capitale vero.'
+        title: 'Covered Call',
+        content: 'Ora che hai BTC, vendi una Call sopra il tuo prezzo di acquisto. Se il prezzo sale, vendi i BTC in profitto e ricominci il giro!'
       }
     ],
     status: 'locked',
-    unlockRequirement: 'Completa "Il Primo Covered Call"',
+    unlockRequirement: 'Ricevi la tua prima assegnazione'
   }
 ];
 
 export function SimulationView({ onNavigate, mascotVisible, onMascotToggle }: SimulationViewProps) {
-  const { progress: userProgress, addXP } = useUserProgress();
-  const [btcPrice, setBtcPrice] = useState(96000); // 🎯 Prezzo reale dicembre 2024
+  const { user } = useAuth();
+  const { addXP } = useUserProgress();
+
+  // Simulation State
+  const [btcPrice, setBtcPrice] = useState(45000);
+  const [priceHistory, setPriceHistory] = useState<{ time: string, price: number }[]>([]);
   const [portfolioValue, setPortfolioValue] = useState(10000);
+  const [btcOwned, setBtcOwned] = useState(0);
   const [positions, setPositions] = useState<Position[]>([]);
-  const [priceHistory, setPriceHistory] = useState<Array<{ time: string; price: number }>>([]);
   const [missions, setMissions] = useState<Mission[]>(MISSIONS);
   const [activeMission, setActiveMission] = useState<Mission | null>(MISSIONS[0]);
-  const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
   const [showTutorial, setShowTutorial] = useState(true);
-  const [showMainTutorial, setShowMainTutorial] = useState(true); // 🎯 NEW: Main tutorial modal
-  const [btcOwned, setBtcOwned] = useState(0);
-  
-  // Form states
-  const [optionType, setOptionType] = useState<'put' | 'call'>('put');
-  const [strikePrice, setStrikePrice] = useState('90000'); // 🎯 Aggiornato
-  const [premium, setPremium] = useState('800'); // 🎯 Più realistico
+  const [currentTutorialStep, setCurrentTutorialStep] = useState(0);
+
+  // Trading Form State
+  const [strikePrice, setStrikePrice] = useState('');
+  const [premium, setPremium] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [optionType, setOptionType] = useState<'put' | 'call'>('put');
 
-  // 🎯 Calcolo automatico strike e premium intelligenti
+  // Load state from Supabase or LocalStorage
   useEffect(() => {
-    if (optionType === 'put') {
-      // Suggerisci strike 5-7% sotto prezzo corrente
-      const suggestedStrike = Math.round(btcPrice * 0.93);
-      setStrikePrice(suggestedStrike.toString());
-      
-      // Calcola premium realistico: ~1-2% del valore strike
-      const distancePercentage = ((btcPrice - suggestedStrike) / btcPrice) * 100;
-      const premiumPercentage = 0.008 + (distancePercentage * 0.001); // 0.8% base + proporzionale
-      const suggestedPremium = Math.round(suggestedStrike * premiumPercentage);
-      setPremium(suggestedPremium.toString());
-    } else if (optionType === 'call') {
-      // Suggerisci strike 5-7% sopra prezzo corrente
-      const suggestedStrike = Math.round(btcPrice * 1.07);
-      setStrikePrice(suggestedStrike.toString());
-      
-      // Premium per call leggermente più basso
-      const distancePercentage = ((suggestedStrike - btcPrice) / btcPrice) * 100;
-      const premiumPercentage = 0.006 + (distancePercentage * 0.0008);
-      const suggestedPremium = Math.round(suggestedStrike * premiumPercentage);
-      setPremium(suggestedPremium.toString());
-    }
-  }, [optionType, btcPrice]);
+    const loadState = async () => {
+      if (user) {
+        const state = await getSimulationState(user.id);
+        if (state) {
+          if (state.missions) setMissions(state.missions);
+          if (state.portfolio) {
+            setPortfolioValue(state.portfolio.portfolioValue);
+            setBtcOwned(state.portfolio.btcOwned);
+            setPositions(state.portfolio.positions.map((p: any) => ({
+              ...p,
+              openDate: new Date(p.openDate)
+            })));
+          }
+        }
+      } else {
+        const savedJson = storage.getItem('simulation_state');
+        if (savedJson) {
+          try {
+            const saved = JSON.parse(savedJson);
+            setPortfolioValue(saved.portfolioValue);
+            setPositions(saved.positions.map((p: any) => ({ ...p, openDate: new Date(p.openDate) })));
+            setBtcOwned(saved.btcOwned);
+            setMissions(saved.missions);
+          } catch (e) {
+            console.error("Failed to parse simulation state", e);
+          }
+        }
+      }
+    };
+    loadState();
+  }, [user]);
 
-  // Simulate BTC price changes (range più realistico per 2024)
+  // Save state
+  useEffect(() => {
+    const state = {
+      portfolioValue,
+      positions,
+      btcOwned,
+      missions
+    };
+
+    if (user) {
+      saveSimulationState(user.id, {
+        portfolio: { portfolioValue, positions, btcOwned },
+        missions
+      });
+    } else {
+      storage.setItem('simulation_state', JSON.stringify(state));
+    }
+  }, [portfolioValue, positions, btcOwned, missions, user]);
+
+  // Price Simulation
   useEffect(() => {
     const interval = setInterval(() => {
       setBtcPrice(prev => {
-        const change = (Math.random() - 0.5) * 2000; // Volatilità maggiore
-        const newPrice = Math.max(85000, Math.min(105000, prev + change)); // Range $85k-$105k
-        return Math.round(newPrice);
+        const change = (Math.random() - 0.5) * 200;
+        const newPrice = prev + change;
+
+        setPriceHistory(history => {
+          const newHistory = [...history, { time: new Date().toLocaleTimeString(), price: newPrice }];
+          if (newHistory.length > 20) newHistory.shift();
+          return newHistory;
+        });
+
+        checkAssignments(newPrice);
+        return newPrice;
       });
-    }, 3000);
+    }, 2000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [positions]);
 
-  // Update price history
-  useEffect(() => {
-    const now = new Date();
-    const timeString = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-    
-    setPriceHistory(prev => {
-      const newHistory = [...prev, { time: timeString, price: btcPrice }];
-      return newHistory.slice(-20);
-    });
-  }, [btcPrice]);
+  const checkAssignments = (currentPrice: number) => {
+    setPositions(prevPositions => {
+      const updatedPositions = prevPositions.map(pos => {
+        if (pos.status === 'closed') return pos;
 
-  // Check for assignments when price changes
-  useEffect(() => {
-    positions.forEach(position => {
-      if (position.status === 'open' && position.type === 'put' && !position.assignmentPrice) {
-        if (btcPrice < position.strike) {
-          // Simulate assignment
-          handleAssignment(position.id);
+        // Put Assignment Logic
+        if (pos.type === 'put' && currentPrice <= pos.strike) {
+          // 5% chance of assignment if ITM
+          if (Math.random() < 0.05) {
+            const cost = pos.strike * pos.quantity;
+            if (portfolioValue >= cost) {
+              setPortfolioValue(v => v - cost);
+              setBtcOwned(b => b + pos.quantity);
+              toast.error(`Assegnato! Hai comprato ${pos.quantity} BTC a $${pos.strike}`);
+              updateMissionProgress('handle_assignment', 1);
+              return { ...pos, status: 'closed', assignmentPrice: pos.strike } as Position;
+            }
+          }
         }
-      }
+
+        // Call Assignment Logic
+        if (pos.type === 'call' && currentPrice >= pos.strike) {
+          if (Math.random() < 0.05) {
+            const revenue = pos.strike * pos.quantity;
+            setPortfolioValue(v => v + revenue);
+            setBtcOwned(b => b - pos.quantity);
+            toast.success(`Assegnato! Hai venduto ${pos.quantity} BTC a $${pos.strike}`);
+            updateMissionProgress('complete_wheel', 1);
+            return { ...pos, status: 'closed', assignmentPrice: pos.strike } as Position;
+          }
+        }
+
+        return pos;
+      });
+      return updatedPositions;
     });
-  }, [btcPrice]);
-
-  const handleAssignment = (positionId: string) => {
-    const position = positions.find(p => p.id === positionId);
-    if (!position) return;
-
-    const btcQuantity = position.quantity;
-    const costBasis = position.strike - position.premium;
-
-    setBtcOwned(prev => prev + btcQuantity);
-    setPositions(positions.map(p => 
-      p.id === positionId ? { ...p, status: 'closed' as const, assignmentPrice: btcPrice } : p
-    ));
-
-    // Update mission progress
-    updateMissionProgress('handle_assignment', 1);
-
-    toast.success('⚡ Assegnazione Ricevuta!', {
-      description: `Hai acquistato ${btcQuantity} BTC a $${position.strike}. Prezzo effettivo: $${costBasis.toFixed(0)} (dopo premium)`
-    });
-
-    addXP(300);
   };
 
   const handleSellOption = () => {
+    if (!strikePrice || !premium || !quantity) return;
+
     const strike = parseFloat(strikePrice);
     const prem = parseFloat(premium);
-    const qty = parseInt(quantity);
+    const qty = parseFloat(quantity);
+    const totalPremium = prem * qty;
 
-    if (isNaN(strike) || isNaN(prem) || isNaN(qty) || qty <= 0) {
-      toast.error('Inserisci valori validi');
-      return;
-    }
-
-    // Validation for mission 1
-    if (activeMission?.id === 'mission-1' && optionType === 'call') {
-      toast.error('Per questa missione devi vendere una PUT!');
-      return;
-    }
-
-    // Validation for covered calls
-    if (optionType === 'call' && btcOwned < qty) {
-      toast.error(`Non hai abbastanza BTC! (Possiedi: ${btcOwned}, Richiesto: ${qty})`);
-      return;
+    if (optionType === 'put') {
+      const collateral = strike * qty;
+      if (portfolioValue < collateral) {
+        toast.error('Capitale insufficiente per il collaterale');
+        return;
+      }
+    } else {
+      if (btcOwned < qty) {
+        toast.error('Non possiedi abbastanza BTC per vendere Call');
+        return;
+      }
     }
 
     const newPosition: Position = {
-      id: Date.now().toString(),
+      id: Math.random().toString(36).substr(2, 9),
       type: optionType,
       strike,
       premium: prem,
@@ -356,548 +329,367 @@ export function SimulationView({ onNavigate, mascotVisible, onMascotToggle }: Si
       status: 'open'
     };
 
-    setPositions([...positions, newPosition]);
-    setPortfolioValue(prev => prev + (prem * qty));
-    
-    // Update mission progress
+    setPositions([newPosition, ...positions]);
+    setPortfolioValue(v => v + totalPremium);
+
+    toast.success(`Opzione ${optionType.toUpperCase()} venduta! Premium raccolto: $${totalPremium}`);
+
     updateMissionProgress('sell_option', 1);
-    updateMissionProgress('collect_premium', prem * qty);
+    updateMissionProgress('collect_premium', totalPremium);
 
-    const xpReward = optionType === 'call' ? 150 : 100;
-    addXP(xpReward);
-    
-    toast.success(`✅ ${optionType === 'put' ? 'Put' : 'Call'} venduta!`, {
-      description: `+$${prem * qty} premium raccolto | +${xpReward} XP`
-    });
-
-    // Show next tutorial step if available
-    if (activeMission && currentTutorialStep < activeMission.tutorial.length - 1) {
-      setCurrentTutorialStep(prev => prev + 1);
-    }
+    setStrikePrice('');
+    setPremium('');
   };
 
-  const handleClosePosition = (positionId: string) => {
-    const position = positions.find(p => p.id === positionId);
-    if (!position) return;
+  const updateMissionProgress = (type: Mission['objectives'][0]['type'], amount: number) => {
+    setMissions(prevMissions => {
+      return prevMissions.map(mission => {
+        if (mission.status === 'locked') return mission;
 
-    const currentValue = position.type === 'put' 
-      ? Math.max(0, position.strike - btcPrice) * position.quantity
-      : Math.max(0, btcPrice - position.strike) * position.quantity;
-
-    const premiumCollected = position.premium * position.quantity;
-    const profit = premiumCollected - currentValue;
-
-    setPortfolioValue(prev => prev - currentValue);
-    setPositions(positions.map(p => 
-      p.id === positionId ? { ...p, status: 'closed' as const } : p
-    ));
-
-    // Update mission progress
-    updateMissionProgress('close_position', 1);
-
-    if (profit > 0) {
-      const profitPercentage = (profit / premiumCollected) * 100;
-      const bonusXP = profitPercentage > 80 ? 100 : 0;
-      const totalXP = 150 + bonusXP;
-      
-      addXP(totalXP);
-      
-      toast.success(`✅ Posizione chiusa in profitto!`, {
-        description: bonusXP > 0 
-          ? `Profitto eccellente: $${profit.toFixed(2)} | +${totalXP} XP (bonus +${bonusXP}!)`
-          : `Profitto: $${profit.toFixed(2)} | +${totalXP} XP`
-      });
-    } else {
-      toast.error(`Posizione chiusa in perdita`, {
-        description: `Perdita: $${Math.abs(profit).toFixed(2)}`
-      });
-    }
-  };
-
-  const updateMissionProgress = (objectiveType: Mission['objectives'][0]['type'], increment: number) => {
-    if (!activeMission) return;
-
-    const updatedMissions = missions.map(mission => {
-      if (mission.id === activeMission.id) {
         const updatedObjectives = mission.objectives.map(obj => {
-          if (obj.type === objectiveType) {
-            const newCurrent = Math.min(obj.current + increment, obj.target);
-            return { ...obj, current: newCurrent };
+          if (obj.type === type) {
+            return { ...obj, current: Math.min(obj.target, obj.current + amount) };
           }
           return obj;
         });
 
-        const allCompleted = updatedObjectives.every(obj => obj.current >= obj.target);
-        
-        if (allCompleted && mission.status === 'active') {
-          // Mission completed!
-          completeMission(mission);
-          return { ...mission, objectives: updatedObjectives, status: 'completed' as const };
+        const isComplete = updatedObjectives.every(obj => obj.current >= obj.target);
+
+        if (isComplete && mission.status !== 'completed') {
+          handleMissionComplete(mission);
+          return { ...mission, objectives: updatedObjectives, status: 'completed' } as Mission;
         }
 
         return { ...mission, objectives: updatedObjectives };
-      }
-      return mission;
+      });
     });
-
-    setMissions(updatedMissions);
-    
-    // 🎯 FIX: Update active mission with latest progress
-    const updatedActiveMission = updatedMissions.find(m => m.id === activeMission.id);
-    if (updatedActiveMission) {
-      setActiveMission(updatedActiveMission);
-    }
   };
 
-  const completeMission = (mission: Mission) => {
+  const handleMissionComplete = (mission: Mission) => {
+    toast.success(`Missione Completata: ${mission.title}! +${mission.reward.xp} XP`);
     addXP(mission.reward.xp);
-    
-    toast.success('🏆 Missione Completata!', {
-      description: `${mission.title} - +${mission.reward.xp} XP`,
-      duration: 5000
-    });
 
-    // 🎯 FIX: Unlock and activate next mission
-    const currentIndex = MISSIONS.findIndex(m => m.id === mission.id);
-    if (currentIndex < MISSIONS.length - 1) {
-      const nextMission = MISSIONS[currentIndex + 1];
-      
-      // Update missions state with next mission unlocked
-      setMissions(prev => prev.map(m => 
-        m.id === nextMission.id ? { ...m, status: 'active' as const } : m
+    // Unlock next mission logic
+    const missionIndex = MISSIONS.findIndex(m => m.id === mission.id);
+    if (missionIndex < MISSIONS.length - 1) {
+      const nextMission = MISSIONS[missionIndex + 1];
+      setMissions(prev => prev.map(m =>
+        m.id === nextMission.id ? { ...m, status: 'active' } : m
       ));
-      
-      // 🎯 IMPORTANT: Automatically select the next mission
-      setTimeout(() => {
-        const nextMissionWithProgress = {
-          ...nextMission,
-          status: 'active' as const
-        };
-        setActiveMission(nextMissionWithProgress);
-        setCurrentTutorialStep(0);
-        setShowTutorial(true);
-        
-        toast.success('🔓 Nuova Missione Attivata!', {
-          description: nextMission.title,
-          duration: 4000
-        });
-      }, 2000);
-    } else {
-      // All missions completed!
-      setTimeout(() => {
-        toast.success('🎉 Tutte le Missioni Completate!', {
-          description: 'Sei un maestro della Wheel Strategy!',
-          duration: 5000
-        });
-      }, 2000);
     }
   };
 
   const selectMission = (mission: Mission) => {
     if (mission.status === 'locked') {
-      toast.error('Missione bloccata', {
-        description: mission.unlockRequirement
-      });
+      toast.error(`Sblocca prima: ${mission.unlockRequirement}`);
       return;
     }
     setActiveMission(mission);
-    setCurrentTutorialStep(0);
     setShowTutorial(true);
+    setCurrentTutorialStep(0);
   };
-
-  const openPositions = positions.filter(p => p.status === 'open');
-  const totalPremiumCollected = positions.reduce((acc, p) => acc + (p.premium * p.quantity), 0);
-  const portfolioPnL = portfolioValue - 10000;
 
   const getDifficultyColor = (difficulty: Mission['difficulty']) => {
     switch (difficulty) {
-      case 'easy': return 'bg-green-100 text-green-700';
-      case 'medium': return 'bg-blue-100 text-blue-700';
-      case 'hard': return 'bg-orange-100 text-orange-700';
-      case 'expert': return 'bg-purple-100 text-purple-700';
+      case 'easy': return 'text-green-400';
+      case 'medium': return 'text-yellow-400';
+      case 'hard': return 'text-orange-400';
+      case 'expert': return 'text-red-400';
+      default: return 'text-slate-400';
     }
   };
 
   return (
-    <div className="min-h-screen md:pl-20 pb-24 md:pb-0 bg-gray-50">
+    <PageWrapper>
       <Navigation currentView="simulation" onNavigate={onNavigate} onMascotToggle={onMascotToggle} mascotVisible={mascotVisible} />
-      
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-4 py-4 md:px-6 sticky top-0 z-30 safe-area-top">
-        <div className="max-w-7xl mx-auto">
-          <div className="flex items-center gap-3 md:gap-4">
-            <Button variant="ghost" onClick={() => onNavigate('home')} size="sm" className="h-10">
-              <ArrowLeft className="w-5 h-5 md:w-4 md:h-4 mr-2" />
-              <span className="hidden md:inline">Indietro</span>
-            </Button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-gray-900 truncate">🎯 Trading Missions</h1>
-              <p className="text-gray-600 hidden md:block">Impara la Wheel Strategy passo dopo passo</p>
+
+      <PageContent>
+        <PageHeader
+          title="Simulatore Wheel"
+          subtitle="Metti in pratica le tue strategie senza rischiare capitale reale."
+          actions={
+            <div className="flex items-center gap-4">
+              <StatCardSmall label="Portfolio" value={`$${portfolioValue.toLocaleString()}`} icon={DollarSign} color="green" />
+              <StatCardSmall label="BTC" value={btcOwned.toFixed(4)} icon={Target} color="orange" />
             </div>
-            <Button 
-              onClick={() => onNavigate('wheel-strategy')} 
-              size="sm"
-              className="bg-emerald-600 hover:bg-emerald-700 text-white"
-            >
-              <TrendingUp className="w-4 h-4 md:mr-2" />
-              <span className="hidden md:inline">Wheel Dashboard</span>
-            </Button>
-          </div>
-        </div>
-      </header>
+          }
+        />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 py-5 md:px-6 md:py-8">
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4 mb-6">
-          <Card className="p-4 md:p-6 bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-            <p className="text-blue-100 mb-2">BTC Price</p>
-            <p className="font-bold mb-2">${btcPrice.toLocaleString()}</p>
-            <div className="flex items-center gap-1 text-blue-100">
-              <TrendingUp className="w-4 h-4" />
-              <span>Live</span>
-            </div>
-          </Card>
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* Left Column - Trading & Chart */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Chart */}
+            <div className="bg-[#0A0A0C] border border-white/[0.08] rounded-[24px] p-6 h-[400px] relative overflow-hidden">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-white">BTC/USD</h3>
+                  <p className={`text-2xl font-bold ${btcPrice >= 45000 ? 'text-green-400' : 'text-red-400'}`}>
+                    ${btcPrice.toFixed(2)}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Badge className="bg-white/[0.05] text-[#888899]">1H</Badge>
+                  <Badge className="bg-purple-500/20 text-purple-400">Live</Badge>
+                </div>
+              </div>
 
-          <Card className="p-4 md:p-6">
-            <p className="text-gray-600 mb-2">Portfolio</p>
-            <p className="text-gray-900 mb-2 font-bold">${portfolioValue.toLocaleString()}</p>
-            <div className={`flex items-center gap-1 ${portfolioPnL >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              {portfolioPnL >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              <span>{portfolioPnL >= 0 ? '+' : ''}{portfolioPnL.toFixed(0)}</span>
-            </div>
-          </Card>
-
-          <Card className="p-4 md:p-6">
-            <p className="text-gray-600 mb-2">Premium</p>
-            <p className="text-gray-900 mb-2 font-bold">${totalPremiumCollected.toLocaleString()}</p>
-            <div className="flex items-center gap-1 text-green-600">
-              <DollarSign className="w-4 h-4" />
-              <span>{positions.length} trades</span>
-            </div>
-          </Card>
-
-          <Card className="p-4 md:p-6">
-            <p className="text-gray-600 mb-2">BTC Owned</p>
-            <p className="text-gray-900 mb-2 font-bold">{btcOwned}</p>
-            <p className="text-gray-600">Bitcoin</p>
-          </Card>
-
-          <Card className="p-4 md:p-6 bg-gradient-to-br from-purple-500 to-purple-600 text-white">
-            <p className="text-purple-100 mb-2">Missioni</p>
-            <p className="font-bold mb-2">{missions.filter(m => m.status === 'completed').length}/{missions.length}</p>
-            <div className="flex items-center gap-1 text-purple-100">
-              <Trophy className="w-4 h-4" />
-              <span>Completate</span>
-            </div>
-          </Card>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-6">
-          {/* Mission List */}
-          <div className="space-y-4">
-            <h2 className="text-gray-900 flex items-center gap-2">
-              <Target className="w-5 h-5 text-blue-600" />
-              Le Tue Missioni
-            </h2>
-
-            {missions.map((mission, index) => (
-              <motion.div
-                key={mission.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Card 
-                  className={`p-4 cursor-pointer transition-all ${
-                    activeMission?.id === mission.id 
-                      ? 'ring-2 ring-blue-500 shadow-lg' 
-                      : mission.status === 'locked'
-                      ? 'opacity-60'
-                      : 'hover:shadow-md'
-                  }`}
-                  onClick={() => selectMission(mission)}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="p-2 rounded-lg bg-gray-100">
-                      {mission.status === 'completed' ? (
-                        <CheckCircle2 className="w-6 h-6 text-green-600" />
-                      ) : mission.status === 'locked' ? (
-                        <Lock className="w-6 h-6 text-gray-400" />
-                      ) : (
-                        <Rocket className="w-6 h-6 text-blue-600" />
-                      )}
-                    </div>
-                    
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <h3 className="text-gray-900 truncate">{mission.title}</h3>
-                        <Badge className={getDifficultyColor(mission.difficulty)}>
-                          {mission.difficulty}
-                        </Badge>
-                      </div>
-                      
-                      <p className="text-gray-600 mb-3">{mission.description}</p>
-                      
-                      {mission.status === 'active' && mission.objectives.map((obj, idx) => (
-                        <div key={idx} className="mb-2">
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-gray-600">{obj.description}</span>
-                            <span className="text-gray-900 font-semibold">
-                              {obj.current}/{obj.target}
-                            </span>
-                          </div>
-                          <Progress value={(obj.current / obj.target) * 100} className="h-2" />
-                        </div>
-                      ))}
-                      
-                      {mission.status === 'completed' && (
-                        <div className="flex items-center gap-2 text-green-600">
-                          <CheckCircle2 className="w-4 h-4" />
-                          <span className="font-semibold">Completata! +{mission.reward.xp} XP</span>
-                        </div>
-                      )}
-                      
-                      {mission.status === 'locked' && (
-                        <p className="text-gray-500 italic">{mission.unlockRequirement}</p>
-                      )}
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Trading Area */}
-          <div className="md:col-span-2 space-y-6">
-            {/* Tutorial Card */}
-            {activeMission && showTutorial && activeMission.status === 'active' && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-              >
-                <Card className="p-6 bg-gradient-to-br from-blue-50 to-purple-50 border-blue-200">
-                  <div className="flex items-start gap-4">
-                    <div className="p-3 bg-blue-600 rounded-full">
-                      <Lightbulb className="w-6 h-6 text-white" />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="text-gray-900">
-                          Step {currentTutorialStep + 1}/{activeMission.tutorial.length}: {activeMission.tutorial[currentTutorialStep].title}
-                        </h3>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => setShowTutorial(false)}
-                        >
-                          Chiudi
-                        </Button>
-                      </div>
-                      <p className="text-gray-700 mb-4">
-                        {activeMission.tutorial[currentTutorialStep].content}
-                      </p>
-                      <div className="flex items-center gap-2">
-                        {activeMission.tutorial.map((_, idx) => (
-                          <div 
-                            key={idx}
-                            className={`h-2 flex-1 rounded-full ${
-                              idx <= currentTutorialStep ? 'bg-blue-600' : 'bg-gray-300'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </Card>
-              </motion.div>
-            )}
-
-            {/* BTC Chart */}
-            <Card className="p-6">
-              <h2 className="text-gray-900 mb-4">Bitcoin Price Chart</h2>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={priceHistory}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="time" tick={{ fontSize: 12 }} />
-                  <YAxis domain={['dataMin - 500', 'dataMax + 500']} tick={{ fontSize: 12 }} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="price" stroke="#3b82f6" strokeWidth={2} dot={false} />
-                </LineChart>
+              <ResponsiveContainer width="100%" height="80%">
+                <AreaChart data={priceHistory}>
+                  <defs>
+                    <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="time" stroke="#666677" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis domain={['auto', 'auto']} stroke="#666677" fontSize={10} tickLine={false} axisLine={false} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#0A0A0C', borderColor: 'rgba(255,255,255,0.1)', borderRadius: '12px' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Area type="monotone" dataKey="price" stroke="#8B5CF6" strokeWidth={2} fillOpacity={1} fill="url(#colorPrice)" />
+                </AreaChart>
               </ResponsiveContainer>
-            </Card>
+            </div>
 
-            {/* Trading Panel */}
-            <Card className="p-6">
-              <h2 className="text-gray-900 mb-4">Vendi Opzione</h2>
-              
-              <div className="grid md:grid-cols-2 gap-4 mb-4">
-                <Button
-                  variant={optionType === 'put' ? 'default' : 'outline'}
-                  onClick={() => setOptionType('put')}
-                  className={optionType === 'put' ? 'bg-orange-600 hover:bg-orange-700' : ''}
-                >
-                  Sell Put
-                </Button>
-                <Button
-                  variant={optionType === 'call' ? 'default' : 'outline'}
-                  onClick={() => setOptionType('call')}
-                  disabled={btcOwned === 0}
-                  className={optionType === 'call' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                >
-                  Sell Call {btcOwned === 0 && '🔒'}
-                </Button>
+            {/* Trading Interface */}
+            <div className="bg-[#0A0A0C] border border-white/[0.08] rounded-[24px] p-8">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 flex items-center justify-center border border-purple-500/20">
+                  <Zap className="w-5 h-5 text-purple-400" />
+                </div>
+                <h3 className="text-xl font-bold text-white">Esegui Ordine</h3>
               </div>
 
-              <div className="space-y-4">
-                <div>
-                  <Label>Strike Price ($)</Label>
-                  <Input 
-                    type="number" 
-                    value={strikePrice}
-                    onChange={(e) => setStrikePrice(e.target.value)}
-                    placeholder={optionType === 'put' ? '40000' : '45000'}
-                    className="h-12"
-                  />
-                  <p className="text-gray-500 mt-1">
-                    BTC attuale: ${btcPrice.toLocaleString()} • {optionType === 'put' ? '7% sotto (sicuro)' : '7% sopra (profit target)'}
-                  </p>
+              <div className="grid md:grid-cols-2 gap-8">
+                <div className="space-y-6">
+                  <div className="flex bg-white/[0.03] p-1 rounded-xl border border-white/[0.05]">
+                    <button
+                      onClick={() => setOptionType('put')}
+                      className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${optionType === 'put' ? 'bg-purple-600 text-white shadow-lg' : 'text-[#888899] hover:text-white'}`}
+                    >
+                      Vendi PUT
+                    </button>
+                    <button
+                      onClick={() => setOptionType('call')}
+                      className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${optionType === 'call' ? 'bg-purple-600 text-white shadow-lg' : 'text-[#888899] hover:text-white'}`}
+                    >
+                      Vendi CALL
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-[#666677]">Strike Price ($)</Label>
+                    <Input
+                      type="number"
+                      value={strikePrice}
+                      onChange={(e) => setStrikePrice(e.target.value)}
+                      placeholder="Es. 42000"
+                      className="bg-white/[0.03] border-white/[0.08] rounded-xl h-12 text-white focus:border-purple-500/50"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-[#666677]">Premium ($)</Label>
+                    <Input
+                      type="number"
+                      value={premium}
+                      onChange={(e) => setPremium(e.target.value)}
+                      placeholder="Es. 150"
+                      className="bg-white/[0.03] border-white/[0.08] rounded-xl h-12 text-white focus:border-purple-500/50"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-xs font-bold uppercase tracking-wider text-[#666677]">Quantità (Contratti)</Label>
+                    <Input
+                      type="number"
+                      value={quantity}
+                      onChange={(e) => setQuantity(e.target.value)}
+                      placeholder="Es. 1"
+                      className="bg-white/[0.03] border-white/[0.08] rounded-xl h-12 text-white focus:border-purple-500/50"
+                    />
+                  </div>
                 </div>
 
-                <div>
-                  <Label>Premium ($) <span className="text-xs text-gray-500">(auto-calcolato)</span></Label>
-                  <Input 
-                    type="number" 
-                    value={premium}
-                    onChange={(e) => setPremium(e.target.value)}
-                    placeholder="500"
-                    className="h-12"
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    💡 Il premium è calcolato automaticamente in base alla distanza dallo strike. Puoi modificarlo manualmente.
-                  </p>
-                </div>
+                <div className="space-y-6">
+                  <div className="p-6 bg-white/[0.02] rounded-2xl border border-white/[0.05] space-y-4">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#888899]">Collaterale Richiesto</span>
+                      <span className="text-white font-bold">
+                        ${strikePrice && quantity ? (parseFloat(strikePrice) * parseFloat(quantity)).toLocaleString() : '0'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#888899]">Premium Stimato</span>
+                      <span className="text-green-400 font-bold">
+                        +${premium && quantity ? (parseFloat(premium) * parseFloat(quantity)).toLocaleString() : '0'}
+                      </span>
+                    </div>
+                    <div className="h-px bg-white/[0.05]" />
+                    <div className="flex justify-between text-sm">
+                      <span className="text-[#888899]">Break-even</span>
+                      <span className="text-white font-bold">
+                        ${strikePrice && premium ? (parseFloat(strikePrice) - parseFloat(premium)).toLocaleString() : '0'}
+                      </span>
+                    </div>
+                  </div>
 
-                <div>
-                  <Label>Quantità</Label>
-                  <Input 
-                    type="number" 
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    placeholder="1"
-                    min="1"
-                    max={optionType === 'call' ? btcOwned : undefined}
-                    className="h-12"
-                  />
-                  {optionType === 'call' && (
-                    <p className="text-gray-500 mt-1">
-                      BTC disponibili: {btcOwned}
-                    </p>
-                  )}
+                  <Button
+                    onClick={handleSellOption}
+                    className="w-full h-12 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.3)] transition-all hover:-translate-y-1"
+                  >
+                    Conferma Ordine
+                  </Button>
                 </div>
-
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <p className="text-gray-700 mb-2 font-semibold">Riepilogo:</p>
-                  <p className="text-gray-900">Premium totale: ${parseFloat(premium || '0') * parseInt(quantity || '1')}</p>
-                  {optionType === 'put' && (
-                    <p className="text-gray-600">Capitale richiesto: ${parseFloat(strikePrice || '0') * parseInt(quantity || '1')}</p>
-                  )}
-                </div>
-
-                <Button 
-                  onClick={handleSellOption}
-                  className={`w-full h-12 ${
-                    optionType === 'put' 
-                      ? 'bg-orange-600 hover:bg-orange-700' 
-                      : 'bg-blue-600 hover:bg-blue-700'
-                  }`}
-                >
-                  Vendi {optionType === 'put' ? 'Put' : 'Call'}
-                </Button>
               </div>
-            </Card>
+            </div>
 
-            {/* Open Positions */}
-            <Card className="p-6">
-              <h2 className="text-gray-900 mb-4">Posizioni Aperte ({openPositions.length})</h2>
-              {openPositions.length === 0 ? (
-                <div className="text-center py-8">
-                  <p className="text-gray-600 mb-2">Nessuna posizione aperta</p>
-                  <p className="text-gray-500">Vendi la tua prima opzione per iniziare!</p>
+            {/* Active Positions */}
+            <div className="space-y-4">
+              <h3 className="text-xl font-bold text-white">Posizioni Aperte</h3>
+              {positions.length === 0 ? (
+                <div className="text-center py-12 bg-[#0A0A0C] border border-white/[0.08] rounded-[24px]">
+                  <p className="text-[#666677]">Nessuna posizione attiva</p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {openPositions.map(position => {
-                    const currentValue = position.type === 'put' 
-                      ? Math.max(0, position.strike - btcPrice) * position.quantity
-                      : Math.max(0, btcPrice - position.strike) * position.quantity;
-                    const premiumCollected = position.premium * position.quantity;
-                    const pnl = premiumCollected - currentValue;
-
-                    return (
-                      <div key={position.id} className="p-4 bg-gray-50 rounded-lg">
-                        <div className="flex items-center justify-between mb-3">
-                          <div className="flex items-center gap-2">
-                            <Badge className={
-                              position.type === 'put' 
-                                ? 'bg-orange-100 text-orange-700' 
-                                : 'bg-blue-100 text-blue-700'
-                            }>
-                              {position.type.toUpperCase()}
-                            </Badge>
-                            <span className="text-gray-900 font-semibold">${position.strike.toLocaleString()}</span>
-                            <span className="text-gray-600">x{position.quantity}</span>
-                          </div>
+                <div className="grid gap-4">
+                  {positions.map(pos => (
+                    <div key={pos.id} className="bg-[#0A0A0C] border border-white/[0.08] p-6 rounded-2xl flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${pos.type === 'put' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400'}`}>
+                          {pos.type === 'put' ? <TrendingUp className="w-5 h-5" /> : <TrendingDown className="w-5 h-5" />}
                         </div>
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="text-gray-600">Premium: ${premiumCollected}</p>
-                            <p className={pnl >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold'}>
-                              P&L: {pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}
-                            </p>
-                          </div>
-                          <Button 
-                            onClick={() => handleClosePosition(position.id)}
-                            variant="outline"
-                            size="sm"
-                          >
-                            Chiudi
-                          </Button>
+                        <div>
+                          <p className="font-bold text-white uppercase">{pos.type} @ ${pos.strike}</p>
+                          <p className="text-xs text-[#666677]">Premium: ${pos.premium}</p>
                         </div>
                       </div>
-                    );
-                  })}
+                      <div className="text-right">
+                        <p className={`font-bold ${pos.status === 'open' ? 'text-green-400' : 'text-[#666677]'}`}>
+                          {pos.status.toUpperCase()}
+                        </p>
+                        <p className="text-xs text-[#666677]">{new Date(pos.openDate).toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
-            </Card>
+            </div>
+          </div>
+
+          {/* Right Column - Missions & Tutorial */}
+          <div className="space-y-8">
+            {/* Tutorial Card */}
+            <AnimatePresence mode="wait">
+              {showTutorial && activeMission && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="bg-gradient-to-br from-purple-900/20 to-[#0A0A0C] border border-purple-500/30 rounded-[24px] p-6 relative overflow-hidden"
+                >
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 rounded-full blur-[40px] -mr-16 -mt-16 pointer-events-none" />
+
+                  <div className="flex items-center gap-3 mb-4">
+                    <Lightbulb className="w-5 h-5 text-yellow-400" />
+                    <h3 className="font-bold text-white">Tutorial: {activeMission.title}</h3>
+                  </div>
+
+                  <div className="bg-white/[0.03] rounded-xl p-4 mb-4 border border-white/[0.05]">
+                    <h4 className="font-bold text-purple-300 mb-2">
+                      {activeMission.tutorial[currentTutorialStep].title}
+                    </h4>
+                    <p className="text-sm text-[#888899] leading-relaxed">
+                      {activeMission.tutorial[currentTutorialStep].content}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex gap-1">
+                      {activeMission.tutorial.map((_, i) => (
+                        <div
+                          key={i}
+                          className={`w-2 h-2 rounded-full ${i === currentTutorialStep ? 'bg-purple-500' : 'bg-white/10'}`}
+                        />
+                      ))}
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        if (currentTutorialStep < activeMission.tutorial.length - 1) {
+                          setCurrentTutorialStep(c => c + 1);
+                        } else {
+                          setShowTutorial(false);
+                        }
+                      }}
+                      className="bg-white/10 hover:bg-white/20 text-white"
+                    >
+                      {currentTutorialStep < activeMission.tutorial.length - 1 ? 'Avanti' : 'Ho capito'}
+                    </Button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Missions List */}
+            <div className="bg-[#0A0A0C] border border-white/[0.08] rounded-[24px] p-6">
+              <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                <Target className="w-5 h-5 text-purple-400" />
+                Missioni
+              </h3>
+
+              <div className="space-y-4">
+                {missions.map((mission) => (
+                  <div
+                    key={mission.id}
+                    onClick={() => selectMission(mission)}
+                    className={`
+                      p-4 rounded-xl border transition-all cursor-pointer relative overflow-hidden
+                      ${activeMission?.id === mission.id
+                        ? 'bg-purple-500/10 border-purple-500/30'
+                        : mission.status === 'locked'
+                          ? 'bg-white/[0.02] border-white/[0.05] opacity-50'
+                          : 'bg-white/[0.02] border-white/[0.05] hover:border-white/[0.15]'}
+                    `}
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <h4 className="font-bold text-white text-sm">{mission.title}</h4>
+                      {mission.status === 'completed' ? (
+                        <CheckCircle2 className="w-4 h-4 text-green-400" />
+                      ) : mission.status === 'locked' ? (
+                        <Lock className="w-4 h-4 text-[#666677]" />
+                      ) : (
+                        <span className={`text-[10px] font-bold uppercase ${getDifficultyColor(mission.difficulty)}`}>
+                          {mission.difficulty}
+                        </span>
+                      )}
+                    </div>
+
+                    <p className="text-xs text-[#888899] mb-3 line-clamp-2">{mission.description}</p>
+
+                    {mission.status !== 'locked' && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-[10px] uppercase font-bold text-[#666677]">
+                          <span>Progressi</span>
+                          <span>{Math.round((mission.objectives[0].current / mission.objectives[0].target) * 100)}%</span>
+                        </div>
+                        <div className="h-1 bg-white/10 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-purple-500"
+                            style={{ width: `${(mission.objectives[0].current / mission.objectives[0].target) * 100}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
-      </main>
-
-      {/* 🎯 Main Tutorial Modal with Prof Satoshi */}
-      {showMainTutorial && (
-        <SimulationTutorial
-          onComplete={() => {
-            setShowMainTutorial(false);
-            toast.success('Ottimo! Ora inizia con la prima missione 🚀');
-          }}
-          onSkip={() => {
-            setShowMainTutorial(false);
-            toast.info('Tutorial saltato. Puoi riaprirlo dal pulsante "?"');
-          }}
-        />
-      )}
-
-      {/* 🎯 Floating Help Button to Reopen Tutorial */}
-      {!showMainTutorial && (
-        <Button
-          onClick={() => setShowMainTutorial(true)}
-          className="fixed bottom-24 md:bottom-8 right-4 md:right-8 w-14 h-14 rounded-full bg-emerald-600 hover:bg-emerald-700 shadow-2xl z-40 flex items-center justify-center"
-          title="Rivedi Tutorial"
-        >
-          <HelpCircle className="w-6 h-6 text-white" />
-        </Button>
-      )}
-    </div>
+      </PageContent>
+    </PageWrapper>
   );
 }

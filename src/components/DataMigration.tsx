@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { motion } from 'motion/react';
 import { Card } from './ui/card';
-import { Download, Upload, ArrowRightLeft, Loader2, CheckCircle2, Database, Eye, FileJson, AlertCircle } from 'lucide-react';
+import { Download, Upload, ArrowRightLeft, Loader2, CheckCircle2, Database, FileJson, AlertCircle } from 'lucide-react';
 import { toast } from "sonner";
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import { useAuth } from '../hooks/useAuth';
@@ -23,11 +23,11 @@ export function DataMigration() {
     }
 
     setIsExporting(true);
-    
+
     try {
       // 🎯 EXPORT FROM LOCALSTORAGE (primary source)
       const localStrategies = JSON.parse(localStorage.getItem('btcwheel_strategies') || '[]');
-      
+
       // Get trades for each strategy from localStorage
       const localTrades: Record<string, any[]> = {};
       for (const strategy of localStrategies) {
@@ -42,7 +42,7 @@ export function DataMigration() {
       }
 
       const localPlans = JSON.parse(localStorage.getItem('btcwheel_longterm_plans') || '[]');
-      const localActivePlan = localStorage.getItem('btcwheel_active_plan') 
+      const localActivePlan = localStorage.getItem('btcwheel_active_plan')
         ? JSON.parse(localStorage.getItem('btcwheel_active_plan')!)
         : null;
       const localUserProgress = localStorage.getItem('btcwheel_user_progress')
@@ -75,7 +75,7 @@ export function DataMigration() {
       // If localStorage is empty, try fetching from cloud database
       if (localStrategies.length === 0) {
         console.log('📡 No local data found, trying cloud database...');
-        
+
         const response = await fetch(
           `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/data/export`,
           {
@@ -104,7 +104,7 @@ export function DataMigration() {
           }
         }
       }
-      
+
       // Create download link
       const dataStr = JSON.stringify(exportData, null, 2);
       const dataBlob = new Blob([dataStr], { type: 'application/json' });
@@ -126,7 +126,7 @@ export function DataMigration() {
       });
     } catch (error) {
       console.error('❌ Export error:', error);
-      toast.error(`❌ Errore durante l'export: ${error.message}`);
+      toast.error(`❌ Errore durante l'export: ${error instanceof Error ? error.message : 'Errore sconosciuto'}`);
     } finally {
       setIsExporting(false);
     }
@@ -161,17 +161,17 @@ export function DataMigration() {
       });
 
       // 🎯 IMPORT DIRETTO IN LOCALSTORAGE (modalità doppia: local + cloud)
-      
+
       // 1. Import strategies
       if (importData.strategies && importData.strategies.length > 0) {
-        const existingStrategies = mergeMode 
+        const existingStrategies = mergeMode
           ? JSON.parse(localStorage.getItem('btcwheel_strategies') || '[]')
           : [];
-        
-        const mergedStrategies = mergeMode 
+
+        const mergedStrategies = mergeMode
           ? [...existingStrategies, ...importData.strategies]
           : importData.strategies;
-        
+
         localStorage.setItem('btcwheel_strategies', JSON.stringify(mergedStrategies));
         console.log(`✅ Imported ${importData.strategies.length} strategies to localStorage`);
       }
@@ -186,14 +186,14 @@ export function DataMigration() {
 
       // 3. Import long-term plans
       if (importData.plans && importData.plans.length > 0) {
-        const existingPlans = mergeMode 
+        const existingPlans = mergeMode
           ? JSON.parse(localStorage.getItem('btcwheel_longterm_plans') || '[]')
           : [];
-        
-        const mergedPlans = mergeMode 
+
+        const mergedPlans = mergeMode
           ? [...existingPlans, ...importData.plans]
           : importData.plans;
-        
+
         localStorage.setItem('btcwheel_longterm_plans', JSON.stringify(mergedPlans));
         console.log(`✅ Imported ${importData.plans.length} plans to localStorage`);
       }
@@ -229,22 +229,22 @@ export function DataMigration() {
       );
 
       const result = await response.json();
-      
+
       if (response.ok && result.success) {
         console.log(`✅ Also saved to cloud: ${result.importedCount} items`);
       } else {
         console.warn('⚠️ Cloud save failed but localStorage import succeeded:', result.error);
       }
 
-      const totalItems = 
-        (importData.strategies?.length || 0) + 
-        Object.keys(importData.trades || {}).length + 
+      const totalItems =
+        (importData.strategies?.length || 0) +
+        Object.keys(importData.trades || {}).length +
         (importData.plans?.length || 0);
 
       toast.success(`✅ Import completato! ${totalItems} elementi importati`, {
         description: 'Dati salvati in locale e nel cloud'
       });
-      
+
       // Reload page to refresh data
       setTimeout(() => {
         window.location.reload();
@@ -295,7 +295,7 @@ export function DataMigration() {
 
       if (result.success) {
         toast.success(`✅ Migrazione completata! ${result.migratedCount} elementi migrati da "finanzacreativa" a "btcwheel"`);
-        
+
         // Reload page to refresh data
         setTimeout(() => {
           window.location.reload();
@@ -408,12 +408,10 @@ export function DataMigration() {
                 onClick={() => setMergeMode(!mergeMode)}
                 className="flex items-center gap-2"
               >
-                <div className={`w-12 h-6 rounded-full transition-colors ${
-                  mergeMode ? 'bg-blue-500' : 'bg-gray-700'
-                }`}>
-                  <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${
-                    mergeMode ? 'ml-6' : 'ml-0.5'
-                  }`} />
+                <div className={`w-12 h-6 rounded-full transition-colors ${mergeMode ? 'bg-blue-500' : 'bg-gray-700'
+                  }`}>
+                  <div className={`w-5 h-5 bg-white rounded-full mt-0.5 transition-transform ${mergeMode ? 'ml-6' : 'ml-0.5'
+                    }`} />
                 </div>
                 <span className="text-sm text-gray-300">
                   Modalità merge (aggiungi ai dati esistenti)

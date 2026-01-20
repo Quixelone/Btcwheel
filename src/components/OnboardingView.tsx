@@ -6,22 +6,42 @@ import { Progress } from './ui/progress';
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
-import { 
-  Bitcoin, 
-  Target, 
-  Clock, 
-  TrendingUp, 
+import {
+  Bitcoin,
+  Target,
+  Clock,
+  TrendingUp,
   GraduationCap,
   Sparkles,
   ArrowRight,
   ArrowLeft,
-  Loader2
+  Loader2,
+  Zap,
+  ShieldCheck
 } from 'lucide-react';
 import type { UserProfile } from '../lib/openai';
 import { useOnboarding } from '../hooks/useOnboarding';
 
 interface OnboardingViewProps {
   onComplete: () => void;
+}
+
+interface LoadingMessageProps {
+  message: string;
+  delay: number;
+}
+
+function LoadingMessage({ message, delay }: LoadingMessageProps) {
+  return (
+    <motion.p
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay, duration: 0.5 }}
+      className="text-slate-400 font-medium"
+    >
+      {message}
+    </motion.p>
+  );
 }
 
 export function OnboardingView({ onComplete }: OnboardingViewProps) {
@@ -40,14 +60,9 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
   const totalSteps = 6;
 
   const handleNext = () => {
-    console.log('🔵 handleNext called, currentStep:', currentStep, 'totalSteps:', totalSteps);
-    console.log('🔵 isStepComplete:', isStepComplete());
-    console.log('🔵 profile:', profile);
-    
     if (currentStep < totalSteps - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      console.log('🔵 Last step reached, calling handleComplete');
       handleComplete();
     }
   };
@@ -59,21 +74,11 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
   };
 
   const handleComplete = async () => {
-    console.log('🟢 handleComplete called');
-    console.log('🟢 Profile to submit:', profile);
-    
     try {
-      console.log('🟢 Calling completeOnboarding...');
-      const result = await completeOnboarding(profile as UserProfile);
-      console.log('🟢 completeOnboarding returned:', result);
-      
-      console.log('🟢 Calling onComplete callback...');
+      await completeOnboarding(profile as UserProfile);
       onComplete();
-      console.log('🟢 onComplete callback finished');
     } catch (error) {
-      console.error('🔴 Error in handleComplete:', error);
-      // Still complete onboarding to not block user
-      console.log('🟢 Calling onComplete despite error...');
+      console.error('Error in handleComplete:', error);
       onComplete();
     }
   };
@@ -111,135 +116,131 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
 
   const steps = [
     {
-      title: 'Livello Esperienza Crypto',
+      title: 'Esperienza Crypto',
       icon: Bitcoin,
+      description: 'Quanto conosci il mondo delle criptovalute?',
       content: (
-        <RadioGroup 
-          value={profile.experienceLevel} 
+        <RadioGroup
+          value={profile.experienceLevel}
           onValueChange={(value: any) => updateProfile('experienceLevel', value)}
+          className="grid gap-4"
         >
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="beginner" id="exp-beginner" />
-              <Label htmlFor="exp-beginner" className="flex-1 cursor-pointer">
-                <p className="font-semibold">🌱 Principiante</p>
-                <p className="text-sm text-gray-600">Nuovo al mondo crypto, poca o nessuna esperienza</p>
+          {[
+            { id: 'beginner', label: 'Principiante', desc: 'Nuovo al mondo crypto, poca o nessuna esperienza', icon: '🌱' },
+            { id: 'intermediate', label: 'Intermedio', desc: 'Ho già investito in crypto, conosco le basi', icon: '📈' },
+            { id: 'advanced', label: 'Avanzato', desc: 'Trading attivo, esperto di crypto e mercati', icon: '🚀' }
+          ].map((opt) => (
+            <div key={opt.id} className="relative">
+              <RadioGroupItem value={opt.id} id={`exp-${opt.id}`} className="peer sr-only" />
+              <Label
+                htmlFor={`exp-${opt.id}`}
+                className="flex items-center gap-4 p-6 rounded-[1.5rem] border-2 border-white/5 bg-slate-900/50 hover:bg-slate-900 hover:border-emerald-500/30 peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-500/10 cursor-pointer transition-all"
+              >
+                <span className="text-3xl">{opt.icon}</span>
+                <div className="flex-1">
+                  <p className="font-black text-white uppercase tracking-tight">{opt.label}</p>
+                  <p className="text-xs text-slate-500 font-medium">{opt.desc}</p>
+                </div>
               </Label>
             </div>
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="intermediate" id="exp-intermediate" />
-              <Label htmlFor="exp-intermediate" className="flex-1 cursor-pointer">
-                <p className="font-semibold">📈 Intermedio</p>
-                <p className="text-sm text-gray-600">Ho già investito in crypto, conosco le basi</p>
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="advanced" id="exp-advanced" />
-              <Label htmlFor="exp-advanced" className="flex-1 cursor-pointer">
-                <p className="font-semibold">🚀 Avanzato</p>
-                <p className="text-sm text-gray-600">Trading attivo, esperto di crypto e mercati</p>
-              </Label>
-            </div>
-          </div>
+          ))}
         </RadioGroup>
       ),
     },
     {
       title: 'Esperienza Trading',
       icon: TrendingUp,
+      description: 'Hai mai operato sui mercati finanziari?',
       content: (
-        <RadioGroup 
-          value={profile.tradingKnowledge} 
+        <RadioGroup
+          value={profile.tradingKnowledge}
           onValueChange={(value: any) => updateProfile('tradingKnowledge', value)}
+          className="grid gap-4"
         >
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="none" id="trade-none" />
-              <Label htmlFor="trade-none" className="flex-1 cursor-pointer">
-                <p className="font-semibold">❌ Nessuna</p>
-                <p className="text-sm text-gray-600">Mai fatto trading prima</p>
+          {[
+            { id: 'none', label: 'Nessuna', desc: 'Mai fatto trading prima', icon: '❌' },
+            { id: 'basic', label: 'Base', desc: 'Ho comprato/venduto azioni o crypto spot', icon: '📊' },
+            { id: 'experienced', label: 'Esperto', desc: 'Trading attivo con analisi tecnica', icon: '💼' }
+          ].map((opt) => (
+            <div key={opt.id} className="relative">
+              <RadioGroupItem value={opt.id} id={`trade-${opt.id}`} className="peer sr-only" />
+              <Label
+                htmlFor={`trade-${opt.id}`}
+                className="flex items-center gap-4 p-6 rounded-[1.5rem] border-2 border-white/5 bg-slate-900/50 hover:bg-slate-900 hover:border-emerald-500/30 peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-500/10 cursor-pointer transition-all"
+              >
+                <span className="text-3xl">{opt.icon}</span>
+                <div className="flex-1">
+                  <p className="font-black text-white uppercase tracking-tight">{opt.label}</p>
+                  <p className="text-xs text-slate-500 font-medium">{opt.desc}</p>
+                </div>
               </Label>
             </div>
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="basic" id="trade-basic" />
-              <Label htmlFor="trade-basic" className="flex-1 cursor-pointer">
-                <p className="font-semibold">📊 Base</p>
-                <p className="text-sm text-gray-600">Ho comprato/venduto azioni o crypto spot</p>
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="experienced" id="trade-exp" />
-              <Label htmlFor="trade-exp" className="flex-1 cursor-pointer">
-                <p className="font-semibold">💼 Esperto</p>
-                <p className="text-sm text-gray-600">Trading attivo con analisi tecnica</p>
-              </Label>
-            </div>
-          </div>
+          ))}
         </RadioGroup>
       ),
     },
     {
       title: 'Conoscenza Opzioni',
       icon: GraduationCap,
+      description: 'Cosa sai delle opzioni Bitcoin?',
       content: (
-        <RadioGroup 
-          value={profile.optionsKnowledge} 
+        <RadioGroup
+          value={profile.optionsKnowledge}
           onValueChange={(value: any) => updateProfile('optionsKnowledge', value)}
+          className="grid gap-4"
         >
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="none" id="opt-none" />
-              <Label htmlFor="opt-none" className="flex-1 cursor-pointer">
-                <p className="font-semibold">❓ Mai sentite</p>
-                <p className="text-sm text-gray-600">Non so cosa sono le opzioni</p>
+          {[
+            { id: 'none', label: 'Mai sentite', desc: 'Non so cosa sono le opzioni', icon: '❓' },
+            { id: 'basic', label: 'Teoria', desc: 'So cosa sono ma non le ho mai tradiate', icon: '📖' },
+            { id: 'experienced', label: 'Pratico', desc: 'Ho già tradato opzioni (stocks/crypto)', icon: '⚡' }
+          ].map((opt) => (
+            <div key={opt.id} className="relative">
+              <RadioGroupItem value={opt.id} id={`opt-${opt.id}`} className="peer sr-only" />
+              <Label
+                htmlFor={`opt-${opt.id}`}
+                className="flex items-center gap-4 p-6 rounded-[1.5rem] border-2 border-white/5 bg-slate-900/50 hover:bg-slate-900 hover:border-emerald-500/30 peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-500/10 cursor-pointer transition-all"
+              >
+                <span className="text-3xl">{opt.icon}</span>
+                <div className="flex-1">
+                  <p className="font-black text-white uppercase tracking-tight">{opt.label}</p>
+                  <p className="text-xs text-slate-500 font-medium">{opt.desc}</p>
+                </div>
               </Label>
             </div>
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="basic" id="opt-basic" />
-              <Label htmlFor="opt-basic" className="flex-1 cursor-pointer">
-                <p className="font-semibold">📖 Teoria</p>
-                <p className="text-sm text-gray-600">So cosa sono ma non le ho mai tradiate</p>
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="experienced" id="opt-exp" />
-              <Label htmlFor="opt-exp" className="flex-1 cursor-pointer">
-                <p className="font-semibold">⚡ Pratico</p>
-                <p className="text-sm text-gray-600">Ho già tradato opzioni (stocks/crypto)</p>
-              </Label>
-            </div>
-          </div>
+          ))}
         </RadioGroup>
       ),
     },
     {
       title: 'I Tuoi Obiettivi',
       icon: Target,
+      description: 'Cosa speri di ottenere da questo corso?',
       content: (
-        <div className="space-y-3">
+        <div className="grid gap-4">
           {[
-            { value: 'learn', label: '🎓 Imparare nuova strategia', desc: 'Acquisire competenze trading opzioni' },
-            { value: 'income', label: '💰 Generare reddito passivo', desc: 'Creare flusso di cassa mensile' },
-            { value: 'hedge', label: '🛡️ Proteggere portfolio', desc: 'Hedging e gestione rischio' },
-            { value: 'curiosity', label: '🔍 Curiosità', desc: 'Esplorare il mondo delle opzioni' },
+            { value: 'learn', label: 'Imparare Strategia', desc: 'Acquisire competenze trading opzioni', icon: '🎓' },
+            { value: 'income', label: 'Reddito Passivo', desc: 'Creare flusso di cassa mensile', icon: '💰' },
+            { value: 'hedge', label: 'Proteggere Portfolio', desc: 'Hedging e gestione rischio', icon: '🛡️' },
+            { value: 'curiosity', label: 'Curiosità', desc: 'Esplorare il mondo delle opzioni', icon: '🔍' },
           ].map((goal) => (
             <div
               key={goal.value}
-              className={`flex items-center space-x-3 p-4 rounded-lg border-2 transition-colors cursor-pointer ${
-                profile.goals?.includes(goal.value)
-                  ? 'border-blue-500 bg-blue-50'
-                  : 'border-gray-200 hover:border-blue-300'
-              }`}
+              className={`flex items-center gap-4 p-6 rounded-[1.5rem] border-2 transition-all cursor-pointer ${profile.goals?.includes(goal.value)
+                ? 'border-emerald-500 bg-emerald-500/10'
+                : 'border-white/5 bg-slate-900/50 hover:bg-slate-900 hover:border-emerald-500/30'
+                }`}
               onClick={() => toggleArrayValue('goals', goal.value)}
             >
               <Checkbox
                 checked={profile.goals?.includes(goal.value)}
                 onCheckedChange={() => toggleArrayValue('goals', goal.value)}
+                className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
               />
               <div className="flex-1">
-                <p className="font-semibold">{goal.label}</p>
-                <p className="text-sm text-gray-600">{goal.desc}</p>
+                <p className="font-black text-white uppercase tracking-tight">{goal.label}</p>
+                <p className="text-xs text-slate-500 font-medium">{goal.desc}</p>
               </div>
+              <span className="text-2xl">{goal.icon}</span>
             </div>
           ))}
         </div>
@@ -248,100 +249,91 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
     {
       title: 'Tempo Disponibile',
       icon: Clock,
+      description: 'Quanto tempo puoi dedicare allo studio?',
       content: (
-        <RadioGroup 
-          value={profile.availableTime} 
+        <RadioGroup
+          value={profile.availableTime}
           onValueChange={(value: any) => updateProfile('availableTime', value)}
+          className="grid gap-4"
         >
-          <div className="space-y-3">
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="limited" id="time-limited" />
-              <Label htmlFor="time-limited" className="flex-1 cursor-pointer">
-                <p className="font-semibold">⏱️ Limitato</p>
-                <p className="text-sm text-gray-600">10-15 minuti al giorno</p>
+          {[
+            { id: 'limited', label: 'Limitato', desc: '10-15 minuti al giorno', icon: '⏱️' },
+            { id: 'moderate', label: 'Moderato', desc: '30-60 minuti al giorno', icon: '⏰' },
+            { id: 'plenty', label: 'Abbondante', desc: '1-2 ore al giorno o più', icon: '🕐' }
+          ].map((opt) => (
+            <div key={opt.id} className="relative">
+              <RadioGroupItem value={opt.id} id={`time-${opt.id}`} className="peer sr-only" />
+              <Label
+                htmlFor={`time-${opt.id}`}
+                className="flex items-center gap-4 p-6 rounded-[1.5rem] border-2 border-white/5 bg-slate-900/50 hover:bg-slate-900 hover:border-emerald-500/30 peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-500/10 cursor-pointer transition-all"
+              >
+                <span className="text-3xl">{opt.icon}</span>
+                <div className="flex-1">
+                  <p className="font-black text-white uppercase tracking-tight">{opt.label}</p>
+                  <p className="text-xs text-slate-500 font-medium">{opt.desc}</p>
+                </div>
               </Label>
             </div>
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="moderate" id="time-moderate" />
-              <Label htmlFor="time-moderate" className="flex-1 cursor-pointer">
-                <p className="font-semibold">⏰ Moderato</p>
-                <p className="text-sm text-gray-600">30-60 minuti al giorno</p>
-              </Label>
-            </div>
-            <div className="flex items-center space-x-3 p-4 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-              <RadioGroupItem value="plenty" id="time-plenty" />
-              <Label htmlFor="time-plenty" className="flex-1 cursor-pointer">
-                <p className="font-semibold">🕐 Abbondante</p>
-                <p className="text-sm text-gray-600">1-2 ore al giorno o più</p>
-              </Label>
-            </div>
-          </div>
+          ))}
         </RadioGroup>
       ),
     },
     {
       title: 'Capitale & Stile',
       icon: Sparkles,
+      description: 'Ultimi dettagli per personalizzare il tuo percorso.',
       content: (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-gray-900 mb-3">Capitale per Trading</h3>
-            <RadioGroup 
-              value={profile.capital} 
+        <div className="space-y-8">
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Capitale per Trading</h3>
+            <RadioGroup
+              value={profile.capital}
               onValueChange={(value: any) => updateProfile('capital', value)}
+              className="grid grid-cols-2 gap-3"
             >
-              <div className="space-y-2">
-                <div className="flex items-center space-x-3 p-3 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-                  <RadioGroupItem value="learning" id="cap-learning" />
-                  <Label htmlFor="cap-learning" className="flex-1 cursor-pointer">
-                    Solo apprendimento (simulatore)
+              {[
+                { id: 'learning', label: 'Simulatore' },
+                { id: 'small', label: '< $5,000' },
+                { id: 'medium', label: '$5k - $25k' },
+                { id: 'large', label: '> $25,000' }
+              ].map((opt) => (
+                <div key={opt.id} className="relative">
+                  <RadioGroupItem value={opt.id} id={`cap-${opt.id}`} className="peer sr-only" />
+                  <Label
+                    htmlFor={`cap-${opt.id}`}
+                    className="flex items-center justify-center p-4 rounded-2xl border-2 border-white/5 bg-slate-900/50 hover:bg-slate-900 peer-data-[state=checked]:border-emerald-500 peer-data-[state=checked]:bg-emerald-500/10 cursor-pointer transition-all text-[10px] font-black uppercase tracking-widest text-white"
+                  >
+                    {opt.label}
                   </Label>
                 </div>
-                <div className="flex items-center space-x-3 p-3 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-                  <RadioGroupItem value="small" id="cap-small" />
-                  <Label htmlFor="cap-small" className="flex-1 cursor-pointer">
-                    Piccolo (&lt; $5,000)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-3 p-3 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-                  <RadioGroupItem value="medium" id="cap-medium" />
-                  <Label htmlFor="cap-medium" className="flex-1 cursor-pointer">
-                    Medio ($5,000 - $25,000)
-                  </Label>
-                </div>
-                <div className="flex items-center space-x-3 p-3 rounded-lg border-2 border-gray-200 hover:border-blue-300 transition-colors">
-                  <RadioGroupItem value="large" id="cap-large" />
-                  <Label htmlFor="cap-large" className="flex-1 cursor-pointer">
-                    Grande (&gt; $25,000)
-                  </Label>
-                </div>
-              </div>
+              ))}
             </RadioGroup>
           </div>
 
-          <div>
-            <h3 className="text-gray-900 mb-3">Preferenze Apprendimento</h3>
-            <div className="space-y-2">
+          <div className="space-y-4">
+            <h3 className="text-[10px] font-black text-slate-600 uppercase tracking-widest">Preferenze Apprendimento</h3>
+            <div className="grid gap-3">
               {[
-                { value: 'reading', label: '📖 Leggere testi ed esempi' },
-                { value: 'practice', label: '🎮 Pratica con simulatore' },
-                { value: 'visual', label: '📊 Grafici e visual' },
-                { value: 'interactive', label: '💬 Quiz interattivi' },
+                { value: 'reading', label: 'Testi ed Esempi', icon: '📖' },
+                { value: 'practice', label: 'Pratica Simulatore', icon: '🎮' },
+                { value: 'visual', label: 'Grafici e Visual', icon: '📊' },
+                { value: 'interactive', label: 'Quiz Interattivi', icon: '💬' },
               ].map((style) => (
                 <div
                   key={style.value}
-                  className={`flex items-center space-x-3 p-3 rounded-lg border-2 transition-colors cursor-pointer ${
-                    profile.learningStyle?.includes(style.value)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
+                  className={`flex items-center gap-4 p-4 rounded-2xl border-2 transition-all cursor-pointer ${profile.learningStyle?.includes(style.value)
+                    ? 'border-emerald-500 bg-emerald-500/10'
+                    : 'border-white/5 bg-slate-900/50 hover:bg-slate-900 hover:border-emerald-500/30'
+                    }`}
                   onClick={() => toggleArrayValue('learningStyle', style.value)}
                 >
                   <Checkbox
                     checked={profile.learningStyle?.includes(style.value)}
                     onCheckedChange={() => toggleArrayValue('learningStyle', style.value)}
+                    className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
                   />
-                  <Label className="flex-1 cursor-pointer">{style.label}</Label>
+                  <Label className="flex-1 cursor-pointer text-[10px] font-black uppercase tracking-widest text-white">{style.label}</Label>
+                  <span className="text-xl">{style.icon}</span>
                 </div>
               ))}
             </div>
@@ -355,27 +347,104 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
   const Icon = currentStepData.icon;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center p-4 safe-area-inset">
-      <Card className="w-full max-w-2xl shadow-2xl">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="fixed inset-0 opacity-[0.02] pointer-events-none">
+        <div className="absolute inset-0" style={{
+          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                           linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundSize: '50px 50px'
+        }} />
+      </div>
+      <div className="fixed top-0 right-0 w-[600px] h-[600px] bg-emerald-500/5 rounded-full blur-[150px] pointer-events-none" />
+      <div className="fixed bottom-0 left-0 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-[150px] pointer-events-none" />
+
+      <Card className="w-full max-w-2xl bg-slate-900/50 border border-white/10 rounded-[3rem] shadow-2xl backdrop-blur-xl relative z-10 overflow-hidden">
+        {/* Loading Overlay */}
+        <AnimatePresence>
+          {analyzing && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center"
+            >
+              <motion.div
+                animate={{ 
+                  scale: [1, 1.1, 1],
+                  rotate: [0, 5, -5, 0]
+                }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                className="w-32 h-32 mb-8 relative"
+              >
+                <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse" />
+                <img 
+                  src="/mascot-excited.png" 
+                  alt="Prof Satoshi Analyzing" 
+                  className="w-full h-full object-contain relative z-10 drop-shadow-2xl"
+                />
+              </motion.div>
+              
+              <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-4">
+                Analisi in corso...
+              </h3>
+              
+              <div className="space-y-2">
+                <LoadingMessage message="Valutazione esperienza..." delay={0} />
+                <LoadingMessage message="Calcolo percorso ottimale..." delay={1.5} />
+                <LoadingMessage message="Generazione profilo di rischio..." delay={3} />
+                <LoadingMessage message="Preparazione dashboard..." delay={4.5} />
+              </div>
+
+              <div className="mt-12 w-64 h-2 bg-slate-800 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-emerald-500 to-blue-500"
+                  initial={{ width: "0%" }}
+                  animate={{ width: "100%" }}
+                  transition={{ duration: 6, ease: "easeInOut" }}
+                />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Header */}
-        <div className="p-6 md:p-8 border-b border-gray-200">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
-              <Icon className="w-6 h-6 text-white" />
+        <div className="p-8 md:p-12 border-b border-white/5">
+          <div className="flex items-center gap-6 mb-8">
+            <div className="w-16 h-16 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center shadow-2xl">
+              <Icon className="w-8 h-8 text-emerald-500" />
             </div>
             <div className="flex-1">
-              <h2 className="text-gray-900">{currentStepData.title}</h2>
-              <p className="text-sm text-gray-600">Passo {currentStep + 1} di {totalSteps}</p>
+              <h2 className="text-3xl font-black text-white uppercase tracking-tight">{currentStepData.title}</h2>
+              <p className="text-slate-500 font-medium text-sm">{currentStepData.description}</p>
             </div>
-            <Button variant="ghost" size="sm" onClick={handleSkip}>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSkip}
+              className="text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-white"
+            >
               Salta
             </Button>
           </div>
-          <Progress value={((currentStep + 1) / totalSteps) * 100} className="h-2" />
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest">
+              <span className="text-slate-600">Configurazione Profilo</span>
+              <span className="text-emerald-500">{Math.round(((currentStep + 1) / totalSteps) * 100)}%</span>
+            </div>
+            <div className="h-2 bg-slate-950 rounded-full overflow-hidden border border-white/5 p-0.5">
+              <motion.div
+                className="h-full bg-emerald-500 rounded-full"
+                initial={{ width: 0 }}
+                animate={{ width: `${((currentStep + 1) / totalSteps) * 100}%` }}
+                transition={{ duration: 0.5 }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Content */}
-        <div className="p-6 md:p-8 min-h-[400px]">
+        <div className="p-8 md:p-12 min-h-[450px]">
           <AnimatePresence mode="wait">
             <motion.div
               key={currentStep}
@@ -390,36 +459,36 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
         </div>
 
         {/* Footer */}
-        <div className="p-6 md:p-8 border-t border-gray-200 flex items-center justify-between">
+        <div className="p-8 md:p-12 border-t border-white/5 flex items-center justify-between bg-slate-950/30">
           <Button
-            variant="outline"
+            variant="ghost"
             onClick={handleBack}
             disabled={currentStep === 0}
-            className="h-11"
+            className="h-16 px-8 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-white disabled:opacity-0"
           >
-            <ArrowLeft className="w-4 h-4 mr-2" />
+            <ArrowLeft className="w-4 h-4 mr-3" />
             Indietro
           </Button>
 
           <Button
             onClick={handleNext}
             disabled={!isStepComplete() || analyzing}
-            className="bg-blue-600 hover:bg-blue-700 h-11"
+            className="h-16 px-10 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl font-black uppercase tracking-widest shadow-2xl shadow-emerald-600/20 transition-all hover:scale-105 active:scale-95 disabled:opacity-20 disabled:grayscale"
           >
             {analyzing ? (
               <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                <Loader2 className="w-5 h-5 mr-3 animate-spin" />
                 Analisi AI...
               </>
             ) : currentStep === totalSteps - 1 ? (
               <>
-                Inizia il Corso
-                <Sparkles className="w-4 h-4 ml-2" />
+                Inizia Ora
+                <Sparkles className="w-5 h-5 ml-3" />
               </>
             ) : (
               <>
                 Avanti
-                <ArrowRight className="w-4 h-4 ml-2" />
+                <ArrowRight className="w-5 h-5 ml-3" />
               </>
             )}
           </Button>

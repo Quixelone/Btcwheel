@@ -3,16 +3,17 @@ import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { MascotAI } from './MascotAI';
-import { 
-  Bot, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Bot,
+  CheckCircle2,
+  XCircle,
   Loader2,
   MessageCircle,
   Brain,
   Zap,
   Trophy
 } from 'lucide-react';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 export function ChatTutorTest() {
   const [testStatus, setTestStatus] = useState<{
@@ -30,9 +31,8 @@ export function ChatTutorTest() {
   const testBackendEndpoint = async () => {
     setIsTesting(true);
     try {
-      const { projectId, publicAnonKey } = await import('../utils/supabase/info');
       const apiUrl = `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/chat-tutor`;
-      
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
@@ -59,7 +59,7 @@ export function ChatTutorTest() {
       }
 
       const data = await response.json();
-      
+
       if (data.response) {
         setBackendResponse(data.response);
         setTestStatus(prev => ({ ...prev, backend: 'success' }));
@@ -79,9 +79,9 @@ export function ChatTutorTest() {
     try {
       // Check if MascotAI component is available
       const hasComponent = !!MascotAI;
-      setTestStatus(prev => ({ 
-        ...prev, 
-        component: hasComponent ? 'success' : 'error' 
+      setTestStatus(prev => ({
+        ...prev,
+        component: hasComponent ? 'success' : 'error'
       }));
     } catch (error) {
       setTestStatus(prev => ({ ...prev, component: 'error' }));
@@ -95,10 +95,10 @@ export function ChatTutorTest() {
         lessonId: 9,
         lessonTitle: 'Strike Selection e Delta',
       };
-      
-      setTestStatus(prev => ({ 
-        ...prev, 
-        context: mockContext.lessonId > 0 ? 'success' : 'error' 
+
+      setTestStatus(prev => ({
+        ...prev,
+        context: mockContext.lessonId > 0 ? 'success' : 'error'
       }));
     } catch (error) {
       setTestStatus(prev => ({ ...prev, context: 'error' }));
@@ -148,7 +148,7 @@ export function ChatTutorTest() {
                 Verifica componente, context e backend API
               </p>
             </div>
-            <Button 
+            <Button
               onClick={runAllTests}
               disabled={isTesting}
               className="bg-blue-600 hover:bg-blue-700"
@@ -344,8 +344,8 @@ export function ChatTutorTest() {
         </Card>
       </div>
 
-      {/* ChatTutor Component */}
-      <ChatTutor />
+      {/* MascotAI Component */}
+      <MascotAI />
     </div>
   );
 }

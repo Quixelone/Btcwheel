@@ -3,6 +3,7 @@ import { User, Session } from '@supabase/supabase-js';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { storage } from '../lib/localStorage';
 import { toast } from 'sonner';
+import { projectId } from '../utils/supabase/info';
 
 // Auth hook for btcwheel app - supports both local and Supabase modes
 export function useAuth() {
@@ -13,13 +14,13 @@ export function useAuth() {
   useEffect(() => {
     // Check if Supabase is configured (constant, not function!)
     const supabaseEnabled = isSupabaseConfigured;
-    
+
     console.log('🔐 [useAuth] Checking authentication...');
     console.log('🔐 [useAuth] Supabase configured:', supabaseEnabled);
-    
+
     if (!supabaseEnabled) {
       console.log('⚠️ [useAuth] Supabase not configured, using local mode');
-      
+
       // Check localStorage for local user
       const localUser = storage.getItem('btcwheel_local_user');
       if (localUser) {
@@ -34,7 +35,7 @@ export function useAuth() {
       } else {
         console.log('⚠️ [useAuth] No local user found');
       }
-      
+
       setLoading(false);
       return;
     }
@@ -58,8 +59,8 @@ export function useAuth() {
             const parsedUser = JSON.parse(localUser);
             // Only accept if marked as demo/local
             if (parsedUser.app_metadata?.provider === 'local') {
-               setUser(parsedUser as User);
-               console.log('✅ [useAuth] Local demo user found:', parsedUser.email);
+              setUser(parsedUser as User);
+              console.log('✅ [useAuth] Local demo user found:', parsedUser.email);
             }
           } catch (error) {
             console.error('❌ [useAuth] Error parsing local user:', error);
@@ -86,12 +87,12 @@ export function useAuth() {
         // But for consistency with initial load:
         const localUser = storage.getItem('btcwheel_local_user');
         if (localUser) {
-           const parsedUser = JSON.parse(localUser);
-           if (parsedUser.app_metadata?.provider === 'local') {
-             setUser(parsedUser as unknown as User);
-           } else {
-             setUser(null);
-           }
+          const parsedUser = JSON.parse(localUser);
+          if (parsedUser.app_metadata?.provider === 'local') {
+            setUser(parsedUser as unknown as User);
+          } else {
+            setUser(null);
+          }
         } else {
           setUser(null);
         }
@@ -106,10 +107,10 @@ export function useAuth() {
         const localUser = e.detail.value;
         if (localUser) {
           try {
-             const parsed = JSON.parse(localUser);
-             setUser(parsed as unknown as User);
-          } catch(err) {
-             console.error('Error parsing local user update', err);
+            const parsed = JSON.parse(localUser);
+            setUser(parsed as unknown as User);
+          } catch (err) {
+            console.error('Error parsing local user update', err);
           }
         } else {
           // If value is null, it means it was removed
@@ -117,7 +118,7 @@ export function useAuth() {
         }
       }
     };
-    
+
     window.addEventListener('btcwheel-storage', handleStorageChange);
 
     return () => {
@@ -132,14 +133,25 @@ export function useAuth() {
       const localUser = storage.getItem('btcwheel_local_user');
       if (localUser) {
         const parsedUser = JSON.parse(localUser);
+        // Verify email matches
         if (parsedUser.email === email) {
+          // Verify password (stored as base64 for demo purposes)
+          const storedPassword = parsedUser.app_metadata?.password_hash;
+          const inputPasswordHash = btoa(password); // Simple base64 encoding for demo
+
+          if (storedPassword && storedPassword !== inputPasswordHash) {
+            toast.error('Password non corretta');
+            return { user: null, error: new Error('Invalid password') };
+          }
+
+          // Password matches or no password was set (legacy users)
           setUser(parsedUser as User);
           toast.success('Accesso effettuato!');
           return { user: parsedUser as User, error: null };
         }
       }
-      toast.error('Credenziali non valide');
-      return { user: null, error: new Error('Invalid credentials') };
+      toast.error('Utente non trovato. Crea un nuovo account.');
+      return { user: null, error: new Error('User not found') };
     }
 
     try {
@@ -164,16 +176,29 @@ export function useAuth() {
 
   const signUp = async (email: string, password: string, name?: string) => {
     if (!isSupabaseConfigured) {
-      // Local mode sign up
+      // Check if user already exists
+      const existingUser = storage.getItem('btcwheel_local_user');
+      if (existingUser) {
+        const parsed = JSON.parse(existingUser);
+        if (parsed.email === email) {
+          toast.error('Un account con questa email esiste già. Prova ad accedere.');
+          return { user: null, error: new Error('User already exists') };
+        }
+      }
+
+      // Local mode sign up - store password hash for later verification
       const newUser = {
         id: `local-${Date.now()}`,
         email,
         user_metadata: { name: name || 'User' },
-        app_metadata: { provider: 'local' },
+        app_metadata: {
+          provider: 'local',
+          password_hash: btoa(password) // Store base64 encoded password for demo
+        },
         aud: 'authenticated',
         created_at: new Date().toISOString(),
       };
-      
+
       storage.setItem('btcwheel_local_user', JSON.stringify(newUser));
       setUser(newUser as unknown as User);
       toast.success('Account creato! Benvenuto!');
@@ -182,10 +207,7 @@ export function useAuth() {
 
     try {
       console.log('📝 [useAuth] Signing up via server endpoint...');
-      
-      // Import project info
-      const { projectId } = await import('../utils/supabase/info');
-      
+
       // Call server endpoint to create user with confirmed email
       const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/auth/signup`, {
         method: 'POST',
@@ -198,7 +220,7 @@ export function useAuth() {
       // Fallback if server is down or crashes (404 or 500+)
       if (response.status === 404 || response.status >= 500) {
         console.warn(`⚠️ [useAuth] Server error (${response.status}), falling back to direct signup`);
-        
+
         const { data, error } = await supabase.auth.signUp({
           email,
           password,
@@ -216,34 +238,34 @@ export function useAuth() {
         toast.success('Account creato! Controlla la tua email per confermare.');
         return { user: data.user, error: null };
       }
-      
+
       const result = await response.json();
-      
+
       if (!response.ok || result.error) {
         console.error('❌ [useAuth] Signup error:', result.error);
         toast.error(result.error || 'Errore durante la registrazione');
         return { user: null, error: new Error(result.error) };
       }
-      
+
       console.log('✅ [useAuth] User created successfully via server');
-      
+
       // Now sign in the user automatically
       console.log('🔐 [useAuth] Auto-signing in...');
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      
+
       if (error) {
         console.error('❌ [useAuth] Auto-signin error:', error);
         toast.success('Account creato! Puoi ora effettuare il login.');
         return { user: null, error };
       }
-      
+
       console.log('✅ [useAuth] User signed in successfully');
       toast.success('Account creato e accesso effettuato! Benvenuto! 🎉');
       return { user: data.user, error: null };
-      
+
     } catch (error) {
       console.error('❌ [useAuth] Sign up error:', error);
       toast.error('Errore durante la registrazione');
@@ -253,7 +275,7 @@ export function useAuth() {
 
   const signOut = async () => {
     console.log('🚪 [useAuth] Signing out...');
-    
+
     if (!isSupabaseConfigured) {
       console.log('💾 [useAuth] Local mode - clearing localStorage');
       // Local mode sign out
@@ -266,7 +288,7 @@ export function useAuth() {
     try {
       console.log('☁️ [useAuth] Cloud mode - signing out from Supabase');
       const { error } = await supabase.auth.signOut();
-      
+
       if (error) {
         console.error('❌ [useAuth] Logout error:', error);
         toast.error(error.message);
@@ -328,7 +350,7 @@ export function useAuth() {
         aud: 'authenticated',
         created_at: new Date().toISOString(),
       };
-      
+
       storage.setItem('btcwheel_local_user', JSON.stringify(guestUser));
       setUser(guestUser as unknown as User);
       toast.success('Accesso come ospite effettuato!');
@@ -337,6 +359,29 @@ export function useAuth() {
     // Aliases for compatibility with AuthProvider
     signInWithEmail: signIn,
     signUpWithEmail: signUp,
-    signInWithMagicLink: signInWithGoogle, // Placeholder for magic link
+    signInWithMagicLink: async (email: string) => {
+      if (!isSupabaseConfigured) {
+        toast.error('Magic Link richiede configurazione Supabase');
+        return { error: new Error('Supabase not configured') };
+      }
+      try {
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            emailRedirectTo: `${window.location.origin}`,
+          },
+        });
+        if (error) {
+          toast.error(error.message);
+          return { error };
+        }
+        toast.success('Magic Link inviato! Controlla la tua email.');
+        return { error: null };
+      } catch (error) {
+        console.error('Magic link error:', error);
+        toast.error('Errore durante l\'invio del Magic Link');
+        return { error: error as Error };
+      }
+    },
   };
 }

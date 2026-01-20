@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  # Premium Data Aggregator
+  aggregator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=production
+      - PORT=3001
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
+      - KUCOIN_API_KEY=${KUCOIN_API_KEY}
+      - KUCOIN_API_SECRET=${KUCOIN_API_SECRET}
+      - KUCOIN_PASSPHRASE=${KUCOIN_PASSPHRASE}
+      - OKX_API_KEY=${OKX_API_KEY}
+      - OKX_API_SECRET=${OKX_API_SECRET}
+      - OKX_PASSPHRASE=${OKX_PASSPHRASE}
+      - ADMIN_TOKEN=${ADMIN_TOKEN}
+    restart: always
+    depends_on:
+      - browserless
+
+  # Browserless Chrome for scraping
+  browserless:
+    image: browserless/chrome:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - MAX_CONCURRENT_SESSIONS=5
+      - CONNECTION_TIMEOUT=60000
+      - DEFAULT_BLOCK_ADS=true
+      - DEFAULT_LAUNCH_ARGS=["--no-sandbox"]
+    restart: always
+    shm_size: '2gb'
+
+networks:
+  default:
+    name: btcwheel-premium

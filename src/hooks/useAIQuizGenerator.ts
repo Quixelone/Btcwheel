@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { projectId, publicAnonKey } from '../utils/supabase/info';
 import type { Question } from '../lib/lessons';
 
@@ -9,22 +9,22 @@ interface QuizPerformance {
   consecutiveCorrect: number;
   difficultyLevel: 'easy' | 'medium' | 'hard';
   weakTopics: string[];
-  questionsAsked: string[]; // Track asked questions to avoid repetition
-  totalAttempts: number; // Total attempts per question (for retry tracking)
+  questionsAsked: string[];
+  totalAttempts: number;
 }
 
 interface GeneratedQuestion extends Question {
   isAI: boolean;
   difficulty: 'easy' | 'medium' | 'hard';
   topic?: string;
-  attemptsLeft?: number; // Tentativi rimasti per questa domanda
+  attemptsLeft?: number;
 }
 
-const MAX_ATTEMPTS_PER_QUESTION = 3; // Massimo 3 tentativi per domanda
+const MAX_ATTEMPTS_PER_QUESTION = 3;
 
 export function useAIQuizGenerator() {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [performance, setPerformance] = useState<QuizPerformance>({
+  const [performance, setPerformanceState] = useState<QuizPerformance>({
     correctAnswers: 0,
     wrongAnswers: 0,
     consecutiveWrong: 0,
@@ -35,9 +35,17 @@ export function useAIQuizGenerator() {
     totalAttempts: 0,
   });
 
+  // 🎯 FIX: Use a ref to keep track of performance without re-creating functions
+  const performanceRef = useRef<QuizPerformance>(performance);
+
+  // Keep ref in sync with state
+  useEffect(() => {
+    performanceRef.current = performance;
+  }, [performance]);
+
   /**
    * Genera una domanda AI-powered basata sul contesto e performance
-   * Con tracking per evitare ripetizioni
+   * STABLE: No dependencies to avoid re-render loops
    */
   const generateAIQuestion = useCallback(async (
     lessonId: number,
@@ -48,8 +56,9 @@ export function useAIQuizGenerator() {
     try {
       setIsGenerating(true);
 
-      // Use adaptive difficulty if not specified
-      const targetDifficulty = difficulty || performance.difficultyLevel;
+      // Use current values from ref to avoid function re-creation
+      const currentPerf = performanceRef.current;
+      const targetDifficulty = difficulty || currentPerf.difficultyLevel;
 
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/generate-quiz-question`,
@@ -65,36 +74,22 @@ export function useAIQuizGenerator() {
             lessonContent,
             difficulty: targetDifficulty,
             performance: {
-              ...performance,
-              // Send previous questions to avoid repetition
-              previousQuestions: performance.questionsAsked,
+              ...currentPerf,
+              previousQuestions: currentPerf.questionsAsked,
             },
           }),
         }
       );
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('AI question generation error:', errorText);
-        
-        // Try to parse error details if JSON
-        try {
-          const errorJson = JSON.parse(errorText);
-          console.error('Error details:', errorJson);
-          if (errorJson.rawResponse) {
-            console.error('AI raw response preview:', errorJson.rawResponse);
-          }
-        } catch {
-          // Not JSON, just log as text
-        }
-        
+        console.error('AI question generation error');
         return null;
       }
 
       const data = await response.json();
-      
-      // Track this question
-      setPerformance(prev => ({
+
+      // Update state using functional update
+      setPerformanceState(prev => ({
         ...prev,
         questionsAsked: [...prev.questionsAsked, data.question.question],
       }));
@@ -111,87 +106,65 @@ export function useAIQuizGenerator() {
     } finally {
       setIsGenerating(false);
     }
-  }, [performance]);
+  }, []); // 🎯 STABLE: No dependencies!
 
   /**
-   * Registra una risposta e aggiorna la performance con sistema adattivo intelligente
+   * Registra una risposta e aggiorna la performance
    */
   const recordAnswer = useCallback((
     isCorrect: boolean,
     questionTopic?: string,
     attemptsUsed: number = 1
   ) => {
-    setPerformance(prev => {
+    setPerformanceState(prev => {
       const newPerf = { ...prev };
       newPerf.totalAttempts += attemptsUsed;
-      
+
       if (isCorrect) {
         newPerf.correctAnswers++;
         newPerf.consecutiveWrong = 0;
         newPerf.consecutiveCorrect++;
-        
-        // 🎯 ADAPTIVE DIFFICULTY: Aumenta dopo 3 risposte corrette consecutive al primo tentativo
+
         if (newPerf.consecutiveCorrect >= 3 && attemptsUsed === 1) {
-          if (prev.difficultyLevel === 'easy') {
-            newPerf.difficultyLevel = 'medium';
-            console.log('🔼 Difficoltà aumentata a MEDIUM');
-          } else if (prev.difficultyLevel === 'medium') {
-            newPerf.difficultyLevel = 'hard';
-            console.log('🔼 Difficoltà aumentata a HARD');
-          }
-          newPerf.consecutiveCorrect = 0; // Reset counter
+          if (prev.difficultyLevel === 'easy') newPerf.difficultyLevel = 'medium';
+          else if (prev.difficultyLevel === 'medium') newPerf.difficultyLevel = 'hard';
+          newPerf.consecutiveCorrect = 0;
         }
       } else {
         newPerf.wrongAnswers++;
         newPerf.consecutiveWrong++;
         newPerf.consecutiveCorrect = 0;
-        
-        // Traccia topic debole
+
         if (questionTopic && !newPerf.weakTopics.includes(questionTopic)) {
           newPerf.weakTopics.push(questionTopic);
         }
-        
-        // 🎯 ADAPTIVE DIFFICULTY: Riduce dopo 2 errori consecutivi
+
         if (newPerf.consecutiveWrong >= 2) {
-          if (prev.difficultyLevel === 'hard') {
-            newPerf.difficultyLevel = 'medium';
-            console.log('🔽 Difficoltà ridotta a MEDIUM');
-          } else if (prev.difficultyLevel === 'medium') {
-            newPerf.difficultyLevel = 'easy';
-            console.log('🔽 Difficoltà ridotta a EASY');
-          }
+          if (prev.difficultyLevel === 'hard') newPerf.difficultyLevel = 'medium';
+          else if (prev.difficultyLevel === 'medium') newPerf.difficultyLevel = 'easy';
         }
       }
-      
+
       return newPerf;
     });
   }, []);
 
-  /**
-   * Determina se l'utente dovrebbe rivedere la lezione
-   * Trigger più aggressivo per forzare il ripasso
-   */
   const shouldReviewLesson = useCallback(() => {
-    // Trigger review if:
-    // - 3+ errori consecutivi
-    // - 5+ errori totali con più errori che risposte corrette
-    // - Accuracy < 50% dopo 10 domande
-    const accuracy = performance.correctAnswers / (performance.correctAnswers + performance.wrongAnswers);
-    const totalQuestions = performance.correctAnswers + performance.wrongAnswers;
-    
-    return performance.consecutiveWrong >= 3 || 
-           (performance.wrongAnswers >= 5 && performance.correctAnswers < performance.wrongAnswers) ||
-           (totalQuestions >= 10 && accuracy < 0.5);
-  }, [performance]);
+    const perf = performanceRef.current;
+    const totalQuestions = perf.correctAnswers + perf.wrongAnswers;
+    const accuracy = totalQuestions > 0 ? perf.correctAnswers / totalQuestions : 1;
 
-  /**
-   * Ottiene un suggerimento AI personalizzato basato sugli errori
-   */
+    return perf.consecutiveWrong >= 3 ||
+      (perf.wrongAnswers >= 5 && perf.correctAnswers < perf.wrongAnswers) ||
+      (totalQuestions >= 10 && accuracy < 0.5);
+  }, []); // 🎯 STABLE
+
   const getAIFeedback = useCallback(async (
     lessonTitle: string,
     wrongAnswers: string[]
   ): Promise<string> => {
     try {
+      const perf = performanceRef.current;
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/get-quiz-feedback`,
         {
@@ -204,64 +177,25 @@ export function useAIQuizGenerator() {
             lessonTitle,
             wrongAnswers,
             performance: {
-              ...performance,
-              accuracy: performance.correctAnswers / (performance.correctAnswers + performance.wrongAnswers),
+              ...perf,
+              accuracy: perf.correctAnswers / (perf.correctAnswers + perf.wrongAnswers || 1),
             },
           }),
         }
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to get AI feedback');
-      }
+      if (!response.ok) throw new Error('Failed to get AI feedback');
 
       const data = await response.json();
       return data.feedback;
     } catch (error) {
       console.error('Error getting AI feedback:', error);
-      return 'Sembra che tu abbia qualche difficoltà con questo argomento. Ti consiglio di rivedere la lezione prima di continuare. Focus sui concetti chiave! 💪';
+      return 'Ti consiglio di rivedere la lezione prima di continuare. 💪';
     }
-  }, [performance]);
+  }, []); // 🎯 STABLE
 
-  /**
-   * Ottiene suggerimenti per il ripasso basati su weak topics
-   */
-  const getReviewSuggestions = useCallback(() => {
-    if (performance.weakTopics.length === 0) {
-      return null;
-    }
-
-    return {
-      topics: performance.weakTopics,
-      message: `Hai avuto difficoltà con: ${performance.weakTopics.join(', ')}. Ripassa questi concetti prima di continuare!`,
-      shouldBlock: performance.consecutiveWrong >= 3, // Blocca se troppi errori
-    };
-  }, [performance]);
-
-  /**
-   * Calcola statistiche del quiz
-   */
-  const getQuizStats = useCallback(() => {
-    const total = performance.correctAnswers + performance.wrongAnswers;
-    const accuracy = total > 0 ? (performance.correctAnswers / total) * 100 : 0;
-    const averageAttempts = total > 0 ? performance.totalAttempts / total : 0;
-
-    return {
-      total,
-      correct: performance.correctAnswers,
-      wrong: performance.wrongAnswers,
-      accuracy: Math.round(accuracy),
-      averageAttempts: Math.round(averageAttempts * 10) / 10,
-      difficulty: performance.difficultyLevel,
-      weakTopics: performance.weakTopics,
-    };
-  }, [performance]);
-
-  /**
-   * Reset performance per una nuova lezione
-   */
   const resetPerformance = useCallback(() => {
-    setPerformance({
+    setPerformanceState({
       correctAnswers: 0,
       wrongAnswers: 0,
       consecutiveWrong: 0,
@@ -278,8 +212,6 @@ export function useAIQuizGenerator() {
     recordAnswer,
     shouldReviewLesson,
     getAIFeedback,
-    getReviewSuggestions,
-    getQuizStats,
     resetPerformance,
     performance,
     isGenerating,

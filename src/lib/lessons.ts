@@ -1091,5 +1091,150 @@ export const lessons: Record<number, Lesson> = {
         xp: 200
       }
     ]
+  },
+
+  // ================================================
+  // FASE 1: LEZIONI AGGIUNTIVE (Fondamenta)
+  // ============================================
+
+  16: {
+    id: 16,
+    title: "L'Interesse Composto: La Tua Arma Segreta",
+    description: "Scopri come l'interesse composto trasforma piccoli investimenti in ricchezza",
+    difficulty: 'beginner',
+    estimatedTime: '15 min',
+    requiredLevel: 1,
+    sections: [
+      {
+        title: "Cos'e l'Interesse Composto?",
+        content: "L'interesse composto e il processo di guadagnare interessi sugli interessi. A differenza dell'interesse semplice (dove guadagni solo sul capitale iniziale), con l'interesse composto i tuoi guadagni generano nuovi guadagni. E quello che Einstein chiamo 'l'ottava meraviglia del mondo'."
+      },
+      {
+        title: "La Regola del 72",
+        content: "La Regola del 72 e un modo rapido per stimare quanto tempo serve per raddoppiare il tuo capitale. Dividi 72 per il tasso di interesse annuo. Esempio: al 6% annuo, raddoppi in 12 anni."
+      },
+      {
+        title: "Compounding Daily vs Monthly",
+        content: "Piu frequente e il compounding, maggiore e l'effetto. La Wheel Strategy genera premium giornalieri che possono essere reinvestiti, massimizzando l'effetto compounding."
+      },
+      {
+        title: "L'Effetto Hockey Stick",
+        content: "La crescita composta inizia lenta ma poi esplode. I primi anni sembrano poco significativi, ma la curva diventa esponenziale. Il TEMPO e la tua arma principale."
+      }
+    ],
+    questions: [
+      {
+        id: 1,
+        type: 'multiple-choice',
+        question: "Qual e la differenza tra interesse semplice e composto?",
+        options: ['Non c\'e differenza', 'L\'interesse composto calcola gli interessi anche sugli interessi', 'L\'interesse semplice e piu veloce', 'Si applica solo ai conti bancari'],
+        correctAnswer: 1,
+        explanation: "L'interesse composto calcola gli interessi non solo sul capitale iniziale, ma anche sugli interessi gia maturati.",
+        xp: 50
+      },
+      {
+        id: 2,
+        type: 'multiple-choice',
+        question: "Usando la Regola del 72, in quanto tempo raddoppi al 6% annuo?",
+        options: ['6 anni', '12 anni', '18 anni', '24 anni'],
+        correctAnswer: 1,
+        explanation: "72 / 6 = 12 anni. Questa e una stima rapida per calcolare il tempo di raddoppio.",
+        xp: 75
+      }
+    ]
+  },
+
+  17: {
+    id: 17,
+    title: "Cos'e un PAC e Perche Fare Versamenti Regolari",
+    description: "Impara come il Piano di Accumulo riduce il rischio del timing",
+    difficulty: 'beginner',
+    estimatedTime: '12 min',
+    requiredLevel: 1,
+    sections: [
+      {
+        title: "Il Piano di Accumulo del Capitale (PAC)",
+        content: "Un PAC prevede versamenti regolari (settimanali o mensili) indipendentemente dal prezzo. Elimina lo stress di trovare il momento giusto."
+      },
+      {
+        title: "Dollar Cost Averaging (DCA)",
+        content: "Il PAC sfrutta il principio del DCA: comprando a intervalli regolari, ottieni un prezzo medio senza doverti preoccupare del timing perfetto."
+      },
+      {
+        title: "PAC vs Lump Sum",
+        content: "Il lump sum batte il DCA il 66% delle volte, MA il PAC e ottimale per chi ha reddito regolare e mercati volatili come crypto."
+      },
+      {
+        title: "PAC nella Wheel Strategy",
+        content: "Ogni settimana/mese aggiungi fondi che vengono usati per vendere put o accumulare BTC. Anche con 50 euro/settimana, in 10 anni avrai versato 26,000 euro."
+      }
+    ],
+    questions: [
+      {
+        id: 1,
+        type: 'multiple-choice',
+        question: "Cos'e il Dollar Cost Averaging?",
+        options: ['Comprare solo quando il prezzo e basso', 'Investire somme uguali a intervalli regolari', 'Vendere quando sale', 'Investire tutto in una volta'],
+        correctAnswer: 1,
+        explanation: "Il DCA prevede investimenti regolari indipendentemente dal prezzo.",
+        xp: 50
+      },
+      {
+        id: 2,
+        type: 'multiple-choice',
+        question: "Qual e il vantaggio del PAC rispetto al Lump Sum?",
+        options: ['Rendimenti piu alti garantiti', 'Elimina il rischio', 'Riduce lo stress del timing', 'E piu veloce'],
+        correctAnswer: 2,
+        explanation: "Il PAC riduce lo stress di dover trovare il momento perfetto.",
+        xp: 75
+      }
+    ]
+  },
+
+  18: {
+    id: 18,
+    title: "Setup: Collega il Tuo Primo Exchange",
+    description: "Guida pratica per collegare un exchange a BTC Wheel Pro",
+    difficulty: 'beginner',
+    estimatedTime: '15 min',
+    requiredLevel: 1,
+    sections: [
+      {
+        title: "Perche Collegare un Exchange?",
+        content: "Collegare il tuo exchange permette di importare automaticamente le operazioni, calcolare i premium reali e tracciare l'accumulo BTC. L'app usa SOLO permessi di lettura."
+      },
+      {
+        title: "Exchange Supportati",
+        content: "DERIBIT - Leader nelle opzioni; OKX - Alternativa user-friendly; BINANCE - Ottimo per Dual Investment; BYBIT - Buona liquidita."
+      },
+      {
+        title: "Come Generare le API Key",
+        content: "Vai su Profilo > API, crea nuova key, abilita SOLO permessi di lettura, copia e salva il Secret in posto sicuro."
+      },
+      {
+        title: "Sicurezza delle API Key",
+        content: "Mai condividere le key, abilitare whitelist IP, revocare key non usate. BTC Wheel Pro le salva criptate."
+      }
+    ],
+    questions: [
+      {
+        id: 1,
+        type: 'multiple-choice',
+        question: "Quali permessi dare alle API Key?",
+        options: ['Trading + Withdrawal', 'Solo permessi di lettura', 'Solo Withdrawal', 'Tutti i permessi'],
+        correctAnswer: 1,
+        explanation: "BTC Wheel Pro necessita SOLO di permessi di lettura. Mai abilitare trading o withdrawal.",
+        xp: 75
+      },
+      {
+        id: 2,
+        type: 'multiple-choice',
+        question: "Quale exchange e leader per opzioni Bitcoin?",
+        options: ['Coinbase', 'Kraken', 'Deribit', 'Robinhood'],
+        correctAnswer: 2,
+        explanation: "Deribit e l'exchange con maggiore liquidita per opzioni Bitcoin.",
+        xp: 50
+      }
+    ]
   }
 };

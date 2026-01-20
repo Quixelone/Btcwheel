@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Separator } from './ui/separator';
 import { Alert, AlertDescription } from './ui/alert';
-import { Loader2, Mail, Lock, User, Bitcoin, Sparkles, Chrome, AlertCircle } from 'lucide-react';
-import { getSupabaseClient, isSupabaseConfigured } from '../lib/supabase';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { Loader2, Mail, Lock, User, Bitcoin, Chrome, AlertCircle, ArrowRight } from 'lucide-react';
+import { getSupabaseClient } from '../lib/supabase';
 import { useAuth } from '../hooks/useAuth';
 
 interface AuthViewProps {
@@ -16,13 +14,13 @@ interface AuthViewProps {
 }
 
 export function AuthView({ onAuthSuccess }: AuthViewProps) {
-  const { loginAsGuest } = useAuth();
+  const { loginAsGuest, signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
   const [mode, setMode] = useState<'login' | 'signup'>('signup');
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
+  const [_successMessage, setSuccessMessage] = useState('');
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -36,208 +34,73 @@ export function AuthView({ onAuthSuccess }: AuthViewProps) {
     setError('');
     setLoading(true);
 
-    if (!isSupabaseConfigured || !supabase) {
-      setError('Autenticazione non disponibile. Usa la modalità demo per continuare.');
-      setLoading(false);
-      return;
-    }
-
     try {
       if (mode === 'signup') {
-        console.log('📝 [AuthView] Starting signup process...');
-        
-        // 🆕 Use server endpoint to create user with email already confirmed
-        const response = await fetch(
-          `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/auth/signup`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${publicAnonKey}`
-            },
-            body: JSON.stringify({
-              email: formData.email,
-              password: formData.password,
-              name: formData.name
-            })
-          }
+        const { user, error: signUpError } = await signUpWithEmail(
+          formData.email,
+          formData.password,
+          formData.name
         );
-        
-        // 🔍 Check if server is reachable or if it crashed
-        if (response.status === 404 || response.status >= 500) {
-          console.error(`❌ [AuthView] Server error (${response.status}) - falling back to direct signup`);
-          setError('⚠️ Server non disponibile. Creazione account in modalità diretta...');
-          
-          // Fallback: Use direct Supabase signup
-          const { error: signUpError } = await supabase.auth.signUp({
-            email: formData.email,
-            password: formData.password,
-            options: {
-              data: {
-                name: formData.name
-              }
-            }
-          });
-          
-          if (signUpError) {
-            if (signUpError.message?.includes('already registered')) {
-              console.log('⚠️ [AuthView] User already exists (fallback), attempting auto-login...');
-              setError('⚠️ Email già registrata. Provo ad effettuare il login...');
-              await new Promise(resolve => setTimeout(resolve, 1500));
-              
-              const { error: signInError } = await supabase.auth.signInWithPassword({
-                email: formData.email,
-                password: formData.password,
-              });
 
-              if (signInError) {
-                console.error('❌ [AuthView] Auto-login failed - wrong password:', signInError);
-                setError('❌ Email già registrata. La password inserita non è corretta. Usa "Accedi" invece di "Registrati".');
-                setMode('login');
-                setLoading(false);
-                return;
-              }
-              
-              console.log('✅ [AuthView] Auto-login successful after detecting existing account');
-              onAuthSuccess();
-              return;
-            }
-            throw signUpError;
-          }
-          
-          // ⚠️ Warn about email confirmation
-          setError('⚠️ Account creato! IMPORTANTE: Conferma la tua email per accedere (controlla la tua casella di posta).');
-          setLoading(false);
-          return;
-        }
-        
-        const result = await response.json();
-        
-        if (!response.ok) {
-          console.error('❌ [AuthView] Signup failed:', result);
-          
-          // Check if user already exists (409 Conflict or error code)
-          if (response.status === 409 || result.code === 'email_exists' || 
-              result.error?.includes('already') || result.error?.includes('registered')) {
-            console.log('⚠️ [AuthView] User already exists, attempting auto-login...');
-            setError('⚠️ Email già registrata. Provo ad effettuare il login...');
-            
-            // Wait a moment to show the message
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            
-            const { error: signInError } = await supabase.auth.signInWithPassword({
-              email: formData.email,
-              password: formData.password,
-            });
-
-            if (signInError) {
-              // Password might be wrong
-              console.error('❌ [AuthView] Auto-login failed - wrong password:', signInError);
-              setError('❌ Email già registrata. La password inserita non è corretta. Usa \"Accedi\" invece di \"Registrati\".');
-              setMode('login'); // Switch to login mode
-              setLoading(false);
-              return;
-            }
-            
-            // Login successful!
-            console.log('✅ [AuthView] Auto-login successful after detecting existing account');
-            onAuthSuccess();
+        if (signUpError) {
+          if (signUpError.message?.includes('already exists') || signUpError.message?.includes('User already exists')) {
+            setError('⚠️ Email già registrata. Prova ad accedere.');
+            setMode('login');
+            setLoading(false);
             return;
           }
-          
-          // Other error - throw to be caught by catch block
-          setLoading(false);
-          throw new Error(result.error || 'Signup failed');
+          throw signUpError;
         }
-        
-        console.log('✅ [AuthView] Signup successful, now signing in...');
-        
-        // Auto-login after successful signup
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
 
-        if (signInError) {
-          console.error('❌ [AuthView] Auto-login failed:', signInError);
-          throw signInError;
+        if (user) {
+          onAuthSuccess();
         }
-        
-        console.log('✅ [AuthView] Auto-login successful!');
-        onAuthSuccess();
-        
       } else {
-        // Login existing user
-        const { error: signInError } = await supabase.auth.signInWithPassword({
-          email: formData.email,
-          password: formData.password,
-        });
+        const { user, error: signInError } = await signInWithEmail(
+          formData.email,
+          formData.password
+        );
 
         if (signInError) {
-          // Better error messages for login
-          if (signInError.message?.includes('Invalid login credentials')) {
-            setError('❌ Email o password non corretti. Riprova o crea un nuovo account.');
+          if (signInError.message?.includes('Invalid password') || signInError.message?.includes('password')) {
+            setError('❌ Password non corretta.');
+          } else if (signInError.message?.includes('not found') || signInError.message?.includes('User not found')) {
+            setError('❌ Utente non trovato. Registrati prima.');
+          } else if (signInError.message?.includes('Invalid login credentials')) {
+            setError('❌ Email o password non corretti.');
           } else {
             throw signInError;
           }
           return;
         }
-        
-        onAuthSuccess();
+
+        if (user) {
+          onAuthSuccess();
+        }
       }
     } catch (err: any) {
-      console.error('Auth error:', err);
-      
-      // Friendly error messages
-      const errorMsg = err.message || '';
-      if (errorMsg.includes('Invalid login credentials')) {
-        setError('❌ Email o password non corretti.');
-      } else if (errorMsg.includes('Email not confirmed')) {
-        setError('⚠️ Conferma la tua email prima di accedere. Controlla la tua casella di posta.');
-      } else if (errorMsg.includes('User not found')) {
-        setError('❌ Account non trovato. Registrati per creare un nuovo account.');
-      } else {
-        setError(errorMsg || 'Si è verificato un errore. Riprova.');
-      }
+      setError(err.message || 'Si è verificato un errore.');
     } finally {
       setLoading(false);
     }
   };
 
-  // Google OAuth Sign In
   const handleGoogleSignIn = async () => {
     try {
       setLoading(true);
       setError('');
-      
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: window.location.origin,
-          // Force skip native flow to ensure web redirect
-          skipBrowserRedirect: false,
-          // Query params to help identify the source app
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
-      });
 
-      if (error) throw error;
-      
-      // The user will be redirected to Google
-      // On return, the AuthProvider will handle the session
-    } catch (err: any) {
-      console.error('Google auth error:', err);
-      
-      // More helpful error message for OAuth configuration issues
-      const errorMsg = err.message || '';
-      if (errorMsg.includes('provider') || errorMsg.includes('not enabled') || errorMsg.includes('configured')) {
-        setError('❌ Google OAuth non configurato. Usa email/password.');
-      } else {
-        setError(`Errore Google OAuth: ${errorMsg}. Usa email/password come alternativa.`);
+      const { error } = await signInWithGoogle();
+
+      if (error) {
+        if (error.message === 'Supabase not configured') {
+          setError('⚠️ Google Sign-In richiede configurazione Supabase. Usa email/password in locale.');
+        } else {
+          throw error;
+        }
       }
+    } catch (err: any) {
+      setError(`Errore Google OAuth: ${err.message}`);
       setLoading(false);
     }
   };
@@ -247,79 +110,51 @@ export function AuthView({ onAuthSuccess }: AuthViewProps) {
     setError('');
     setSuccessMessage('');
     setLoading(true);
-
-    if (!isSupabaseConfigured || !supabase) {
-      setError('Autenticazione non disponibile. Usa la modalità demo per continuare.');
-      setLoading(false);
-      return;
-    }
-
     try {
-      console.log('🔑 [AuthView] Sending password reset email to:', resetEmail);
-      
       const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
         redirectTo: `${window.location.origin}/reset-password`,
       });
-
       if (error) throw error;
-
-      console.log('✅ [AuthView] Password reset email sent successfully');
-      setSuccessMessage('✅ Ti abbiamo inviato un\'email con le istruzioni per reimpostare la password. Controlla la tua casella di posta!');
-      setResetEmail('');
-      
-      // Close reset modal after 3 seconds
-      setTimeout(() => {
-        setShowResetPassword(false);
-        setSuccessMessage('');
-      }, 3000);
-      
+      setSuccessMessage('✅ Email di reset inviata!');
+      setTimeout(() => setShowResetPassword(false), 3000);
     } catch (err: any) {
-      console.error('❌ [AuthView] Reset password error:', err);
-      
-      const errorMsg = err.message || '';
-      if (errorMsg.includes('Email not found') || errorMsg.includes('User not found')) {
-        setError('❌ Nessun account trovato con questa email.');
-      } else if (errorMsg.includes('rate limit')) {
-        setError('⚠️ Troppe richieste. Riprova tra qualche minuto.');
-      } else if (errorMsg.includes('Email') || errorMsg.includes('SMTP')) {
-        setError('⚠️ Server email non configurato. Contatta il supporto per reimpostare la password.');
-      } else {
-        setError(errorMsg || 'Errore durante il reset della password. Riprova.');
-      }
+      setError(err.message || 'Errore durante il reset.');
     } finally {
       setLoading(false);
     }
   };
 
-  const toggleMode = () => {
-    setMode(mode === 'login' ? 'signup' : 'login');
-    setError('');
-    setSuccessMessage('');
-  };
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-orange-500 flex items-center justify-center p-4 safe-area-inset">
+    <div className="min-h-screen bg-[#030305] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Background Effects */}
+      <div className="fixed inset-0 pointer-events-none">
+        <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-purple-600/5 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-20%] left-[-10%] w-[800px] h-[800px] bg-blue-600/5 rounded-full blur-[120px]" />
+        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20"></div>
+      </div>
+
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
-        <Card className="p-8 shadow-2xl">
-          {/* Logo/Branding */}
-          <div className="text-center mb-8">
+        <div className="bg-[#0A0A0C] border border-white/[0.08] rounded-[32px] p-8 md:p-10 shadow-2xl relative overflow-hidden">
+          {/* Top Glow */}
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent opacity-50" />
+
+          {/* Logo */}
+          <div className="text-center mb-10">
             <motion.div
-              className="w-20 h-20 mx-auto mb-4 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center"
+              className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-purple-600 flex items-center justify-center shadow-[0_0_20px_rgba(147,51,234,0.4)]"
               animate={{ rotate: [0, 5, -5, 0] }}
-              transition={{ duration: 2, repeat: Infinity }}
+              transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
             >
-              <Bitcoin className="w-10 h-10 text-white" />
+              <Bitcoin className="w-8 h-8 text-white" />
             </motion.div>
-            <h1 className="text-gray-900 mb-2">Bitcoin Wheel Strategy</h1>
-            <p className="text-gray-600">
-              {mode === 'signup' 
-                ? 'Crea il tuo account per iniziare' 
-                : 'Bentornato! Accedi al tuo account'}
+            <h1 className="text-2xl font-bold text-white tracking-tight mb-2">BTC Wheel Pro</h1>
+            <p className="text-[#888899] font-medium text-sm">
+              {mode === 'signup' ? 'Crea il tuo account per iniziare' : 'Bentornato nell\'accademia'}
             </p>
           </div>
 
@@ -332,37 +167,31 @@ export function AuthView({ onAuthSuccess }: AuthViewProps) {
                 exit={{ opacity: 0, height: 0 }}
                 className="mb-6"
               >
-                <Alert variant="destructive">
+                <Alert className="bg-red-500/10 border-red-500/20 text-red-400 rounded-xl">
                   <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+                  <AlertDescription className="text-[10px] font-bold uppercase tracking-widest">{error}</AlertDescription>
                 </Alert>
               </motion.div>
             )}
           </AnimatePresence>
 
-
-
           {/* Social Login */}
-          <div className="space-y-3 mb-6">
+          <div className="space-y-3 mb-8">
             <Button
               type="button"
               variant="outline"
-              className="w-full h-12 border-2"
+              className="w-full h-14 border-white/[0.1] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.2] rounded-xl font-bold uppercase text-[10px] tracking-widest transition-all text-white"
               onClick={handleGoogleSignIn}
               disabled={loading}
             >
-              {loading ? (
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              ) : (
-                <Chrome className="w-5 h-5 mr-2" />
-              )}
+              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Chrome className="w-4 h-4 mr-3 text-white" />}
               Continua con Google
             </Button>
-            
+
             <Button
               type="button"
               variant="ghost"
-              className="w-full h-10 text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+              className="w-full h-12 text-[#666677] hover:text-white hover:bg-white/[0.05] rounded-xl font-bold uppercase text-[9px] tracking-widest"
               onClick={async () => {
                 setLoading(true);
                 await loginAsGuest();
@@ -371,156 +200,121 @@ export function AuthView({ onAuthSuccess }: AuthViewProps) {
               }}
               disabled={loading}
             >
-              <User className="w-4 h-4 mr-2" />
-              Entra come Ospite (Demo)
+              <User className="w-3 h-3 mr-2" />
+              Modalità Ospite (Demo)
             </Button>
           </div>
 
-          {/* Divider */}
-          <div className="relative mb-6">
-            <Separator />
-            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-white px-3 text-sm text-gray-500">
+          <div className="relative mb-8">
+            <Separator className="bg-white/[0.05]" />
+            <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-[#0A0A0C] px-4 text-[9px] font-bold text-[#444455] uppercase tracking-widest">
               oppure
             </span>
           </div>
 
-          {/* Email/Password Form */}
-          <form onSubmit={handleEmailAuth} className="space-y-4">
+          {/* Email Form */}
+          <form onSubmit={handleEmailAuth} className="space-y-5">
             {mode === 'signup' && (
-              <div>
-                <Label htmlFor="name" className="flex items-center gap-2 mb-2">
-                  <User className="w-4 h-4" />
-                  Nome
-                </Label>
-                <Input
-                  id="name"
-                  type="text"
-                  placeholder="Il tuo nome"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  disabled={loading}
-                  className="h-12"
-                />
+              <div className="space-y-2">
+                <Label htmlFor="name" className="text-[10px] font-bold text-[#666677] uppercase tracking-widest ml-1">Nome</Label>
+                <div className="relative">
+                  <User className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#666677]" />
+                  <Input
+                    id="name"
+                    type="text"
+                    placeholder="Il tuo nome"
+                    value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    required
+                    disabled={loading}
+                    className="h-12 pl-12 bg-[#030305] border-white/[0.08] rounded-xl focus:border-purple-500/50 text-white placeholder:text-[#444455] transition-all"
+                  />
+                </div>
               </div>
             )}
 
-            <div>
-              <Label htmlFor="email" className="flex items-center gap-2 mb-2">
-                <Mail className="w-4 h-4" />
-                Email
-              </Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="tuo@email.com"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                required
-                disabled={loading}
-                className="h-12"
-              />
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-[10px] font-bold text-[#666677] uppercase tracking-widest ml-1">Email</Label>
+              <div className="relative">
+                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#666677]" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="tuo@email.com"
+                  value={formData.email}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  required
+                  disabled={loading}
+                  className="h-12 pl-12 bg-[#030305] border-white/[0.08] rounded-xl focus:border-purple-500/50 text-white placeholder:text-[#444455] transition-all"
+                />
+              </div>
             </div>
 
-            <div>
-              <Label htmlFor="password" className="flex items-center gap-2 mb-2">
-                <Lock className="w-4 h-4" />
-                Password
-              </Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                required
-                disabled={loading}
-                minLength={6}
-                className="h-12"
-              />
-              {mode === 'signup' && (
-                <p className="text-xs text-gray-500 mt-1">Minimo 6 caratteri</p>
-              )}
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-[10px] font-bold text-[#666677] uppercase tracking-widest ml-1">Password</Label>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#666677]" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  required
+                  disabled={loading}
+                  minLength={6}
+                  className="h-12 pl-12 bg-[#030305] border-white/[0.08] rounded-xl focus:border-purple-500/50 text-white placeholder:text-[#444455] transition-all"
+                />
+              </div>
             </div>
 
             <Button
               type="submit"
-              className="w-full h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+              className="w-full h-14 bg-purple-600 hover:bg-purple-500 text-white font-bold uppercase tracking-widest rounded-xl shadow-[0_0_20px_rgba(147,51,234,0.3)] transition-all hover:scale-[1.01] active:scale-[0.99] mt-2"
               disabled={loading}
             >
               {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  {mode === 'signup' ? 'Creazione account...' : 'Accesso...'}
-                </>
+                <Loader2 className="w-5 h-5 animate-spin" />
               ) : (
                 <>
-                  {mode === 'signup' ? (
-                    <>
-                      <Sparkles className="w-5 h-5 mr-2" />
-                      Crea Account
-                    </>
-                  ) : (
-                    'Accedi'
-                  )}
+                  {mode === 'signup' ? 'Crea Account' : 'Accedi'}
+                  <ArrowRight className="w-4 h-4 ml-2" />
                 </>
               )}
             </Button>
           </form>
 
-          {/* Forgot Password Link - Only show in login mode */}
           {mode === 'login' && (
-            <div className="mt-4 text-center">
+            <div className="mt-6 text-center">
               <button
                 type="button"
-                onClick={() => {
-                  setShowResetPassword(true);
-                  setError('');
-                  setSuccessMessage('');
-                }}
-                disabled={loading}
-                className="text-sm text-blue-600 hover:text-blue-700 underline disabled:opacity-50"
+                onClick={() => setShowResetPassword(true)}
+                className="text-[10px] font-bold text-[#666677] uppercase tracking-widest hover:text-white transition-colors"
               >
                 Password dimenticata?
               </button>
             </div>
           )}
 
-          {/* Toggle Mode */}
-          <div className="mt-6 text-center">
+          <div className="mt-8 text-center bg-white/[0.02] -mx-10 -mb-10 p-6 border-t border-white/[0.05]">
             <button
               type="button"
-              onClick={toggleMode}
-              disabled={loading}
-              className="text-sm text-blue-600 hover:text-blue-700 font-medium disabled:opacity-50"
+              onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
+              className="text-[11px] font-bold text-purple-400 uppercase tracking-widest hover:text-purple-300 transition-colors"
             >
-              {mode === 'signup' ? (
-                <>Hai già un account? <span className="underline">Accedi</span></>
-              ) : (
-                <>Non hai un account? <span className="underline">Registrati</span></>
-              )}
+              {mode === 'signup' ? 'Hai già un account? Accedi' : 'Non hai un account? Registrati'}
             </button>
           </div>
+        </div>
 
-          {/* Terms */}
-          {mode === 'signup' && (
-            <p className="mt-6 text-xs text-gray-500 text-center">
-              Creando un account accetti i nostri{' '}
-              <a href="#" className="text-blue-600 hover:underline">Termini di Servizio</a>
-              {' '}e la{' '}
-              <a href="#" className="text-blue-600 hover:underline">Privacy Policy</a>
-            </p>
-          )}
-        </Card>
-
-        {/* Reset Password Modal */}
+        {/* Reset Modal */}
         <AnimatePresence>
           {showResetPassword && (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50"
               onClick={() => setShowResetPassword(false)}
             >
               <motion.div
@@ -530,36 +324,15 @@ export function AuthView({ onAuthSuccess }: AuthViewProps) {
                 onClick={(e) => e.stopPropagation()}
                 className="w-full max-w-md"
               >
-                <Card className="p-8">
-                  <h2 className="text-gray-900 mb-2">Reimposta Password</h2>
-                  <p className="text-gray-600 mb-6">
-                    Inserisci la tua email e ti invieremo un link per reimpostare la password.
+                <div className="p-8 bg-[#0A0A0C] border border-white/[0.1] rounded-[24px] shadow-2xl">
+                  <h2 className="text-xl font-bold text-white tracking-tight mb-2">Reset Password</h2>
+                  <p className="text-[#888899] font-medium text-sm mb-6">
+                    Ti invieremo un link per reimpostare la tua password via email.
                   </p>
 
-                  {/* Success Message */}
-                  {successMessage && (
-                    <Alert className="mb-4 border-emerald-300 bg-emerald-50">
-                      <AlertCircle className="h-4 w-4 text-emerald-600" />
-                      <AlertDescription className="text-emerald-900">
-                        {successMessage}
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  {/* Error Message */}
-                  {error && (
-                    <Alert variant="destructive" className="mb-4">
-                      <AlertCircle className="h-4 w-4" />
-                      <AlertDescription>{error}</AlertDescription>
-                    </Alert>
-                  )}
-
-                  <form onSubmit={handleResetPassword} className="space-y-4">
-                    <div>
-                      <Label htmlFor="reset-email" className="flex items-center gap-2 mb-2">
-                        <Mail className="w-4 h-4" />
-                        Email
-                      </Label>
+                  <form onSubmit={handleResetPassword} className="space-y-6">
+                    <div className="space-y-2">
+                      <Label htmlFor="reset-email" className="text-[10px] font-bold text-[#666677] uppercase tracking-widest ml-1">Email</Label>
                       <Input
                         id="reset-email"
                         type="email"
@@ -567,76 +340,33 @@ export function AuthView({ onAuthSuccess }: AuthViewProps) {
                         value={resetEmail}
                         onChange={(e) => setResetEmail(e.target.value)}
                         required
-                        disabled={loading}
-                        className="h-12"
+                        className="h-12 bg-[#030305] border-white/[0.08] rounded-xl text-white"
                       />
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className="flex gap-4">
                       <Button
                         type="button"
-                        variant="outline"
-                        className="flex-1 h-12"
-                        onClick={() => {
-                          setShowResetPassword(false);
-                          setResetEmail('');
-                          setError('');
-                          setSuccessMessage('');
-                        }}
-                        disabled={loading}
+                        variant="ghost"
+                        className="flex-1 h-12 rounded-xl font-bold uppercase text-[10px] tracking-widest text-[#888899] hover:text-white"
+                        onClick={() => setShowResetPassword(false)}
                       >
                         Annulla
                       </Button>
                       <Button
                         type="submit"
-                        className="flex-1 h-12 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700"
+                        className="flex-1 h-12 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold uppercase text-[10px] tracking-widest text-white"
                         disabled={loading}
                       >
-                        {loading ? (
-                          <>
-                            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                            Invio...
-                          </>
-                        ) : (
-                          'Invia Email'
-                        )}
+                        {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Invia Link'}
                       </Button>
                     </div>
                   </form>
-
-                  {/* Warning about email server */}
-                  <Alert className="mt-4 border-yellow-300 bg-yellow-50">
-                    <AlertCircle className="h-4 w-4 text-yellow-600" />
-                    <AlertDescription className="text-yellow-900 text-xs">
-                      <strong>Nota:</strong> Se il server email non è configurato, contatta il supporto per reimpostare la password manualmente.
-                    </AlertDescription>
-                  </Alert>
-                </Card>
+                </div>
               </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Demo Note */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-          className="mt-6 text-center"
-        >
-          <Card className="p-4 bg-white/90 backdrop-blur">
-            <p className="text-sm text-gray-700">
-              <span className="font-semibold">💡 Demo Mode:</span> Puoi anche{' '}
-              <button
-                onClick={onAuthSuccess}
-                className="text-blue-600 hover:underline font-medium"
-              >
-                continuare senza registrarti
-              </button>
-              {' '}(dati salvati solo localmente)
-            </p>
-          </Card>
-        </motion.div>
       </motion.div>
     </div>
   );

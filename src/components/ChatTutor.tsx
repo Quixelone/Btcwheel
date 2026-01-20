@@ -6,13 +6,13 @@ import { Textarea } from './ui/textarea';
 import { ScrollArea } from './ui/scroll-area';
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { useUserProgress } from '../hooks/useUserProgress';
-import { useAuth } from '../hooks/useAuth';
-import { 
-  MessageCircle, 
-  X, 
-  Send, 
-  Loader2, 
-  Bot, 
+
+import {
+  MessageCircle,
+  X,
+  Send,
+  Loader2,
+  Bot,
   User,
   Sparkles,
   BookOpen,
@@ -40,12 +40,11 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [hasError, setHasError] = useState(false);
+  const [, setHasError] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  
+
   const { progress } = useUserProgress();
-  const { user } = useAuth();
 
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
@@ -112,18 +111,16 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
         conversationHistory: messages.slice(-4) // Last 4 messages for context
       };
 
-      // Call Supabase Edge Function
-      const { projectId, publicAnonKey } = await import('../utils/supabase/info');
-      const apiUrl = `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/chat-tutor`;
-      
+      // Use local n8n webhook that bridges to NotebookLM
+      const apiUrl = 'http://localhost:5678/webhook/btcwheel-chat';
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${publicAnonKey}`,
         },
         body: JSON.stringify({
-          message: input.trim(),
+          message: userMessage.content,
           context
         })
       });
@@ -146,7 +143,7 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
     } catch (error) {
       console.error('Chat error:', error);
       setHasError(true);
-      
+
       // Fallback response when API fails
       const fallbackMessage: Message = {
         id: (Date.now() + 1).toString(),
@@ -154,7 +151,7 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
         content: "Mi dispiace, al momento non riesco a rispondere. Prova di nuovo tra poco o continua con le lezioni! 📚",
         timestamp: new Date()
       };
-      
+
       setMessages(prev => [...prev, fallbackMessage]);
       toast.error('Errore di connessione al tutor AI');
     } finally {
@@ -325,17 +322,16 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
                       {/* Message Bubble */}
                       <div className={`flex-1 ${message.role === 'user' ? 'flex justify-end' : ''}`}>
                         <div
-                          className={`inline-block p-3 rounded-lg max-w-[85%] ${
-                            message.role === 'user'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-900'
-                          }`}
+                          className={`inline-block p-3 rounded-lg max-w-[85%] ${message.role === 'user'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-900'
+                            }`}
                         >
                           <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
                           <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
-                            {message.timestamp.toLocaleTimeString('it-IT', { 
-                              hour: '2-digit', 
-                              minute: '2-digit' 
+                            {message.timestamp.toLocaleTimeString('it-IT', {
+                              hour: '2-digit',
+                              minute: '2-digit'
                             })}
                           </p>
                         </div>

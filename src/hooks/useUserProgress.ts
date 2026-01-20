@@ -14,8 +14,9 @@ import { useAuth } from './useAuth';
 import type { UserProgress } from '../App';
 
 export function useUserProgress() {
-  const { user } = useAuth();
-  const useLocalStorage = !isSupabaseConfigured || !user;
+  const { user, session } = useAuth();
+  const isLocalUser = user?.app_metadata?.provider === 'local';
+  const useLocalStorage = !isSupabaseConfigured || !user || isLocalUser || !session;
   const [progress, setProgress] = useState<UserProgress>({
     level: 1,
     xp: 0,

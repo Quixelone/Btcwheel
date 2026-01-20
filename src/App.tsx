@@ -1,360 +1,462 @@
+/**
+ * App.tsx - BTC Wheel Pro 2.0
+ * 
+ * Main application entry point con nuova struttura a 5 sezioni:
+ * - Home: Dashboard + Compound Vision
+ * - Trading: Exchange + Posizioni + PAC
+ * - Satoshi: Daily Briefing + Chat
+ * - Academy: Corso + Lezioni + Quiz
+ * - Profilo: Obiettivo + Settings + Account
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useOnboarding } from './hooks/useOnboarding';
-import { LandingPage } from './components/LandingPage';
-import { HomePage } from "./components/HomePage";
-import { Dashboard } from "./components/Dashboard";
-import { LessonView } from "./components/LessonView";
-import { LessonList } from "./components/LessonList";
-import { BadgeShowcase } from "./components/BadgeShowcase";
-import { SimulationView } from "./components/SimulationView";
-import { LongTermSimulator } from "./components/LongTermSimulator";
-import { WheelStrategyView } from "./components/WheelStrategyView";
-import { LeaderboardView } from "./components/LeaderboardView";
-import { SettingsView } from "./components/SettingsView";
-import { ExchangeView } from "./components/ExchangeView";
-import { AuthView } from "./components/AuthView";
-import { OnboardingView } from "./components/OnboardingView";
-import { OnboardingResults } from "./components/OnboardingResults";
-import { MascotAI } from "./components/MascotAI";
 import { Toaster } from "sonner";
-import { MobileOptimizations } from "./components/MobileOptimizations";
-import { MobileGestures } from "./components/MobileGestures";
-import { PWAInstallPrompt } from "./components/PWAInstallPrompt";
-import { AppUpdatePrompt } from "./components/AppUpdatePrompt";
-import { ChatTutorTest } from "./components/ChatTutorTest";
-import { SupabaseStatus } from "./components/SupabaseStatus";
-import { SupabaseTestView } from "./components/SupabaseTestView";
 
-export type View =
-  | "landing"
-  | "home"
-  | "dashboard"
-  | "lessons"
-  | "lesson"
-  | "badges"
-  | "simulation"
-  | "longterm"
-  | "wheel-strategy"
-  | "leaderboard"
-  | "settings"
-  | "exchange"
-  | "auth"
-  | "onboarding";
+// Types
+import type { View } from './types/navigation';
+import { requiresAuth } from './types/navigation';
 
-export interface UserProgress {
-  level: number;
-  xp: number;
-  xpToNextLevel: number;
-  streak: number;
-  badges: string[];
-  lessonsCompleted: number;
-  totalLessons: number;
-  currentLesson: number;
-  completedLessons: number[]; // Array of completed lesson IDs
-  perfectQuizzes?: number; // Number of perfect quiz scores
-  profitableSimulations?: number; // Number of profitable simulations
-}
+// Layout Components
+import { MainNavigation } from './components/navigation/MainNavigation';
+import { MobileOptimizations } from './components/MobileOptimizations';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
+import { AppUpdatePrompt } from './components/AppUpdatePrompt';
+import { AppTutorial } from './components/AppTutorial';
+
+// Special Views (non autenticate)
+import { LandingPage } from './components/LandingPage';
+import { AuthView } from './components/AuthView';
+import { OnboardingView } from './components/OnboardingView';
+import { OnboardingResults } from './components/OnboardingResults';
+
+// Main Section Views
+import { HomeView } from './views/HomeView';
+import { TradingView } from './views/TradingView';
+import { SatoshiView } from './views/SatoshiView';
+import { AcademyView } from './views/AcademyView';
+import { ProfileView } from './views/ProfileView';
+
+// Legacy Views (riutilizzati)
+import { LongTermSimulator } from './components/LongTermSimulator';
+import { SimulationView } from './components/SimulationView';
+import { WheelStrategyView } from './components/WheelStrategyView';
+import { ExchangeConnectionView } from './views/ExchangeConnectionView';
+import { TradeJournalView } from './views/TradeJournalView';
+import { BestDealsView } from './views/BestDealsView';
+
+// Dev/Debug Views
+import { ChatTutorTest } from './components/ChatTutorTest';
+import { SupabaseStatus } from './components/SupabaseStatus';
+import { SupabaseTestView } from './components/SupabaseTestView';
+
+import { MascotAI } from './components/MascotAI';
+
+// ============================================
+// MAIN APP COMPONENT
+// ============================================
 
 function AppContent() {
-  // 🐛 DEBUG MODE: Bypass landing/auth - v2.1 Emerald Design Update
-  // TODO: Set DEBUG_MODE = false when done testing
-  const DEBUG_MODE = false; // ❌ DISABLED - Testing authentication flow
-  
-  // ALL HOOKS MUST BE CALLED FIRST - No conditional returns before all hooks are called
-  const [currentView, setCurrentView] = useState<View>(DEBUG_MODE ? "dashboard" : "landing");
-  const [currentLessonId, setCurrentLessonId] = useState<number>(9);
-  const [hasSeenLanding, setHasSeenLanding] = useState(DEBUG_MODE ? true : false);
-  const [mascotVisible, setMascotVisible] = useState(true); // 🎯 NEW: Mascot visibility state
-  const [hasSeenAuth, setHasSeenAuth] = useState(false);
-  const [shouldShowResults, setShouldShowResults] = useState(false);
-  
-  const authResult = useAuth();
-  const { user, loading: authLoading } = authResult || { user: null, loading: true };
-  
-  const {
-    onboarding,
-    shouldShowOnboarding,
-    loading: onboardingLoading,
-  } = useOnboarding();
+    const [currentView, setCurrentView] = useState<View>('landing');
+    const [lessonId, setLessonId] = useState<number>(1);
+    const [showTutorial, setShowTutorial] = useState(false);
+    const [navigationParams, setNavigationParams] = useState<any>(null);
+    const [mascotVisible, setMascotVisible] = useState(true);
 
-  // Memoize mascot toggle handler to prevent unnecessary re-renders
-  const handleMascotToggle = useCallback(() => {
-    setMascotVisible(true);
-  }, []);
+    const authResult = useAuth();
+    const { user, loading: authLoading } = authResult || { user: null, loading: true };
 
-  // On mount, ensure we start fresh - don't auto-show results on page reload
-  useEffect(() => {
-    setShouldShowResults(false);
-  }, []);
+    const {
+        onboarding,
+        shouldShowOnboarding,
+        loading: onboardingLoading,
+    } = useOnboarding();
 
-  // Handle OAuth callback properly
-  useEffect(() => {
-    // Wait for auth loading to finish
-    if (authLoading) return;
+    // ============================================
+    // TUTORIAL STATE MANAGEMENT
+    // ============================================
 
-    // If we have a user
-    if (user) {
-      console.log('👤 [App] User detected:', user.email);
-      
-      // Check if we are in an OAuth flow or just landed
-      const isOAuthFlow = window.location.hash.includes('access_token') || 
-                         window.location.search.includes('code=') ||
-                         document.referrer.includes('google.com') || 
-                         document.referrer.includes('supabase');
+    // Check if tutorial has been seen
+    useEffect(() => {
+        if (!user || onboardingLoading || shouldShowOnboarding) return;
 
-      if (isOAuthFlow || currentView === 'landing') {
-        console.log('🔄 [App] Authenticated user on landing/OAuth - redirecting...');
-        
-        // Clean URL if needed
-        if (window.location.hash.includes('access_token')) {
-           window.history.replaceState(null, '', window.location.pathname);
+        const tutorialKey = `btc-wheel-tutorial-seen-${user.id}`;
+        const hasSeenTutorial = localStorage.getItem(tutorialKey);
+
+        // Se l'utente è in Home, ha finito l'onboarding e non ha mai visto il tutorial -> Mostralo
+        if (currentView === 'home' && !hasSeenTutorial && !showTutorial) {
+            // Piccolo delay per assicurarsi che la UI sia pronta
+            const timer = setTimeout(() => {
+                setShowTutorial(true);
+            }, 1000);
+            return () => clearTimeout(timer);
         }
+    }, [currentView, user, onboardingLoading, shouldShowOnboarding, showTutorial]);
 
-        // Redirect based on onboarding state
-        if (shouldShowOnboarding) {
-           setCurrentView('onboarding');
-        } else {
-           setCurrentView('home');
+    const handleTutorialComplete = () => {
+        if (user) {
+            localStorage.setItem(`btc-wheel-tutorial-seen-${user.id}`, 'true');
         }
-      }
-    } else if (!authLoading) {
-        // No user and not loading... check if we SHOULD have had a user (error case)
-        const hash = window.location.hash;
-        const search = window.location.search;
-        if (hash.includes('access_token') || search.includes('code=')) {
-             console.warn('⚠️ [App] OAuth params present but no user session found yet.');
-        }
-    }
-  }, [user, authLoading, shouldShowOnboarding, currentView]);
+        setShowTutorial(false);
+    };
 
-  // Check if we should show onboarding results after completion
-  useEffect(() => {
-    if (onboarding.completed && onboarding.recommendations && user) {
-      const resultsShown = localStorage.getItem('btcwheel_onboarding_results_shown');
-      
-      if (!resultsShown) {
-        setShouldShowResults(true);
-        setHasSeenLanding(true);
-      } else {
-        setShouldShowResults(false);
-        setHasSeenLanding(true);
-      }
-    } else {
-      // Reset results flag if conditions not met (initial page load, etc.)
-      setShouldShowResults(false);
-    }
-  }, [onboarding.completed, onboarding.recommendations, user]);
+    // ============================================
+    // NAVIGATION
+    // ============================================
 
-  // Handler for navigation
-  const handleNavigation = (view: View, lessonId?: number) => {
-    // When navigating away from landing, mark it as seen
-    if (currentView === 'landing' && view !== 'landing') {
-      setHasSeenLanding(true);
-    }
-    setCurrentView(view);
-    if (lessonId !== undefined) {
-      setCurrentLessonId(lessonId);
-    }
-  };
-
-  // NOW we can do conditional returns - all hooks have been called
-  
-  // Check URL params for test views
-  if (typeof window !== 'undefined') {
-    const params = new URLSearchParams(window.location.search);
-    if (params.get("test") === "chat") {
-      return <ChatTutorTest />;
-    }
-    if (params.get("status") === "supabase") {
-      return <SupabaseStatus />;
-    }
-    if (params.get("test") === "supabase") {
-      return <SupabaseTestView />;
-    }
-  }
-
-  // ALWAYS show landing page if that's the current view (skip all auth/onboarding checks)
-  // Landing page is PUBLIC and accessible without authentication
-  if (currentView === 'landing') {
-    return (
-      <>
-        <MobileOptimizations />
-        <Toaster />
-        <LandingPage onNavigate={handleNavigation} />
-      </>
-    );
-  }
-
-  // Show loading while checking auth and onboarding state (only for non-landing views)
-  // If we're on landing, don't show loading spinner - just show the landing page
-  if (authLoading || onboardingLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center">
-        <div className="text-white text-center">
-          <div className="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-lg">Caricamento...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Show auth screen if requested explicitly
-  if (currentView === 'auth') {
-    return (
-      <>
-        <MobileOptimizations />
-        <Toaster />
-        <AuthView onAuthSuccess={() => {
-          setHasSeenAuth(true);
-          // After auth, show onboarding if not completed, otherwise go to home
-          if (shouldShowOnboarding) {
-            setCurrentView('onboarding');
-          } else {
-            setCurrentView('home');
-          }
-        }} />
-      </>
-    );
-  }
-
-
-  // Show auth screen if no user and user has left the landing page
-  // Auth is REQUIRED to access the app after leaving landing
-  // SKIP in DEBUG_MODE
-  if (!DEBUG_MODE && !user && hasSeenLanding) {
-    console.log('[App] No user found, showing auth');
-    return (
-      <>
-        <MobileOptimizations />
-        <Toaster />
-        <AuthView 
-          onAuthSuccess={() => {
-            setHasSeenAuth(true);
-            // After auth, show onboarding if not completed, otherwise go to home
-            if (shouldShowOnboarding) {
-              setCurrentView('onboarding');
-            } else {
-              setCurrentView('home');
+    const handleNavigation = useCallback((view: View, params?: any) => {
+        setCurrentView(view);
+        if (params) {
+            setNavigationParams(params);
+            if (params.lessonId) {
+                setLessonId(params.lessonId);
             }
-          }} 
-        />
-      </>
-    );
-  }
-
-  // Show onboarding results only if flag is set AND we're not on landing
-  // This ensures results only show right after completing onboarding, not on page reload
-  if (shouldShowResults && onboarding.recommendations && hasSeenLanding) {
-    console.log('[App] Rendering onboarding results');
-    return (
-      <>
-        <MobileOptimizations />
-        <Toaster />
-        <OnboardingResults
-          recommendations={onboarding.recommendations}
-          onStart={() => {
-            console.log('[App] Starting course from onboarding results');
-            // Mark results as shown
-            localStorage.setItem(
-              'btcwheel_onboarding_results_shown',
-              "true",
-            );
-            // Hide results and navigate to dashboard (not home)
-            setShouldShowResults(false);
-            setCurrentView('dashboard');
-          }}
-        />
-      </>
-    );
-  }
-
-  // Show onboarding ONLY if explicitly navigating to it (not automatically)
-  // We never auto-redirect to onboarding - user must click "Inizia Gratis" from landing
-  if (currentView === 'onboarding') {
-    console.log('[App] Rendering onboarding view');
-    return (
-      <>
-        <MobileOptimizations />
-        <Toaster />
-        <OnboardingView
-          onComplete={() => {
-            console.log('[App] ✅ Onboarding completed! Navigating to dashboard...');
-            // Mark as seen
-            setHasSeenLanding(true);
-            
-            // ALWAYS navigate to dashboard immediately
-            // The results will be shown via the useEffect above if available
-            setCurrentView('dashboard');
-          }}
-        />
-      </>
-    );
-  }
-
-  // Normal app flow
-  console.log('[App] Rendering normal app flow, currentView:', currentView);
-  
-  return (
-    <div className="min-h-screen bg-gray-50">
-      <MobileOptimizations />
-      <MobileGestures />
-      <Toaster />
-      <PWAInstallPrompt />
-      <AppUpdatePrompt />
-      {currentView === "home" && (
-        <HomePage onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
-      )}
-      {currentView === "dashboard" && (
-        <Dashboard onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
-      )}
-      {currentView === "lessons" && (
-        <LessonList onNavigate={handleNavigation} />
-      )}
-      {currentView === "lesson" && (
-        <LessonView onNavigate={(view) => handleNavigation(view)} lessonId={currentLessonId} />
-      )}
-      {currentView === "badges" && (
-        <BadgeShowcase onNavigate={handleNavigation} />
-      )}
-      {currentView === "simulation" && (
-        <SimulationView onNavigate={handleNavigation} />
-      )}
-      {currentView === "longterm" && (
-        <LongTermSimulator onNavigate={handleNavigation} />
-      )}
-      {currentView === "wheel-strategy" && (
-        <WheelStrategyView onNavigate={handleNavigation} />
-      )}
-      {currentView === "leaderboard" && (
-        <LeaderboardView onNavigate={handleNavigation} />
-      )}
-      {currentView === "settings" && (
-        <SettingsView onNavigate={handleNavigation} />
-      )}
-      {currentView === "exchange" && (
-        <ExchangeView onNavigate={handleNavigation} mascotVisible={mascotVisible} onMascotToggle={handleMascotToggle} />
-      )}
-      
-      {/* AI-Powered Mascot - Available globally (except landing) */}
-      <MascotAI 
-        lessonContext={
-          currentView === 'lesson' 
-            ? {
-                lessonId: currentLessonId,
-                lessonTitle: `Lezione ${currentLessonId}`,
-              }
-            : undefined
+        } else {
+            setNavigationParams(null);
         }
-        isVisible={mascotVisible}
-        onVisibilityChange={setMascotVisible}
-      />
-    </div>
-  );
+    }, []);
+
+    // ============================================
+    // AUTH STATE EFFECTS
+    // ============================================
+
+    // Redirect dopo login/logout
+    useEffect(() => {
+        if (authLoading) return;
+
+        if (user) {
+            // OAuth callback handling
+            const isOAuthFlow = window.location.hash.includes('access_token') ||
+                window.location.search.includes('code=');
+
+            if (isOAuthFlow) {
+                window.history.replaceState(null, '', window.location.pathname);
+            }
+
+            // Redirect dopo login
+            if (currentView === 'landing' || currentView === 'auth') {
+                if (shouldShowOnboarding) {
+                    setCurrentView('onboarding');
+                } else {
+                    setCurrentView('home');
+                }
+            }
+        } else {
+            // User logged out - redirect to landing if on protected route
+            if (requiresAuth(currentView)) {
+                setCurrentView('landing');
+            }
+        }
+    }, [user, authLoading, shouldShowOnboarding, currentView]);
+
+    // ============================================
+    // LEGACY VIEW REDIRECTS
+    // ============================================
+
+    // Redirect delle view legacy alle nuove sezioni
+    useEffect(() => {
+        const legacyRedirects: Record<string, View> = {
+            'dashboard': 'home',
+            'lessons': 'academy',
+            'badges': 'profile',
+            // simulation, longterm, wheel-strategy mantengono i vecchi componenti
+            'leaderboard': 'profile',
+            'settings': 'profile',
+            'exchange': 'trading',
+        };
+
+        if (currentView in legacyRedirects) {
+            setCurrentView(legacyRedirects[currentView as keyof typeof legacyRedirects]);
+        }
+    }, [currentView]);
+
+    // ============================================
+    // DEBUG/TEST ROUTES
+    // ============================================
+
+    if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get("test") === "chat") return <ChatTutorTest />;
+        if (params.get("status") === "supabase") return <SupabaseStatus />;
+        if (params.get("test") === "supabase") return <SupabaseTestView />;
+    }
+
+    // ============================================
+    // LOADING STATE
+    // ============================================
+
+    if (authLoading || onboardingLoading) {
+        return (
+            <div className="min-h-screen bg-[#030305] flex items-center justify-center">
+                <div className="text-white text-center">
+                    <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                    <p className="text-[#888899] text-sm font-medium">Caricamento...</p>
+                </div>
+            </div>
+        );
+    }
+
+    // ============================================
+    // SPECIAL VIEWS (No Navigation)
+    // ============================================
+
+    // Landing Page (non loggato)
+    if (currentView === 'landing') {
+        return (
+            <>
+                <MobileOptimizations />
+                <Toaster />
+                <LandingPage onNavigate={handleNavigation} />
+            </>
+        );
+    }
+
+    // Auth View
+    if (currentView === 'auth' || (!user && requiresAuth(currentView))) {
+        return (
+            <>
+                <MobileOptimizations />
+                <Toaster />
+                <AuthView onAuthSuccess={() => {
+                    // Redirect gestito da useEffect
+                }} />
+            </>
+        );
+    }
+
+    // Onboarding
+    if (currentView === 'onboarding') {
+        return (
+            <>
+                <MobileOptimizations />
+                <Toaster />
+                <OnboardingView onComplete={() => setCurrentView('onboarding-results')} />
+            </>
+        );
+    }
+
+    if (currentView === 'onboarding-results') {
+        const defaultRecommendations = {
+            startingLesson: 1,
+            estimatedDuration: "4 Settimane",
+            recommendedPath: ["Fondamenti Bitcoin", "Opzioni Base", "Wheel Strategy", "Gestione Rischio"],
+            focusAreas: ["Basi", "Sicurezza"],
+            tips: ["Inizia con calma", "Usa il simulatore"],
+            customMessage: "Benvenuto! Iniziamo dalle basi per costruire solide fondamenta."
+        };
+
+        return (
+            <>
+                <MobileOptimizations />
+                <Toaster />
+                <OnboardingResults
+                    recommendations={onboarding.recommendations || defaultRecommendations}
+                    onStart={() => setCurrentView('home')}
+                />
+            </>
+        );
+    }
+
+    // ============================================
+    // MAIN APP LAYOUT
+    // ============================================
+
+    return (
+        <div className="min-h-screen bg-[#030305] text-white font-sans pb-24 md:pb-0 md:pl-20">
+            <MobileOptimizations />
+            <PWAInstallPrompt />
+            <AppUpdatePrompt />
+            <Toaster />
+
+            {/* Navigation */}
+            <MainNavigation
+                currentView={currentView}
+                onNavigate={handleNavigation}
+                mascotVisible={mascotVisible}
+                onMascotShow={() => {
+                    console.log('🎭 MainNavigation: onMascotShow called');
+                    setMascotVisible(true);
+                }}
+            />
+
+            {/* App Tutorial Overlay */}
+            <AppTutorial
+                isActive={showTutorial}
+                onComplete={handleTutorialComplete}
+                onSkip={handleTutorialComplete}
+            />
+
+            {/* Main Content Area */}
+            <main className="min-h-screen">
+                {/* HOME Section */}
+                {(currentView === 'home' || currentView === 'weekly-review') && (
+                    <HomeView
+                        currentView={currentView}
+                        onNavigate={handleNavigation}
+                    />
+                )}
+
+                {/* TRADING Section */}
+                {
+                    (currentView === 'trading' ||
+                        currentView === 'exchange-hub' ||
+                        currentView === 'positions' ||
+                        currentView === 'position-detail' ||
+                        currentView === 'pac-tracker') && (
+                        <TradingView
+                            currentView={currentView}
+                            onNavigate={handleNavigation}
+                        />
+                    )
+                }
+
+                {/* SATOSHI Section */}
+                {
+                    (currentView === 'satoshi' ||
+                        currentView === 'satoshi-chat' ||
+                        currentView === 'satoshi-history') && (
+                        <SatoshiView
+                            currentView={currentView}
+                            onNavigate={handleNavigation}
+                        />
+                    )
+                }
+
+                {/* ACADEMY Section */}
+                {
+                    (currentView === 'academy' ||
+                        currentView === 'lesson' ||
+                        currentView === 'quiz' ||
+                        currentView === 'resources') && (
+                        <AcademyView
+                            currentView={currentView}
+                            lessonId={lessonId}
+                            onNavigate={handleNavigation}
+                        />
+                    )
+                }
+
+                {/* PROFILE Section */}
+                {
+                    (currentView === 'profile' ||
+                        currentView === 'objective' ||
+                        currentView === 'risk-profile' ||
+                        currentView === 'notifications' ||
+                        currentView === 'subscription' ||
+                        currentView === 'account') && (
+                        <ProfileView
+                            currentView={currentView}
+                            onNavigate={handleNavigation}
+                        />
+                    )
+                }
+
+                {/* LEGACY VIEWS (Temporanei) */}
+                {
+                    currentView === 'simulation' && (
+                        <SimulationView
+                            onNavigate={handleNavigation}
+
+                        />
+                    )
+                }
+
+                {
+                    currentView === 'longterm' && (
+                        <LongTermSimulator
+                            onNavigate={handleNavigation}
+
+                        />
+                    )
+                }
+
+                {
+                    currentView === 'wheel-strategy' && (
+                        <WheelStrategyView
+                            onNavigate={handleNavigation}
+
+                        />
+                    )
+                }
+
+                {/* Exchange Connection View */}
+                {
+                    currentView === 'exchange-connect' && (
+                        <ExchangeConnectionView
+                            onNavigate={handleNavigation}
+                        />
+                    )
+                }
+
+                {/* Trade Journal View */}
+                {
+                    currentView === 'trade-journal' && (
+                        <TradeJournalView
+                            onNavigate={handleNavigation}
+                            initialData={navigationParams?.tradeData}
+                        />
+                    )
+                }
+
+                {/* Best Deals View */}
+                {
+                    currentView === 'best-deals' && (
+                        <BestDealsView
+                            onNavigate={handleNavigation}
+                        />
+                    )
+                }
+
+                {/* Global AI Mascot - Visible in main app views */}
+                {
+                    user && !shouldShowOnboarding && !showTutorial && mascotVisible && (
+                        <MascotAI
+                            isVisible={mascotVisible}
+                            onVisibilityChange={(visible) => {
+                                console.log('🎭 MascotAI: onVisibilityChange called with:', visible);
+                                setMascotVisible(visible);
+                            }}
+                            lessonContext={
+                                currentView === 'lesson' || currentView === 'quiz'
+                                    ? { lessonId, lessonTitle: `Lezione ${lessonId}` }
+                                    : undefined
+                            }
+                        />
+                    )
+                }
+            </main >
+        </div >
+    );
 }
 
+// ============================================
+// APP WRAPPER
+// ============================================
+
 function App() {
-  return <AppContent />;
+    return <AppContent />;
 }
 
 export default App;
+
+
+// ============================================
+// LEGACY EXPORTS (per compatibilità temporanea)
+// ============================================
+
+export type { View } from './types/navigation';
+
+export interface UserProgress {
+    level: number;
+    xp: number;
+    xpToNextLevel: number;
+    streak: number;
+    badges: string[];
+    lessonsCompleted: number;
+    totalLessons: number;
+    currentLesson: number;
+    completedLessons: number[];
+    perfectQuizzes: number;
+    profitableSimulations: number;
+}

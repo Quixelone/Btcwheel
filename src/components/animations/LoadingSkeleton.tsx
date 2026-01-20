@@ -1,4 +1,4 @@
-import { motion } from 'motion/react';
+import { motion, type Variants } from 'motion/react';
 
 interface LoadingSkeletonProps {
   className?: string;
@@ -6,14 +6,14 @@ interface LoadingSkeletonProps {
   type?: 'text' | 'card' | 'avatar' | 'chart';
 }
 
-export function LoadingSkeleton({ 
-  className = '', 
+export function LoadingSkeleton({
+  className = '',
   count = 1,
-  type = 'text' 
+  type = 'text'
 }: LoadingSkeletonProps) {
   const skeletons = Array.from({ length: count });
 
-  const shimmerVariants = {
+  const shimmerVariants: Variants = {
     shimmer: {
       backgroundPosition: ['200% 0', '-200% 0'],
       transition: {
@@ -24,7 +24,8 @@ export function LoadingSkeleton({
     },
   };
 
-  const pulseVariants = {
+
+  const pulseVariants: Variants = {
     pulse: {
       opacity: [0.5, 0.8, 0.5],
       transition: {
@@ -117,10 +118,10 @@ interface SkeletonTransitionProps {
   children: React.ReactNode;
 }
 
-export function SkeletonTransition({ 
-  loading, 
-  skeleton, 
-  children 
+export function SkeletonTransition({
+  loading,
+  skeleton,
+  children
 }: SkeletonTransitionProps) {
   return (
     <motion.div

@@ -1,5 +1,4 @@
-
-  import { defineConfig } from 'vite';
+import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -86,20 +85,20 @@ export default defineConfig({
           }
         ],
         shortcuts: [
-            {
-              name: "Dashboard",
-              short_name: "Dashboard",
-              description: "Vai alla dashboard principale",
-              url: "/",
-              icons: [{ src: "/icons/icon-96x96.png", sizes: "96x96" }]
-            },
-            {
-              name: "Simulatore",
-              short_name: "Trading",
-              description: "Apri il simulatore di trading",
-              url: "/?view=simulation",
-              icons: [{ src: "/icons/icon-96x96.png", sizes: "96x96" }]
-            }
+          {
+            name: "Dashboard",
+            short_name: "Dashboard",
+            description: "Vai alla dashboard principale",
+            url: "/",
+            icons: [{ src: "/icons/icon-96x96.png", sizes: "96x96" }]
+          },
+          {
+            name: "Simulatore",
+            short_name: "Trading",
+            description: "Apri il simulatore di trading",
+            url: "/?view=simulation",
+            icons: [{ src: "/icons/icon-96x96.png", sizes: "96x96" }]
+          }
         ]
       },
       workbox: {
@@ -112,18 +111,27 @@ export default defineConfig({
       },
     })
   ],
-    resolve: {
-      extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
-      alias: {
-        '@': path.resolve(__dirname, './src'),
+  resolve: {
+    extensions: ['.js', '.jsx', '.ts', '.tsx', '.json'],
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+  build: {
+    target: 'esnext',
+    outDir: 'build',
+  },
+  server: {
+    port: 3000,
+    open: true,
+    // Proxy per evitare CORS con le API Pionex
+    proxy: {
+      '/api/pionex': {
+        target: 'https://api.pionex.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/pionex/, ''),
+        secure: true,
       },
     },
-    build: {
-      target: 'esnext',
-      outDir: 'build',
-    },
-    server: {
-      port: 3000,
-      open: true,
-    },
-  });
+  },
+});

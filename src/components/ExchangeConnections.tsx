@@ -4,25 +4,29 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Badge } from './ui/badge';
-import { 
-  Link as LinkIcon, 
-  CheckCircle2, 
-  XCircle, 
-  Eye, 
-  EyeOff, 
+import {
+  CheckCircle2,
+  Eye,
+  EyeOff,
   RefreshCw,
   TrendingUp,
   DollarSign,
-  Activity
+  Activity,
+  X,
+  Zap,
+  ShieldCheck,
+  Globe
 } from 'lucide-react';
 import { toast } from "sonner";
 import { motion, AnimatePresence } from 'motion/react';
 import { useAuth } from '../hooks/useAuth';
-import { ExchangeLogo, ExchangeCardLogo } from './ExchangeLogos';
+import { ExchangeLogo } from './ExchangeLogos';
+import { projectId, publicAnonKey } from '../utils/supabase/info';
 
 interface Exchange {
   id: string;
   name: string;
+  exchange?: string;
   supportsOptions: boolean;
   connected?: boolean;
   verified?: boolean;
@@ -54,16 +58,18 @@ interface Trade {
 }
 
 export function ExchangeConnections() {
-  const { user } = useAuth();
+  const { user, session } = useAuth();
+  const accessToken = session?.access_token || publicAnonKey;
+
   const [exchanges, setExchanges] = useState<Exchange[]>([]);
   const [connectedExchanges, setConnectedExchanges] = useState<Exchange[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [_loading, setLoading] = useState(false);
   const [selectedExchange, setSelectedExchange] = useState<string | null>(null);
   const [showApiForm, setShowApiForm] = useState(false);
   const [trades, setTrades] = useState<Trade[]>([]);
   const [stats, setStats] = useState<TradeStats | null>(null);
-  const [loadingTrades, setLoadingTrades] = useState(false);
-  
+  const [_loadingTrades, setLoadingTrades] = useState(false);
+
   // Form state
   const [apiKey, setApiKey] = useState('');
   const [apiSecret, setApiSecret] = useState('');
@@ -81,14 +87,13 @@ export function ExchangeConnections() {
 
   const loadExchanges = async () => {
     try {
-      const { projectId, publicAnonKey } = await import('../utils/supabase/info');
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/exchanges`,
         {
           headers: { 'Authorization': `Bearer ${publicAnonKey}` }
         }
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         setExchanges(data.exchanges);
@@ -101,16 +106,15 @@ export function ExchangeConnections() {
 
   const loadConnectedExchanges = async () => {
     if (!user?.id) return;
-    
+
     try {
-      const { projectId, publicAnonKey } = await import('../utils/supabase/info');
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/exchanges/user/${user.id}`,
         {
-          headers: { 'Authorization': `Bearer ${publicAnonKey}` }
+          headers: { 'Authorization': `Bearer ${accessToken}` }
         }
       );
-      
+
       if (response.ok) {
         const data = await response.json();
         setConnectedExchanges(data.exchanges);
@@ -127,16 +131,15 @@ export function ExchangeConnections() {
     }
 
     setTesting(true);
-    
+
     try {
-      const { projectId, publicAnonKey } = await import('../utils/supabase/info');
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/exchanges/test-connection`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`
+            'Authorization': `Bearer ${accessToken}`
           },
           body: JSON.stringify({
             exchange: selectedExchange,
@@ -166,16 +169,15 @@ export function ExchangeConnections() {
     if (!user?.id || !selectedExchange || !apiKey || !apiSecret) return;
 
     setLoading(true);
-    
+
     try {
-      const { projectId, publicAnonKey } = await import('../utils/supabase/info');
       const response = await fetch(
         `https://${projectId}.supabase.co/functions/v1/make-server-7c0f82ca/exchanges/save-credentials`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`
+            'Authorization': `Bearer ${accessToken}`
           },
           body: JSON.stringify({
             userId: user.id,
@@ -209,22 +211,16 @@ export function ExchangeConnections() {
     if (!user?.id) return;
 
     setLoadingTrades(true);
-    
+
     try {
-      const { projectId, publicAnonKey } = await import('../utils/supabase/info');
-      
-      // Get stored credentials
       const connectedExchange = connectedExchanges.find(e => e.id === exchangeId);
       if (!connectedExchange) {
         toast.error('Exchange non connesso');
         return;
       }
 
-      // For demo purposes, we'll need to implement secure credential retrieval
-      // In a real app, credentials would be encrypted and fetched securely
       toast.info('Caricamento trade in corso...');
-      
-      // Calculate date range (last 7 days)
+
       const endDate = new Date();
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 7);
@@ -235,12 +231,10 @@ export function ExchangeConnections() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${publicAnonKey}`
+            'Authorization': `Bearer ${accessToken}`
           },
           body: JSON.stringify({
             exchange: exchangeId,
-            apiKey: 'stored_key', // Would come from secure storage
-            apiSecret: 'stored_secret', // Would come from secure storage
             startDate: startDate.toISOString(),
             endDate: endDate.toISOString()
           })
@@ -268,7 +262,6 @@ export function ExchangeConnections() {
     setApiKey('');
     setApiSecret('');
     setPassphrase('');
-    setShowSecret(false);
     setSelectedExchange(null);
   };
 
@@ -277,279 +270,264 @@ export function ExchangeConnections() {
   };
 
   return (
-    <div className="space-y-6">
-      {/* Connected Exchanges */}
-      {connectedExchanges.length > 0 && (
-        <Card className="p-6 bg-gradient-to-br from-gray-800/30 to-gray-900/30 backdrop-blur-xl border border-white/10">
-          <h3 className="text-white mb-4 flex items-center gap-2">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-            Exchange Connessi
-          </h3>
-          <div className="grid md:grid-cols-2 gap-4">
-            {connectedExchanges.map((exchange) => (
-              <motion.div
-                key={exchange.exchange}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="p-4 bg-gradient-to-br from-emerald-500/10 to-teal-500/10 border border-emerald-500/20 rounded-lg backdrop-blur-sm"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-3">
-                    <ExchangeLogo exchangeId={exchange.exchange} size={40} />
-                    <div>
-                      <p className="text-white font-semibold">{exchange.name}</p>
-                      <p className="text-xs text-gray-400">
-                        Connesso {new Date(exchange.createdAt || '').toLocaleDateString('it-IT')}
-                      </p>
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {exchanges.map((exchange) => (
+          <motion.div
+            key={exchange.id}
+            whileHover={{ y: -4 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Card
+              className={`p-6 bg-slate-900/50 border border-white/5 hover:border-emerald-500/30 transition-all cursor-pointer relative overflow-hidden group ${selectedExchange === exchange.id ? 'ring-2 ring-emerald-500/50 border-emerald-500/30' : ''
+                }`}
+              onClick={() => {
+                setSelectedExchange(exchange.id);
+                if (!isExchangeConnected(exchange.id)) {
+                  setShowApiForm(true);
+                } else {
+                  loadTrades(exchange.id);
+                }
+              }}
+            >
+              <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full blur-2xl -mr-12 -mt-12 pointer-events-none group-hover:bg-emerald-500/10 transition-colors" />
+
+              <div className="flex items-center justify-between mb-6 relative z-10">
+                <div className="flex items-center gap-4">
+                  <div className="p-2 bg-slate-950 rounded-xl border border-white/5 group-hover:border-emerald-500/20 transition-colors">
+                    <ExchangeLogo exchangeId={exchange.id} className="w-10 h-10" />
+                  </div>
+                  <div>
+                    <h3 className="text-white font-black uppercase tracking-tight">{exchange.name}</h3>
+                    <div className="flex gap-2 mt-1">
+                      {exchange.supportsOptions && (
+                        <Badge className="bg-blue-500/10 text-blue-400 border-blue-500/20 text-[8px] font-black uppercase px-1.5 py-0">Options</Badge>
+                      )}
+                      <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20 text-[8px] font-black uppercase px-1.5 py-0">Spot</Badge>
                     </div>
                   </div>
-                  <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">Attivo</Badge>
                 </div>
-                <Button
-                  onClick={() => loadTrades(exchange.exchange)}
-                  disabled={loadingTrades}
-                  className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 border-0 shadow-lg"
-                  size="sm"
-                >
-                  {loadingTrades ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                      Caricamento...
-                    </>
-                  ) : (
-                    <>
-                      <Activity className="w-4 h-4 mr-2" />
-                      Carica Trade
-                    </>
-                  )}
-                </Button>
-              </motion.div>
-            ))}
-          </div>
-        </Card>
-      )}
-
-      {/* Trade Statistics */}
-      {stats && (
-        <Card className="p-6 bg-gradient-to-br from-blue-500/10 to-purple-500/10 backdrop-blur-xl border border-blue-500/20">
-          <h3 className="text-white mb-4 flex items-center gap-2">
-            📊 Statistiche Trade (Ultimi 7 giorni)
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-gray-400 text-sm mb-1">Trade Totali</p>
-              <p className="text-white text-2xl font-bold">{stats.totalTrades}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm mb-1">Trade Wheel</p>
-              <p className="text-emerald-400 text-2xl font-bold">{stats.wheelTrades}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm mb-1">Premium Totale</p>
-              <p className="text-green-400 text-2xl font-bold">${stats.totalPremium.toFixed(2)}</p>
-            </div>
-            <div>
-              <p className="text-gray-400 text-sm mb-1">Fee Pagate</p>
-              <p className="text-orange-400 text-2xl font-bold">${stats.totalFees.toFixed(2)}</p>
-            </div>
-          </div>
-        </Card>
-      )}
-
-      {/* Available Exchanges */}
-      <Card className="p-6 bg-gradient-to-br from-gray-800/30 to-gray-900/30 backdrop-blur-xl border border-white/10">
-        <h3 className="text-white mb-4">Exchange Disponibili</h3>
-        <div className="grid md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {exchanges.map((exchange) => {
-            const connected = isExchangeConnected(exchange.id);
-            
-            return (
-              <motion.button
-                key={exchange.id}
-                onClick={() => {
-                  if (!connected) {
-                    setSelectedExchange(exchange.id);
-                    setShowApiForm(true);
-                  }
-                }}
-                disabled={connected}
-                whileHover={!connected ? { scale: 1.02, y: -2 } : {}}
-                whileTap={!connected ? { scale: 0.98 } : {}}
-                className={`p-4 rounded-xl border-2 text-left transition-all ${
-                  connected
-                    ? 'bg-gray-800/30 border-white/5 opacity-50 cursor-not-allowed'
-                    : selectedExchange === exchange.id
-                    ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/40 shadow-lg shadow-purple-500/20'
-                    : 'bg-white/5 border-white/10 hover:border-purple-500/30 hover:bg-white/10'
-                }`}
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  <ExchangeLogo exchangeId={exchange.id} size={36} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white font-semibold truncate">{exchange.name}</p>
+                {isExchangeConnected(exchange.id) ? (
+                  <div className="w-10 h-10 bg-emerald-500/10 rounded-full flex items-center justify-center border border-emerald-500/20">
+                    <CheckCircle2 className="w-6 h-6 text-emerald-500" />
                   </div>
-                  {connected && (
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                  )}
-                </div>
-                {exchange.supportsOptions && (
-                  <Badge className="bg-purple-500/20 text-purple-300 border border-purple-500/30">Opzioni ⚡</Badge>
+                ) : (
+                  <div className="w-10 h-10 rounded-full border-2 border-white/5 group-hover:border-emerald-500/20 transition-colors flex items-center justify-center">
+                    <Zap className="w-4 h-4 text-slate-700 group-hover:text-emerald-500/50 transition-colors" />
+                  </div>
                 )}
-              </motion.button>
-            );
-          })}
-        </div>
-      </Card>
+              </div>
 
-      {/* API Form */}
+              <div className="flex items-center justify-between text-[10px] font-black text-slate-600 uppercase tracking-widest relative z-10">
+                <span>Status</span>
+                <span className={isExchangeConnected(exchange.id) ? 'text-emerald-500' : 'text-slate-700'}>
+                  {isExchangeConnected(exchange.id) ? 'Connected' : 'Not Connected'}
+                </span>
+              </div>
+            </Card>
+          </motion.div>
+        ))}
+      </div>
+
       <AnimatePresence>
         {showApiForm && selectedExchange && (
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="relative z-40"
           >
-            <Card className="p-6 bg-gradient-to-br from-gray-800/30 to-gray-900/30 backdrop-blur-xl border-2 border-purple-500/40 shadow-lg shadow-purple-500/20">
-              <h3 className="text-white mb-6 flex items-center gap-2 text-xl">
-                🔐 Configura API per {exchanges.find(e => e.id === selectedExchange)?.name}
-              </h3>
-              
-              <div className="space-y-5">
-                <div>
-                  <Label className="text-gray-300 mb-2">API Key *</Label>
+            <Card className="p-10 bg-slate-900/90 border border-emerald-500/30 backdrop-blur-2xl rounded-[2rem] relative overflow-hidden shadow-2xl">
+              <div className="absolute top-0 right-0 p-6">
+                <Button variant="ghost" size="sm" onClick={() => setShowApiForm(false)} className="w-10 h-10 rounded-full text-slate-500 hover:text-white hover:bg-white/5">
+                  <X className="w-6 h-6" />
+                </Button>
+              </div>
+
+              <div className="flex flex-col md:flex-row items-center gap-8 mb-10">
+                <div className="w-20 h-20 bg-slate-950 rounded-3xl border border-white/10 flex items-center justify-center shadow-xl">
+                  <ExchangeLogo exchangeId={selectedExchange} className="w-12 h-12" />
+                </div>
+                <div className="text-center md:text-left">
+                  <h2 className="text-3xl font-black text-white uppercase tracking-tight flex items-center gap-3 justify-center md:justify-start">
+                    Connetti {exchanges.find(e => e.id === selectedExchange)?.name}
+                    <ShieldCheck className="w-8 h-8 text-emerald-500" />
+                  </h2>
+                  <p className="text-slate-400 font-medium mt-2 flex items-center gap-2 justify-center md:justify-start">
+                    <Globe className="w-4 h-4 text-blue-500" />
+                    Le tue chiavi API sono criptate e memorizzate in modo sicuro
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid md:grid-cols-2 gap-8 mb-10">
+                <div className="space-y-3">
+                  <Label className="text-slate-500 font-black text-[10px] uppercase tracking-widest ml-1">API Key</Label>
                   <Input
-                    type="text"
                     value={apiKey}
                     onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="Inserisci la tua API key"
-                    className="h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500/50"
+                    placeholder="Inserisci la tua API Key"
+                    className="bg-slate-950 border-white/10 text-white h-14 rounded-2xl focus:border-emerald-500 px-6 font-medium"
                   />
                 </div>
-
-                <div>
-                  <Label className="text-gray-300 mb-2">API Secret *</Label>
+                <div className="space-y-3">
+                  <Label className="text-slate-500 font-black text-[10px] uppercase tracking-widest ml-1">API Secret</Label>
                   <div className="relative">
                     <Input
                       type={showSecret ? 'text' : 'password'}
                       value={apiSecret}
                       onChange={(e) => setApiSecret(e.target.value)}
-                      placeholder="Inserisci il tuo API secret"
-                      className="h-12 pr-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500/50"
+                      placeholder="Inserisci il tuo API Secret"
+                      className="bg-slate-950 border-white/10 text-white h-14 rounded-2xl focus:border-emerald-500 px-6 pr-14 font-medium"
                     />
                     <button
                       onClick={() => setShowSecret(!showSecret)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white transition-colors"
+                      className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500 hover:text-white transition-colors"
                     >
                       {showSecret ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                     </button>
                   </div>
                 </div>
-
-                {(selectedExchange === 'kucoin' || selectedExchange === 'okx' || selectedExchange === 'bitget') && (
-                  <div>
-                    <Label className="text-gray-300 mb-2">Passphrase {selectedExchange === 'kucoin' ? '*' : '(opzionale)'}</Label>
+                {(selectedExchange === 'okx' || selectedExchange === 'kucoin') && (
+                  <div className="space-y-3 md:col-span-2">
+                    <Label className="text-slate-500 font-black text-[10px] uppercase tracking-widest ml-1">Passphrase</Label>
                     <Input
                       type="password"
                       value={passphrase}
                       onChange={(e) => setPassphrase(e.target.value)}
-                      placeholder="Inserisci la passphrase"
-                      className="h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-500 focus:border-purple-500/50"
+                      placeholder="Passphrase dell'API"
+                      className="bg-slate-950 border-white/10 text-white h-14 rounded-2xl focus:border-emerald-500 px-6 font-medium"
                     />
                   </div>
                 )}
+              </div>
 
-                <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/30 rounded-xl p-4 backdrop-blur-sm">
-                  <p className="text-sm text-amber-200 leading-relaxed">
-                    ⚠️ <strong className="text-amber-100">Importante:</strong> Assicurati che le tue API keys abbiano solo permessi di lettura (read-only). 
-                    Non condividere mai le tue credenziali API.
-                  </p>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <Button
-                    onClick={testConnection}
-                    disabled={testing || !apiKey || !apiSecret}
-                    className="flex-1 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 border-0 shadow-lg h-12"
-                  >
-                    {testing ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        Testing...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="w-4 h-4 mr-2" />
-                        Testa e Salva
-                      </>
-                    )}
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setShowApiForm(false);
-                      resetForm();
-                    }}
-                    variant="outline"
-                    className="bg-white/5 border-white/10 text-white hover:bg-white/10 h-12"
-                  >
-                    Annulla
-                  </Button>
-                </div>
+              <div className="flex flex-col md:flex-row gap-4">
+                <Button
+                  onClick={testConnection}
+                  disabled={testing || !apiKey || !apiSecret}
+                  className="flex-1 h-16 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-black uppercase text-xs tracking-widest rounded-2xl shadow-xl shadow-emerald-600/20 transition-all"
+                >
+                  {testing ? <RefreshCw className="w-5 h-5 animate-spin mr-3" /> : <Zap className="w-5 h-5 mr-3" />}
+                  {testing ? 'Verifica in corso...' : 'Verifica e Connetti Exchange'}
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setShowApiForm(false)}
+                  className="h-16 px-10 text-slate-400 hover:text-white hover:bg-white/5 font-black uppercase text-xs tracking-widest rounded-2xl"
+                >
+                  Annulla
+                </Button>
               </div>
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Trades List */}
+      {stats && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-6"
+        >
+          <Card className="p-6 bg-slate-900/50 border border-white/5 rounded-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-full blur-xl -mr-8 -mt-8" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                <Activity className="w-4 h-4 text-emerald-500" />
+              </div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Trade Totali</span>
+            </div>
+            <p className="text-3xl font-black text-white">{stats.totalTrades}</p>
+          </Card>
+          <Card className="p-6 bg-slate-900/50 border border-white/5 rounded-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-blue-500/5 rounded-full blur-xl -mr-8 -mt-8" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                <TrendingUp className="w-4 h-4 text-blue-500" />
+              </div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Wheel Trades</span>
+            </div>
+            <p className="text-3xl font-black text-white">{stats.wheelTrades}</p>
+          </Card>
+          <Card className="p-6 bg-slate-900/50 border border-white/5 rounded-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-emerald-500/5 rounded-full blur-xl -mr-8 -mt-8" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 bg-emerald-500/10 rounded-lg flex items-center justify-center">
+                <DollarSign className="w-4 h-4 text-emerald-500" />
+              </div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Premium Totale</span>
+            </div>
+            <p className="text-3xl font-black text-emerald-400">${stats.totalPremium.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+          </Card>
+          <Card className="p-6 bg-slate-900/50 border border-white/5 rounded-2xl relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-16 h-16 bg-orange-500/5 rounded-full blur-xl -mr-8 -mt-8" />
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-8 h-8 bg-orange-500/10 rounded-lg flex items-center justify-center">
+                <RefreshCw className="w-4 h-4 text-orange-500" />
+              </div>
+              <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Commissioni</span>
+            </div>
+            <p className="text-3xl font-black text-orange-400">${stats.totalFees.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
+          </Card>
+        </motion.div>
+      )}
+
       {trades.length > 0 && (
-        <Card className="p-6 bg-gradient-to-br from-gray-800/30 to-gray-900/30 backdrop-blur-xl border border-white/10">
-          <h3 className="text-white mb-4">📋 Trade Importati ({trades.length})</h3>
-          <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-            {trades.slice(0, 20).map((trade) => (
-              <motion.div
-                key={trade.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-between transition-all"
-              >
-                <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    trade.type === 'option' 
-                      ? 'bg-gradient-to-br from-purple-500/20 to-pink-500/20' 
-                      : 'bg-gradient-to-br from-blue-500/20 to-cyan-500/20'
-                  }`}>
-                    {trade.type === 'option' ? (
-                      <TrendingUp className="w-6 h-6 text-purple-400" />
-                    ) : (
-                      <DollarSign className="w-6 h-6 text-blue-400" />
-                    )}
-                  </div>
-                  <div>
-                    <p className="text-white font-semibold">
-                      {trade.symbol}
-                      {trade.optionType && (
-                        <Badge className="ml-2 bg-purple-500/20 text-purple-300 border-none">
-                          {trade.optionType.toUpperCase()}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+        >
+          <Card className="bg-slate-900/50 border border-white/5 overflow-hidden rounded-[2rem]">
+            <div className="p-8 border-b border-white/5 bg-slate-950/30 flex items-center justify-between">
+              <h3 className="text-white font-black uppercase tracking-widest text-sm flex items-center gap-3">
+                <Activity className="w-5 h-5 text-emerald-500" />
+                Cronologia Trade Importati
+              </h3>
+              <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 font-black uppercase text-[10px] px-3 py-1">
+                {trades.length} Operazioni
+              </Badge>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="text-left border-b border-white/5 bg-slate-950/20">
+                    <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Data</th>
+                    <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Simbolo</th>
+                    <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Tipo</th>
+                    <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest">Lato</th>
+                    <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Prezzo</th>
+                    <th className="p-6 text-[10px] font-black text-slate-500 uppercase tracking-widest text-right">Quantità</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {trades.map((trade) => (
+                    <tr key={trade.id} className="hover:bg-white/5 transition-colors group">
+                      <td className="p-6 text-sm text-slate-400 font-bold">
+                        {new Date(trade.timestamp).toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' })}
+                      </td>
+                      <td className="p-6 text-sm text-white font-black tracking-tight">{trade.symbol}</td>
+                      <td className="p-6">
+                        <Badge className={`text-[9px] font-black uppercase px-2 py-0.5 ${trade.type === 'option' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' : 'bg-slate-500/10 text-slate-400 border-slate-500/20'
+                          }`}>
+                          {trade.type} {trade.optionType?.toUpperCase()}
                         </Badge>
-                      )}
-                    </p>
-                    <p className="text-gray-400 text-sm">
-                      {trade.side === 'buy' ? '🟢 Acquisto' : '🔴 Vendita'} 
-                      {trade.strike && ` • Strike $${trade.strike}`}
-                      {' • '}{new Date(trade.timestamp).toLocaleDateString('it-IT')}
-                    </p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-white font-bold text-lg">
-                    ${(trade.premium || trade.price * trade.quantity).toFixed(2)}
-                  </p>
-                  <p className="text-gray-400 text-sm">{trade.quantity} qty</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        </Card>
+                      </td>
+                      <td className="p-6">
+                        <Badge className={`text-[9px] font-black uppercase px-2 py-0.5 ${trade.side === 'sell' ? 'bg-orange-500/10 text-orange-400 border-orange-500/20' : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                          }`}>
+                          {trade.side}
+                        </Badge>
+                      </td>
+                      <td className="p-6 text-sm text-white font-black text-right group-hover:text-emerald-400 transition-colors">${trade.price.toLocaleString(undefined, { minimumFractionDigits: 2 })}</td>
+                      <td className="p-6 text-sm text-white font-black text-right">{trade.quantity}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        </motion.div>
       )}
     </div>
   );
