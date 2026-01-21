@@ -18,7 +18,7 @@ import type { View } from '../types/navigation';
 import { PageWrapper, PageContent, PageHeader } from '../components/layout/PageWrapper';
 import { BaseCard } from '../components/ui/cards';
 import { DailyBriefing } from '../components/satoshi/DailyBriefing';
-import { satoshiService } from '../services/satoshiService';
+import { aiBriefingService } from '../services/aiBriefingService';
 import { BriefingData } from '../types/satoshi';
 import { useSatoshiChat } from '../hooks/useSatoshiChat';
 import { motion, AnimatePresence } from 'motion/react';
@@ -30,6 +30,7 @@ interface SatoshiViewProps {
 
 export function SatoshiView({ currentView, onNavigate }: SatoshiViewProps) {
     const [briefingData, setBriefingData] = useState<BriefingData | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     // Chat Hook
     const { messages, sendMessage, isTyping } = useSatoshiChat();
@@ -37,9 +38,19 @@ export function SatoshiView({ currentView, onNavigate }: SatoshiViewProps) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        // Load daily briefing data
-        const data = satoshiService.getDailyBriefing();
-        setBriefingData(data);
+        const loadBriefing = async () => {
+            setIsLoading(true);
+            try {
+                const data = await aiBriefingService.generateBriefing();
+                setBriefingData(data);
+            } catch (error) {
+                console.error("Failed to load briefing", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        loadBriefing();
     }, []);
 
     // Auto-scroll to bottom of chat
@@ -86,16 +97,16 @@ export function SatoshiView({ currentView, onNavigate }: SatoshiViewProps) {
                                     <div className={`flex gap-3 max-w-[80%] ${msg.sender === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                         {/* Avatar */}
                                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${msg.sender === 'user'
-                                                ? 'bg-purple-500/20 text-purple-400'
-                                                : 'bg-cyan-500/20 text-cyan-400'
+                                            ? 'bg-purple-500/20 text-purple-400'
+                                            : 'bg-cyan-500/20 text-cyan-400'
                                             }`}>
                                             {msg.sender === 'user' ? <User className="w-4 h-4" /> : <Bot className="w-4 h-4" />}
                                         </div>
 
                                         {/* Bubble */}
                                         <div className={`p-3 rounded-2xl text-sm leading-relaxed ${msg.sender === 'user'
-                                                ? 'bg-purple-600 text-white rounded-tr-none'
-                                                : 'bg-white/10 text-slate-200 rounded-tl-none'
+                                            ? 'bg-purple-600 text-white rounded-tr-none'
+                                            : 'bg-white/10 text-slate-200 rounded-tl-none'
                                             }`}>
                                             {msg.text}
                                         </div>
@@ -178,11 +189,11 @@ export function SatoshiView({ currentView, onNavigate }: SatoshiViewProps) {
                                                 {date.toLocaleDateString('it-IT', { day: '2-digit', month: 'short' })}
                                             </div>
                                             <span className={`
-                        text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
-                        ${randomBias === 'bullish' ? 'bg-green-500/10 text-green-400' :
+                            text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full
+                            ${randomBias === 'bullish' ? 'bg-green-500/10 text-green-400' :
                                                     randomBias === 'bearish' ? 'bg-red-500/10 text-red-400' :
                                                         'bg-yellow-500/10 text-yellow-400'}
-                      `}>
+                          `}>
                                                 {randomBias}
                                             </span>
                                         </div>
@@ -222,5 +233,3 @@ export function SatoshiView({ currentView, onNavigate }: SatoshiViewProps) {
         </PageWrapper>
     );
 }
-
-export default SatoshiView;

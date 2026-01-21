@@ -74,6 +74,15 @@ export function TradingView({ currentView, onNavigate }: TradingViewProps) {
                 <PageHeader
                     title="Trading"
                     subtitle="Gestisci i tuoi exchange, posizioni e PAC settimanale"
+                    actions={
+                        <button
+                            onClick={() => onNavigate('trade-journal')}
+                            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl transition-all border border-white/10"
+                        >
+                            <Calendar className="w-4 h-4" />
+                            Trade Journal
+                        </button>
+                    }
                 />
 
                 {/* Quick Stats */}

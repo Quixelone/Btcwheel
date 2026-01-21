@@ -23,6 +23,7 @@ import {
     Bitcoin,
     Trash2,
     Filter,
+    ArrowLeft,
 } from 'lucide-react';
 import type { View } from '../types/navigation';
 import { PageWrapper, PageContent, PageHeader } from '../components/layout/PageWrapper';
@@ -206,6 +207,15 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
     return (
         <PageWrapper>
             <PageContent>
+                {/* Back Button */}
+                <button
+                    onClick={() => onNavigate('trading')}
+                    className="flex items-center gap-2 text-sm text-[#888899] hover:text-white transition-colors mb-2"
+                >
+                    <ArrowLeft className="w-4 h-4" />
+                    Torna al Trading
+                </button>
+
                 <PageHeader
                     title="Trade Journal"
                     subtitle="Registra e monitora tutte le tue operazioni"

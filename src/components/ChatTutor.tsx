@@ -111,34 +111,61 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
         conversationHistory: messages.slice(-4) // Last 4 messages for context
       };
 
-      // Use local n8n webhook that bridges to NotebookLM
-      const apiUrl = 'http://localhost:5678/webhook/btcwheel-chat';
+      // Use production n8n webhook that bridges to NotebookLM
+      const apiUrl = 'https://primary-production-92d1.up.railway.app/webhook/btcwheel-chat';
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: userMessage.content,
-          context
-        })
-      });
+      // Create a controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: userMessage.content,
+            context
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        // Handle both object {response: ""} and n8n array [{response: ""}]
+        const aiResponse = data.response ||
+          (Array.isArray(data) && data[0]?.response) ||
+          data.output ||
+          (Array.isArray(data) && data[0]?.output);
+
+        if (aiResponse) {
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: aiResponse,
+            timestamp: new Date()
+          };
+
+          setMessages(prev => [...prev, assistantMessage]);
+        } else if (data.message === 'Workflow was started') {
+          throw new Error('Configurazione n8n errata: il Webhook deve essere impostato su "When Last Node Finishes" nelle impostazioni del nodo.');
+        } else {
+          console.error('Unexpected AI response structure:', data);
+          throw new Error(`Risposta vuota o formato non valido (Ricevuto: ${JSON.stringify(data).substring(0, 50)}...)`);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          throw new Error('Timeout della connessione (30s)');
+        }
+        throw err;
       }
-
-      const data = await response.json();
-
-      const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        role: 'assistant',
-        content: data.response,
-        timestamp: new Date()
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
 
     } catch (error) {
       console.error('Chat error:', error);
@@ -148,7 +175,7 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
       const fallbackMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "Mi dispiace, al momento non riesco a rispondere. Prova di nuovo tra poco o continua con le lezioni! 📚",
+        content: `Mi dispiace, ho avuto un problema tecnico: ${error instanceof Error ? error.message : 'Connessione fallita'}. Riprova tra poco! 📚`,
         timestamp: new Date()
       };
 
@@ -212,19 +239,19 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
             className="fixed bottom-20 right-4 md:bottom-6 md:right-6 z-50 w-[calc(100vw-2rem)] md:w-96 h-[500px] md:h-[600px]"
           >
-            <Card className="h-full flex flex-col shadow-2xl overflow-hidden">
+            <Card className="h-full flex flex-col shadow-2xl overflow-hidden border-slate-800 bg-slate-900/95 backdrop-blur-xl">
               {/* Header */}
-              <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 flex items-center justify-between">
+              <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 flex items-center justify-between shadow-lg">
                 <div className="flex items-center gap-3">
                   <div className="relative">
-                    <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <div className="w-10 h-10 bg-white/10 rounded-full flex items-center justify-center border border-white/20">
                       <Bot className="w-6 h-6" />
                     </div>
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-white" />
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-green-400 rounded-full border-2 border-slate-900" />
                   </div>
                   <div>
                     <h3 className="text-white font-semibold">AI Tutor</h3>
-                    <p className="text-xs text-blue-100">Assistente Bitcoin Wheel</p>
+                    <p className="text-xs text-blue-100 opacity-80">Assistente Bitcoin Wheel</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -233,14 +260,14 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
                       variant="ghost"
                       size="sm"
                       onClick={clearChat}
-                      className="text-white hover:bg-white/20 h-8"
+                      className="text-white hover:bg-white/10 h-8"
                     >
                       Cancella
                     </Button>
                   )}
                   <button
                     onClick={() => setIsOpen(false)}
-                    className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                    className="text-white hover:bg-white/10 p-2 rounded-lg transition-colors"
                   >
                     <X className="w-5 h-5" />
                   </button>
@@ -248,7 +275,7 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
               </div>
 
               {/* Messages Area */}
-              <ScrollArea className="flex-1 p-4" ref={scrollRef}>
+              <ScrollArea className="flex-1 p-4 bg-slate-900/50 custom-scrollbar" ref={scrollRef}>
                 <div className="space-y-4">
                   {/* Welcome Message */}
                   {messages.length === 0 && (
@@ -257,22 +284,22 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
                       animate={{ opacity: 1, y: 0 }}
                       className="text-center py-8"
                     >
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-blue-500/20">
                         <Sparkles className="w-8 h-8 text-white" />
                       </div>
-                      <h4 className="text-gray-900 mb-2">Ciao! 👋</h4>
-                      <p className="text-gray-600 mb-6">
+                      <h4 className="text-slate-100 font-semibold mb-2">Ciao! 👋</h4>
+                      <p className="text-slate-400 mb-6">
                         Sono il tuo tutor AI personale per la Bitcoin Wheel Strategy. Fammi qualsiasi domanda!
                       </p>
 
                       {/* Suggested Questions */}
                       <div className="space-y-2">
-                        <p className="text-sm text-gray-500 mb-3">Domande suggerite:</p>
+                        <p className="text-sm text-slate-500 mb-3">Domande suggerite:</p>
                         {suggestedQuestions.slice(0, 3).map((question, idx) => (
                           <button
                             key={idx}
                             onClick={() => setInput(question)}
-                            className="w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-sm text-gray-700"
+                            className="w-full text-left p-3 rounded-xl bg-slate-800/50 hover:bg-slate-800 transition-all text-sm text-slate-300 border border-slate-700 hover:border-blue-500/50"
                           >
                             💡 {question}
                           </button>
@@ -281,8 +308,8 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
 
                       {/* Context Badge */}
                       {lessonContext && (
-                        <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-                          <div className="flex items-center gap-2 text-sm text-blue-800">
+                        <div className="mt-4 p-3 bg-blue-900/20 border border-blue-800/30 rounded-xl">
+                          <div className="flex items-center gap-2 text-sm text-blue-300">
                             <BookOpen className="w-4 h-4" />
                             <span>Contesto: {lessonContext.lessonTitle}</span>
                           </div>
@@ -290,8 +317,8 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
                       )}
 
                       {/* User Progress Badge */}
-                      <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                        <div className="flex items-center gap-2 text-sm text-green-800">
+                      <div className="mt-4 p-3 bg-green-900/20 border border-green-800/30 rounded-xl">
+                        <div className="flex items-center gap-2 text-sm text-green-300">
                           <TrendingUp className="w-4 h-4" />
                           <span>Livello {progress.level} • {progress.completedLessons?.length || 0}/{progress.totalLessons} lezioni</span>
                         </div>
@@ -322,13 +349,13 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
                       {/* Message Bubble */}
                       <div className={`flex-1 ${message.role === 'user' ? 'flex justify-end' : ''}`}>
                         <div
-                          className={`inline-block p-3 rounded-lg max-w-[85%] ${message.role === 'user'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-900'
+                          className={`inline-block p-3 rounded-2xl max-w-[85%] shadow-sm ${message.role === 'user'
+                            ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
+                            : 'bg-slate-800 text-slate-100 border border-slate-700'
                             }`}
                         >
-                          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
-                          <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
+                          <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{message.content}</p>
+                          <p className={`text-[10px] mt-1 opacity-60 ${message.role === 'user' ? 'text-white' : 'text-slate-400'}`}>
                             {message.timestamp.toLocaleTimeString('it-IT', {
                               hour: '2-digit',
                               minute: '2-digit'
@@ -351,22 +378,22 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
                           <Bot className="w-4 h-4 text-white" />
                         </AvatarFallback>
                       </Avatar>
-                      <div className="bg-gray-100 p-3 rounded-lg">
+                      <div className="bg-slate-800 p-3 rounded-2xl border border-slate-700">
                         <div className="flex gap-1">
                           <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
                             transition={{ repeat: Infinity, duration: 1, delay: 0 }}
-                            className="w-2 h-2 bg-gray-400 rounded-full"
+                            className="w-2 h-2 bg-blue-400 rounded-full"
                           />
                           <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
                             transition={{ repeat: Infinity, duration: 1, delay: 0.2 }}
-                            className="w-2 h-2 bg-gray-400 rounded-full"
+                            className="w-2 h-2 bg-blue-400 rounded-full"
                           />
                           <motion.div
-                            animate={{ scale: [1, 1.2, 1] }}
+                            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
                             transition={{ repeat: Infinity, duration: 1, delay: 0.4 }}
-                            className="w-2 h-2 bg-gray-400 rounded-full"
+                            className="w-2 h-2 bg-blue-400 rounded-full"
                           />
                         </div>
                       </div>
@@ -376,7 +403,7 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
               </ScrollArea>
 
               {/* Input Area */}
-              <div className="border-t border-gray-200 p-4">
+              <div className="border-t border-slate-800 p-4 bg-slate-900/80 backdrop-blur-sm rounded-b-lg">
                 <div className="flex gap-2">
                   <Textarea
                     ref={inputRef}
@@ -384,13 +411,13 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
                     onChange={(e) => setInput(e.target.value)}
                     onKeyDown={handleKeyPress}
                     placeholder="Scrivi una domanda..."
-                    className="min-h-[44px] max-h-32 resize-none"
+                    className="min-h-[44px] max-h-32 resize-none rounded-xl border border-slate-700 bg-slate-800 text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all"
                     disabled={isLoading}
                   />
                   <Button
                     onClick={sendMessage}
                     disabled={!input.trim() || isLoading}
-                    className="bg-blue-600 hover:bg-blue-700 h-auto px-4"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 h-auto px-4 rounded-xl shadow-lg shadow-blue-900/20"
                   >
                     {isLoading ? (
                       <Loader2 className="w-5 h-5 animate-spin" />
@@ -399,7 +426,7 @@ export function ChatTutor({ lessonContext }: ChatTutorProps) {
                     )}
                   </Button>
                 </div>
-                <p className="text-xs text-gray-500 mt-2">
+                <p className="text-[10px] text-slate-500 mt-2 text-center">
                   Premi Invio per inviare, Shift+Invio per nuova riga
                 </p>
               </div>

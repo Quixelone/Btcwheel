@@ -7,12 +7,12 @@ interface AIThinkingIndicatorProps {
   message?: string;
 }
 
-export function AIThinkingIndicator({ 
+export function AIThinkingIndicator({
   variant = 'dots',
   size = 'md',
   message = 'Prof Satoshi sta pensando...'
 }: AIThinkingIndicatorProps) {
-  
+
   const sizeClasses = {
     sm: 'text-xs',
     md: 'text-sm',
@@ -71,10 +71,10 @@ export function AIThinkingIndicator({
             ease: 'linear',
           }}
         >
-          <Brain 
+          <Brain
             className={`${size === 'sm' ? 'w-5 h-5' : size === 'md' ? 'w-6 h-6' : 'w-8 h-8'} text-purple-600`}
           />
-          
+
           {/* Rotating gears overlay */}
           <motion.div
             className="absolute inset-0"
@@ -91,7 +91,7 @@ export function AIThinkingIndicator({
             <div className="absolute bottom-1 left-0 w-1.5 h-1.5 bg-orange-500 rounded-full" />
           </motion.div>
         </motion.div>
-        
+
         {message && (
           <span className={`${sizeClasses[size]} text-gray-700`}>
             {message}
@@ -108,9 +108,8 @@ export function AIThinkingIndicator({
         <div className="relative">
           {/* Outer pulse rings */}
           <motion.div
-            className={`absolute inset-0 ${
-              size === 'sm' ? 'w-8 h-8' : size === 'md' ? 'w-10 h-10' : 'w-12 h-12'
-            } rounded-full bg-blue-400`}
+            className={`absolute inset-0 ${size === 'sm' ? 'w-8 h-8' : size === 'md' ? 'w-10 h-10' : 'w-12 h-12'
+              } rounded-full bg-blue-400`}
             animate={{
               scale: [1, 1.8],
               opacity: [0.6, 0],
@@ -122,9 +121,8 @@ export function AIThinkingIndicator({
             }}
           />
           <motion.div
-            className={`absolute inset-0 ${
-              size === 'sm' ? 'w-8 h-8' : size === 'md' ? 'w-10 h-10' : 'w-12 h-12'
-            } rounded-full bg-purple-400`}
+            className={`absolute inset-0 ${size === 'sm' ? 'w-8 h-8' : size === 'md' ? 'w-10 h-10' : 'w-12 h-12'
+              } rounded-full bg-purple-400`}
             animate={{
               scale: [1, 1.8],
               opacity: [0.6, 0],
@@ -136,12 +134,11 @@ export function AIThinkingIndicator({
               ease: 'easeOut',
             }}
           />
-          
+
           {/* Center circle */}
           <motion.div
-            className={`relative ${
-              size === 'sm' ? 'w-8 h-8' : size === 'md' ? 'w-10 h-10' : 'w-12 h-12'
-            } rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center`}
+            className={`relative ${size === 'sm' ? 'w-8 h-8' : size === 'md' ? 'w-10 h-10' : 'w-12 h-12'
+              } rounded-full bg-gradient-to-br from-blue-600 to-purple-600 flex items-center justify-center`}
             animate={{
               scale: [1, 1.1, 1],
             }}
@@ -154,7 +151,7 @@ export function AIThinkingIndicator({
             <Zap className="w-4 h-4 text-white" />
           </motion.div>
         </div>
-        
+
         {message && (
           <span className={`${sizeClasses[size]} text-gray-700`}>
             {message}
@@ -193,7 +190,7 @@ export function AIThinkingIndicator({
               <Sparkles className="w-4 h-4 text-yellow-500" />
             </motion.div>
           ))}
-          
+
           {/* Center brain */}
           <motion.div
             className="absolute inset-0 flex items-center justify-center"
@@ -209,7 +206,7 @@ export function AIThinkingIndicator({
             <Brain className="w-6 h-6 text-purple-600" />
           </motion.div>
         </div>
-        
+
         {message && (
           <span className={`${sizeClasses[size]} text-gray-700 bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent`}>
             {message}
@@ -230,14 +227,14 @@ export function ChatTypingBubble() {
       <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex-shrink-0 flex items-center justify-center">
         <Brain className="w-4 h-4 text-white" />
       </div>
-      
+
       {/* Typing bubble */}
-      <div className="bg-gray-100 rounded-2xl rounded-tl-sm px-4 py-3">
+      <div className="bg-slate-800 border border-slate-700 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
             <motion.div
               key={i}
-              className="w-2 h-2 bg-gray-400 rounded-full"
+              className="w-2 h-2 bg-blue-500 rounded-full"
               animate={{
                 y: [0, -6, 0],
                 opacity: [0.4, 1, 0.4],

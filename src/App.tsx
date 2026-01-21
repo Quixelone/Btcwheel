@@ -13,6 +13,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useOnboarding } from './hooks/useOnboarding';
 import { Toaster } from "sonner";
+import { supabase } from './lib/supabase';
 
 // Types
 import type { View } from './types/navigation';
@@ -81,22 +82,44 @@ function AppContent() {
     useEffect(() => {
         if (!user || onboardingLoading || shouldShowOnboarding) return;
 
-        const tutorialKey = `btc-wheel-tutorial-seen-${user.id}`;
-        const hasSeenTutorial = localStorage.getItem(tutorialKey);
+        const checkTutorialStatus = async () => {
+            // 1. Check Supabase first
+            const { data } = await supabase
+                .from('profiles')
+                .select('tutorial_completed')
+                .eq('id', user.id)
+                .single();
 
-        // Se l'utente è in Home, ha finito l'onboarding e non ha mai visto il tutorial -> Mostralo
-        if (currentView === 'home' && !hasSeenTutorial && !showTutorial) {
-            // Piccolo delay per assicurarsi che la UI sia pronta
-            const timer = setTimeout(() => {
-                setShowTutorial(true);
-            }, 1000);
-            return () => clearTimeout(timer);
-        }
+            if (data?.tutorial_completed) {
+                return; // Tutorial already seen
+            }
+
+            // 2. Fallback to localStorage (if DB check passed but false, or failed)
+            const tutorialKey = `btc-wheel-tutorial-seen-${user.id}`;
+            const hasSeenTutorial = localStorage.getItem(tutorialKey);
+
+            // Se l'utente è in Home, ha finito l'onboarding e non ha mai visto il tutorial -> Mostralo
+            if (currentView === 'home' && !hasSeenTutorial && !showTutorial) {
+                // Piccolo delay per assicurarsi che la UI sia pronta
+                const timer = setTimeout(() => {
+                    setShowTutorial(true);
+                }, 1000);
+                return () => clearTimeout(timer);
+            }
+        };
+
+        checkTutorialStatus();
     }, [currentView, user, onboardingLoading, shouldShowOnboarding, showTutorial]);
 
-    const handleTutorialComplete = () => {
+    const handleTutorialComplete = async () => {
         if (user) {
+            // Save to localStorage
             localStorage.setItem(`btc-wheel-tutorial-seen-${user.id}`, 'true');
+
+            // Save to Supabase
+            await supabase.from('profiles').update({
+                tutorial_completed: true
+            }).eq('id', user.id);
         }
         setShowTutorial(false);
     };
@@ -410,7 +433,7 @@ function AppContent() {
 
                 {/* Global AI Mascot - Visible in main app views */}
                 {
-                    user && !shouldShowOnboarding && !showTutorial && mascotVisible && (
+                    user && !shouldShowOnboarding && !showTutorial && (
                         <MascotAI
                             isVisible={mascotVisible}
                             onVisibilityChange={(visible) => {

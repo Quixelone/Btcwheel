@@ -262,10 +262,14 @@ async def health_check():
     }
 
 
+import os
+
 if __name__ == "__main__":
-    print("🚀 Starting BTC Wheel NotebookLM Bridge...")
+    # Get port from environment variable (required for Railway)
+    port = int(os.environ.get("PORT", 8787))
+    
+    print(f"🚀 Starting BTC Wheel NotebookLM Bridge on port {port}...")
     print(f"📁 Auth file: {AUTH_FILE}")
-    print(f"🌐 Server: http://localhost:8787")
     print()
     
-    uvicorn.run(app, host="0.0.0.0", port=8787, log_level="info")
+    uvicorn.run(app, host="0.0.0.0", port=port, log_level="info")

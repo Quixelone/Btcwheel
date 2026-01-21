@@ -9,7 +9,7 @@ import { useHaptics } from '../hooks/useHaptics';
 import { useMascotSounds } from '../hooks/useMascotSounds';
 import { useUserProgress } from '../hooks/useUserProgress';
 import { useMascotEmotion } from '../hooks/useMascotEmotion';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+
 
 // Prof Satoshi mascot images - USING PNG for reliability
 const profSatoshiExcited = '/mascot-excited.png';
@@ -43,10 +43,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isHovering, setIsHovering] = useState(false);
-  const [position, setPosition] = useState(() => {
-    const saved = localStorage.getItem('mascot-position');
-    return saved ? JSON.parse(saved) : { x: 0, y: 0 };
-  });
+  const [position, setPosition] = useState({ x: 0, y: 0 });
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -68,9 +65,9 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
     if (soundEnabled) soundFn();
   };
 
-  // Save position to localStorage
+  // Position persistence removed for reset
   useEffect(() => {
-    localStorage.setItem('mascot-position', JSON.stringify(position));
+    // localStorage.setItem('mascot-position', JSON.stringify(position));
   }, [position]);
 
   // Load chat history
@@ -148,14 +145,12 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
       return;
     }
 
-    // 2nd click: Close the dialog AND hide the mascot
-    console.log('🎭 Closing dialog and hiding mascot');
+    // 2nd click: Just close the dialog
+    console.log('🎭 Closing dialog');
     setIsOpen(false);
     setActivity('idle');
     playSound(() => sounds.click());
     haptics.light();
-    console.log('🎭 Calling onVisibilityChange(false)');
-    onVisibilityChange?.(false);
   };
 
   const handleClose = () => {
@@ -163,7 +158,6 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
     setActivity('idle');
     playSound(() => sounds.click());
     haptics.light();
-    onVisibilityChange?.(false);
   };
 
   const sendMessage = async () => {
@@ -185,8 +179,8 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
     haptics.light();
 
     try {
-      // Use local n8n webhook that bridges to NotebookLM
-      const apiUrl = 'http://localhost:5678/webhook/btcwheel-chat';
+      // Use production n8n webhook that bridges to NotebookLM
+      const apiUrl = 'https://primary-production-92d1.up.railway.app/webhook/btcwheel-chat';
 
       const conversationHistory = messages.slice(-4).map(msg => ({
         role: msg.role,
@@ -204,39 +198,64 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
         conversationHistory
       };
 
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: userMessage.content,
-          context
-        })
-      });
+      // Create a controller for timeout
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
-      }
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            message: userMessage.content,
+            context
+          }),
+          signal: controller.signal
+        });
 
-      const data = await response.json();
+        clearTimeout(timeoutId);
 
-      if (data.response) {
-        const assistantMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          role: 'assistant',
-          content: data.response,
-          timestamp: new Date()
-        };
-
-        setMessages(prev => [...prev, assistantMessage]);
-        setActivity('ai_responding', 3000);
-        playSound(() => sounds.excited());
-        haptics.success();
-
-        if (data.response.includes('Bravo') || data.response.includes('Ottimo')) {
-          setActivity('celebrating', 1500);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
         }
+
+        const data = await response.json();
+
+        // Handle both object {response: ""} and n8n array [{response: ""}]
+        const aiResponse = data.response ||
+          (Array.isArray(data) && data[0]?.response) ||
+          data.output ||
+          (Array.isArray(data) && data[0]?.output);
+
+        if (aiResponse) {
+          const assistantMessage: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: aiResponse,
+            timestamp: new Date()
+          };
+
+          setMessages(prev => [...prev, assistantMessage]);
+          setActivity('ai_responding', 3000);
+          playSound(() => sounds.excited());
+          haptics.success();
+
+          if (aiResponse.includes('Bravo') || aiResponse.includes('Ottimo')) {
+            setActivity('celebrating', 1500);
+          }
+        } else if (data.message === 'Workflow was started') {
+          throw new Error('Configurazione n8n errata: il Webhook deve essere impostato su "When Last Node Finishes" nelle impostazioni del nodo.');
+        } else {
+          console.error('Unexpected AI response structure:', data);
+          throw new Error(`Risposta vuota o formato non valido (Ricevuto: ${JSON.stringify(data).substring(0, 50)}...)`);
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') {
+          throw new Error('Timeout della connessione (30s)');
+        }
+        throw err;
       }
     } catch (error) {
       console.error('AI Chat error:', error);
@@ -244,7 +263,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: "Mi dispiace, ho avuto un problema tecnico. Riprova tra poco! 🔧",
+        content: `Mi dispiace, ho avuto un problema tecnico: ${error instanceof Error ? error.message : 'Connessione fallita'}. Riprova tra poco! 🔧`,
         timestamp: new Date()
       };
 
@@ -330,7 +349,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
 
   const colors = getMoodColors();
 
-  // 🔄 REMOVED: FAB button logic moved to Navigation menu
+  // Hide component if not visible
   if (!isVisible) {
     return null;
   }
@@ -359,7 +378,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
           setPosition({ x: info.offset.x, y: info.offset.y });
         }}
         style={{ x: position.x, y: position.y }}
-        className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-50 safe-area-bottom"
+        className="fixed bottom-20 md:bottom-8 right-4 md:right-8 z-[9999] safe-area-bottom"
       >
         <div className="relative">
           {/* AI Chat Window */}
@@ -372,61 +391,59 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
                 transition={{ type: "spring", bounce: 0.3, duration: 0.4 }}
                 className="absolute bottom-32 md:bottom-40 right-0 w-[calc(100vw-2rem)] md:w-[600px] max-w-2xl"
               >
-                <Card className="backdrop-blur-xl bg-white/95 shadow-2xl border-2 border-blue-200/50">
+                <Card className="h-full flex flex-col shadow-2xl overflow-hidden border-slate-800 bg-slate-900/95 backdrop-blur-xl">
                   {/* Header */}
-                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-4 rounded-t-lg">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-12 h-12">
-                          <img
-                            src={getMascotImage()}
-                            alt="Prof Satoshi AI"
-                            className="w-full h-full object-contain"
-                          />
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
-                        </div>
-                        <div>
-                          <h3 className="text-white">Prof Satoshi AI</h3>
-                          <p className="text-xs text-blue-100">Sempre qui per aiutarti!</p>
-                        </div>
+                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 flex items-center justify-between shadow-lg">
+                    <div className="flex items-center gap-3">
+                      <div className="relative w-12 h-12">
+                        <img
+                          src={getMascotImage()}
+                          alt="Prof Satoshi AI"
+                          className="w-full h-full object-contain"
+                        />
+                        <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-slate-900"></div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        {messages.length > 0 && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={handleClearChat}
-                            className="text-white hover:bg-white/20"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        )}
+                      <div>
+                        <h3 className="text-white font-semibold">Prof Satoshi AI</h3>
+                        <p className="text-xs text-blue-100 opacity-80">Sempre qui per aiutarti!</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {messages.length > 0 && (
                         <Button
                           size="sm"
                           variant="ghost"
-                          onClick={handleClose}
-                          className="text-white hover:bg-white/20"
+                          onClick={handleClearChat}
+                          className="text-white hover:bg-white/10"
                         >
-                          <X className="w-4 h-4" />
+                          <Trash2 className="w-4 h-4" />
                         </Button>
-                      </div>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={handleClose}
+                        className="text-white hover:bg-white/10"
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
                     </div>
                   </div>
 
                   {/* Messages */}
-                  <div className="h-[400px] md:h-[500px] overflow-y-auto p-4 space-y-4">
+                  <div className="h-[400px] md:h-[500px] overflow-y-auto p-4 space-y-4 bg-slate-900/50 custom-scrollbar">
                     {messages.length === 0 ? (
                       <div className="flex flex-col items-center justify-center h-full text-center space-y-4">
                         <motion.div
                           animate={{ rotate: [0, 360] }}
                           transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                          className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center"
+                          className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center shadow-lg shadow-blue-500/20"
                         >
                           <Sparkles className="w-8 h-8 text-white" />
                         </motion.div>
                         <div>
-                          <h4 className="text-gray-900 mb-2">Ciao! 👋 Sono Prof Satoshi!</h4>
-                          <p className="text-sm text-gray-600 mb-4">
+                          <h4 className="text-slate-100 font-semibold mb-2">Ciao! 👋 Sono Prof Satoshi!</h4>
+                          <p className="text-sm text-slate-400 mb-4">
                             Il tuo AI tutor personale per la Bitcoin Wheel Strategy.
                             <br />Chiedimi qualsiasi cosa!
                           </p>
@@ -434,12 +451,12 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
 
                         {/* Suggested Questions */}
                         <div className="w-full space-y-2">
-                          <p className="text-xs text-gray-500">Prova a chiedermi:</p>
+                          <p className="text-xs text-slate-500">Prova a chiedermi:</p>
                           {suggestedQuestions.map((question, idx) => (
                             <button
                               key={idx}
                               onClick={() => setInput(question)}
-                              className="w-full text-left p-3 bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 rounded-lg text-sm text-gray-700 transition-all border border-blue-200/50 hover:border-blue-300"
+                              className="w-full text-left p-3 bg-slate-800/50 hover:bg-slate-800 rounded-xl text-sm text-slate-300 transition-all border border-slate-700 hover:border-blue-500/50"
                             >
                               {question}
                             </button>
@@ -456,13 +473,13 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
                             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                           >
                             <div
-                              className={`max-w-[80%] rounded-2xl p-3 ${message.role === 'user'
+                              className={`max-w-[85%] rounded-2xl p-3 shadow-sm ${message.role === 'user'
                                 ? 'bg-gradient-to-r from-blue-600 to-purple-600 text-white'
-                                : 'bg-gray-100 text-gray-900'
+                                : 'bg-slate-800 text-slate-100 border border-slate-700'
                                 }`}
                             >
-                              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
-                              <p className={`text-xs mt-1 ${message.role === 'user' ? 'text-blue-100' : 'text-gray-500'
+                              <p className="text-sm whitespace-pre-wrap leading-relaxed">{message.content}</p>
+                              <p className={`text-[10px] mt-1 opacity-60 ${message.role === 'user' ? 'text-white' : 'text-slate-400'
                                 }`}>
                                 {message.timestamp.toLocaleTimeString('it-IT', {
                                   hour: '2-digit',
@@ -481,7 +498,7 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
                   </div>
 
                   {/* Input */}
-                  <div className="border-t p-4 bg-gray-50/50 rounded-b-lg">
+                  <div className="border-t border-slate-800 p-4 bg-slate-900/80 backdrop-blur-sm rounded-b-lg">
                     <div className="flex gap-2">
                       <textarea
                         ref={textareaRef}
@@ -489,19 +506,19 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={handleKeyDown}
                         placeholder="Scrivi la tua domanda..."
-                        className="flex-1 resize-none rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[44px] max-h-[120px]"
+                        className="flex-1 resize-none rounded-xl border border-slate-700 bg-slate-800 p-3 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 min-h-[44px] max-h-[120px] transition-all"
                         rows={1}
                         disabled={isLoading}
                       />
                       <Button
                         onClick={sendMessage}
                         disabled={!input.trim() || isLoading}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-4"
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 px-4 rounded-xl shadow-lg shadow-blue-900/20"
                       >
                         <Send className="w-4 h-4" />
                       </Button>
                     </div>
-                    <p className="text-xs text-gray-500 mt-2">
+                    <p className="text-[10px] text-slate-500 mt-2 text-center">
                       Premi Invio per inviare, Shift+Invio per andare a capo
                     </p>
                   </div>
@@ -513,6 +530,12 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
           {/* Mascot Avatar - Clickable and Draggable */}
           <motion.div
             onClick={handleMascotClick}
+            onDoubleClick={() => {
+              console.log('🎭 Mascot double clicked! Hiding...');
+              if (onVisibilityChange) {
+                onVisibilityChange(false);
+              }
+            }}
             onHoverStart={() => setIsHovering(true)}
             onHoverEnd={() => setIsHovering(false)}
             whileHover={{ scale: 1.1 }}
@@ -570,10 +593,10 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.9 }}
                   transition={{ type: "spring", bounce: 0.4, duration: 0.3 }}
-                  className="absolute -top-16 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-white rounded-2xl shadow-xl border-2 border-blue-200 whitespace-nowrap z-50"
+                  className="absolute -top-16 left-1/2 transform -translate-x-1/2 px-4 py-2 bg-slate-800 rounded-2xl shadow-xl border-2 border-blue-500/50 whitespace-nowrap z-50"
                 >
-                  <p className="text-sm text-gray-800">{emotionMessage}</p>
-                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-3 h-3 bg-white border-r-2 border-b-2 border-blue-200"></div>
+                  <p className="text-sm text-white font-medium">{emotionMessage}</p>
+                  <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2 rotate-45 w-3 h-3 bg-slate-800 border-r-2 border-b-2 border-blue-500/50"></div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -650,6 +673,25 @@ export function MascotAI({ lessonContext, isVisible = true, onVisibilityChange }
                 ))}
               </>
             )}
+
+            {/* Close Button (Visible on Hover) */}
+            <AnimatePresence>
+              {isHovering && !isOpen && (
+                <motion.button
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent opening chat
+                    if (onVisibilityChange) onVisibilityChange(false);
+                  }}
+                  className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center shadow-lg border border-white z-50 hover:bg-red-600 transition-colors"
+                  title="Nascondi Mascotte"
+                >
+                  <X className="w-3 h-3" />
+                </motion.button>
+              )}
+            </AnimatePresence>
 
             {/* AI Badge */}
             <motion.div
