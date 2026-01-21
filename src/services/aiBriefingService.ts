@@ -1,4 +1,5 @@
 import { BriefingData } from '../types/satoshi';
+import { supabase } from '../lib/supabase';
 
 const OPENAI_API_KEY = import.meta.env.VITE_OPENAI_API_KEY;
 
@@ -59,13 +60,32 @@ const FALLBACK_DATA: BriefingData = {
 
 export const aiBriefingService = {
     async generateBriefing(): Promise<BriefingData> {
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+        const cacheKey = `daily_briefing_${today}`;
+
+        // 1. Check Cache (KV Store)
+        try {
+            const { data } = await supabase
+                .from('kv_store_7c0f82ca')
+                .select('value')
+                .eq('key', cacheKey)
+                .maybeSingle();
+
+            if (data?.value) {
+                console.log('✅ Briefing loaded from cache');
+                return data.value as BriefingData;
+            }
+        } catch (err) {
+            console.warn('Cache check failed:', err);
+        }
+
         if (!OPENAI_API_KEY) {
             console.warn('OpenAI API Key missing, using fallback data');
             return FALLBACK_DATA;
         }
 
         try {
-            // 1. Get current BTC Price (Binance API - More reliable)
+            // 2. Get current BTC Price (Binance API - More reliable)
             let btcPrice = 89700; // Fallback più realistico
             try {
                 const priceRes = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
@@ -75,7 +95,7 @@ export const aiBriefingService = {
                 console.warn('Failed to fetch BTC price from Binance, using default', e);
             }
 
-            // 2. Call OpenAI
+            // 3. Call OpenAI
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
                 headers: {
@@ -132,10 +152,24 @@ export const aiBriefingService = {
             const jsonStr = content.replace(/```json/g, '').replace(/```/g, '').trim();
             const parsedData = JSON.parse(jsonStr);
 
-            return {
+            const finalData = {
                 ...parsedData,
                 btcPrice: btcPrice // Ensure we use the real fetched price
             };
+
+            // 4. Save to Cache (KV Store)
+            try {
+                await supabase.from('kv_store_7c0f82ca').upsert({
+                    key: cacheKey,
+                    value: finalData,
+                    updated_at: new Date().toISOString()
+                });
+                console.log('✅ Briefing saved to cache');
+            } catch (err) {
+                console.warn('Failed to save briefing to cache:', err);
+            }
+
+            return finalData;
 
         } catch (error) {
             console.error('AI Briefing Generation failed:', error);

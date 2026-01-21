@@ -54,6 +54,7 @@ export interface UserProgressDB {
   lessons_completed: number;
   total_lessons: number;
   current_lesson: number;
+  completed_lessons?: number[];
   last_activity: string;
   created_at: string;
   updated_at: string;
@@ -147,6 +148,7 @@ export async function createUserProgress(userId: string, username: string): Prom
       lessons_completed: 0,
       total_lessons: 15,
       current_lesson: 1,
+      completed_lessons: [],
     };
 
     const { data, error } = await supabase

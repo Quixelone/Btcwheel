@@ -78,19 +78,8 @@ export function AcademyView({ currentView, lessonId = 1, onNavigate }: AcademyVi
         }
     }, [currentView, lessonId, currentLesson]);
 
-    // Get completed lessons from localStorage
-    const getCompletedLessons = (): number[] => {
-        const saved = localStorage.getItem('btcwheel_completed_lessons');
-        return saved ? JSON.parse(saved) : [];
-    };
-
-    const [completedLessons, setCompletedLessons] = useState<number[]>(getCompletedLessons);
-
-    const saveCompletedLesson = (id: number) => {
-        const updated = [...new Set([...completedLessons, id])];
-        setCompletedLessons(updated);
-        localStorage.setItem('btcwheel_completed_lessons', JSON.stringify(updated));
-    };
+    // Use global progress for completed lessons
+    const completedLessons = progress.completedLessons || [];
 
     // Quiz handlers
     const handleAnswerSelect = (answerIndex: number) => {
@@ -124,7 +113,6 @@ export function AcademyView({ currentView, lessonId = 1, onNavigate }: AcademyVi
         } else {
             // Quiz completed
             setQuizCompleted(true);
-            saveCompletedLesson(lessonId);
             completeLesson(lessonId);
 
             const percentage = Math.round((correctAnswers / quizQuestions.length) * 100);

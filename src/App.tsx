@@ -14,6 +14,7 @@ import { useAuth } from './hooks/useAuth';
 import { useOnboarding } from './hooks/useOnboarding';
 import { Toaster } from "sonner";
 import { supabase } from './lib/supabase';
+import { PersistenceService } from './services/PersistenceService';
 
 // Types
 import type { View } from './types/navigation';
@@ -83,15 +84,14 @@ function AppContent() {
         if (!user || onboardingLoading || shouldShowOnboarding) return;
 
         const checkTutorialStatus = async () => {
-            // 1. Check Supabase first
-            const { data } = await supabase
-                .from('profiles')
-                .select('tutorial_completed')
-                .eq('id', user.id)
-                .single();
-
-            if (data?.tutorial_completed) {
-                return; // Tutorial already seen
+            // 1. Check Persistence Service
+            try {
+                const dbData = await PersistenceService.load(user.id, 'tutorial');
+                if (dbData?.completed) {
+                    return; // Tutorial already seen
+                }
+            } catch (dbError) {
+                console.warn('Tutorial DB check failed:', dbError);
             }
 
             // 2. Fallback to localStorage (if DB check passed but false, or failed)
@@ -116,10 +116,8 @@ function AppContent() {
             // Save to localStorage
             localStorage.setItem(`btc-wheel-tutorial-seen-${user.id}`, 'true');
 
-            // Save to Supabase
-            await supabase.from('profiles').update({
-                tutorial_completed: true
-            }).eq('id', user.id);
+            // Save to Persistence Service
+            await PersistenceService.save(user.id, 'tutorial', { completed: true });
         }
         setShowTutorial(false);
     };

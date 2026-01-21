@@ -51,21 +51,9 @@ export function useAuth() {
         setUser(session?.user ?? null);
         setLoading(false);
       } else {
-        console.log('⚠️ [useAuth] No active session found - checking for local demo user');
-        // Fallback to local user if no Supabase session
-        const localUser = storage.getItem('btcwheel_local_user');
-        if (localUser) {
-          try {
-            const parsedUser = JSON.parse(localUser);
-            // Only accept if marked as demo/local
-            if (parsedUser.app_metadata?.provider === 'local') {
-              setUser(parsedUser as User);
-              console.log('✅ [useAuth] Local demo user found:', parsedUser.email);
-            }
-          } catch (error) {
-            console.error('❌ [useAuth] Error parsing local user:', error);
-          }
-        }
+        console.log('⚠️ [useAuth] No active session found');
+        setSession(null);
+        setUser(null);
         setLoading(false);
       }
     });

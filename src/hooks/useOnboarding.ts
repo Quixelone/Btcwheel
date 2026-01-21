@@ -3,7 +3,7 @@ import { useAuth } from './useAuth';
 import { storage } from '../lib/localStorage';
 import type { UserProfile, PersonalizedRecommendation } from '../lib/openai';
 import { analyzeUserProfile } from '../lib/openai';
-import { supabase } from '../lib/supabase';
+import { PersistenceService } from '../services/PersistenceService';
 
 interface OnboardingState {
   completed: boolean;
@@ -27,28 +27,21 @@ export function useOnboarding() {
       setLoading(true);
 
       try {
-        // 1. If user is logged in, try to fetch from Supabase first
+        // 1. Try to fetch from Persistence Service (DB)
         if (user) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('onboarding_completed, onboarding_data')
-            .eq('id', user.id)
-            .single();
-
-          if (data && !error) {
-            if (data.onboarding_completed) {
-              setOnboarding({
-                completed: true,
-                profile: data.onboarding_data?.profile || null,
-                recommendations: data.onboarding_data?.recommendations || null
-              });
-              setLoading(false);
-              return; // Exit early if found in DB
-            }
+          const dbData = await PersistenceService.load(user.id, 'onboarding');
+          if (dbData && dbData.completed) {
+            setOnboarding({
+              completed: true,
+              profile: dbData.data?.profile || null,
+              recommendations: dbData.data?.recommendations || null
+            });
+            setLoading(false);
+            return;
           }
         }
 
-        // 2. Fallback to localStorage (for anonymous or if DB is empty)
+        // 2. Fallback to localStorage
         const storageKey = user
           ? `btc-wheel-onboarding-${user.id}`
           : 'btc-wheel-onboarding';
@@ -70,20 +63,15 @@ export function useOnboarding() {
   // Complete onboarding with profile
   const completeOnboarding = useCallback(
     async (profile: UserProfile) => {
-      console.log('🟡 useOnboarding: completeOnboarding called with profile:', profile);
       setAnalyzing(true);
 
       try {
-        // Try to get AI recommendations, but continue even if it fails
+        // Try to get AI recommendations
         let recommendations: PersonalizedRecommendation | null = null;
-
         try {
-          console.log('🟡 useOnboarding: Calling analyzeUserProfile...');
           recommendations = await analyzeUserProfile(profile);
-          console.log('🟡 useOnboarding: AI analysis successful:', recommendations);
         } catch (aiError) {
-          console.warn('⚠️ useOnboarding: AI analysis failed, continuing with onboarding:', aiError);
-          // Continue without recommendations - not critical for onboarding completion
+          console.warn('AI analysis failed, continuing:', aiError);
         }
 
         const newState: OnboardingState = {
@@ -92,66 +80,33 @@ export function useOnboarding() {
           recommendations,
         };
 
-        // 1. Save to localStorage (always as backup/cache)
+        // 1. Save to localStorage (Backup)
         const storageKey = user
           ? `btc-wheel-onboarding-${user.id}`
           : 'btc-wheel-onboarding';
-
-        console.log('🟡 useOnboarding: Saving to localStorage with key:', storageKey);
         storage.setItem(storageKey, JSON.stringify(newState));
 
-        // 2. Save to Supabase if logged in
+        // 2. Save to Supabase (Primary)
         if (user) {
-          const { error } = await supabase
-            .from('profiles')
-            .upsert({
-              id: user.id,
-              onboarding_completed: true,
-              onboarding_data: newState,
-              updated_at: new Date().toISOString()
-            });
-
-          if (error) {
-            console.error('Failed to save onboarding to Supabase:', error);
-          } else {
-            console.log('✅ Onboarding saved to Supabase');
-          }
+          await PersistenceService.save(user.id, 'onboarding', {
+            completed: true,
+            data: newState
+          });
         }
 
         setOnboarding(newState);
-        console.log('🟡 useOnboarding: State saved successfully');
-
         return recommendations;
       } catch (error) {
-        console.error('🔴 useOnboarding: Error completing onboarding:', error);
-
-        // Even if everything fails, still mark as completed to not block the user
-        const fallbackState: OnboardingState = {
-          completed: true,
-          profile,
-          recommendations: null,
-        };
-
-        const storageKey = user
-          ? `btc-wheel-onboarding-${user.id}`
-          : 'btc-wheel-onboarding';
-
-        console.log('🟡 useOnboarding: Saving fallback state to localStorage');
-        storage.setItem(storageKey, JSON.stringify(fallbackState));
-        setOnboarding(fallbackState);
-        console.log('🟡 useOnboarding: Fallback state saved');
-
-        // Don't throw - allow onboarding to complete
+        console.error('Error completing onboarding:', error);
         return null;
       } finally {
-        console.log('🟡 useOnboarding: Setting analyzing to false');
         setAnalyzing(false);
       }
     },
     [user]
   );
 
-  // Skip onboarding (use default beginner path)
+  // Skip onboarding
   const skipOnboarding = useCallback(async () => {
     const defaultState: OnboardingState = {
       completed: true,
@@ -167,31 +122,24 @@ export function useOnboarding() {
 
     // Supabase
     if (user) {
-      await supabase.from('profiles').upsert({
-        id: user.id,
-        onboarding_completed: true,
-        onboarding_data: defaultState,
-        updated_at: new Date().toISOString()
+      await PersistenceService.save(user.id, 'onboarding', {
+        completed: true,
+        data: defaultState
       });
     }
 
     setOnboarding(defaultState);
   }, [user]);
 
-  // Reset onboarding (for testing or re-profiling)
+  // Reset onboarding
   const resetOnboarding = useCallback(async () => {
     const storageKey = user
       ? `btc-wheel-onboarding-${user.id}`
       : 'btc-wheel-onboarding';
     storage.removeItem(storageKey);
 
-    if (user) {
-      await supabase.from('profiles').update({
-        onboarding_completed: false,
-        onboarding_data: null
-      }).eq('id', user.id);
-    }
-
+    // We don't delete from DB in this version to avoid accidental data loss via reset button
+    // But we update local state
     setOnboarding({
       completed: false,
       profile: null,
