@@ -30,6 +30,8 @@ import {
     hasDeribitCredentials,
     type DeribitPosition
 } from '../services/deribit';
+import { useAuth } from '../hooks/useAuth';
+import { PersistenceService } from '../services/PersistenceService';
 
 interface TradingViewProps {
     currentView: View;
@@ -49,6 +51,7 @@ interface ParsedPosition {
 }
 
 export function TradingView({ onNavigate }: TradingViewProps) {
+    const { user } = useAuth();
     const [positions, setPositions] = useState<ParsedPosition[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [btcPrice, setBtcPrice] = useState(0);
@@ -142,10 +145,49 @@ export function TradingView({ onNavigate }: TradingViewProps) {
 
             setPositions(parsed);
 
+            // 4. Auto-Sync to Trade Journal
+            if (user) {
+                syncPositionsToJournal(parsed);
+            }
+
         } catch (error) {
             console.error('Failed to load Deribit data:', error);
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const syncPositionsToJournal = async (currentPositions: ParsedPosition[]) => {
+        if (!user) return;
+
+        try {
+            // Load existing trades
+            const dbData = await PersistenceService.load(user.id, 'trades');
+            const existingTrades = dbData?.trades || [];
+            const existingIds = new Set(existingTrades.map((t: any) => t.id));
+
+            // Find new positions that are not in the journal
+            const newTrades = currentPositions
+                .filter(p => !existingIds.has(p.id) && (p.type === 'PUT' || p.type === 'CALL'))
+                .map(p => ({
+                    id: p.id,
+                    date: new Date().toISOString(),
+                    type: p.type,
+                    strike: p.strike,
+                    premium: parseFloat(p.premium.toFixed(2)),
+                    outcome: 'PENDING',
+                    exchange: 'Deribit',
+                    notes: 'Auto-synced from Deribit',
+                    realizedPnl: parseFloat(p.premium.toFixed(2))
+                }));
+
+            if (newTrades.length > 0) {
+                const updatedTrades = [...newTrades, ...existingTrades];
+                await PersistenceService.save(user.id, 'trades', { trades: updatedTrades });
+                console.log(`Auto-synced ${newTrades.length} trades to journal.`);
+            }
+        } catch (e) {
+            console.error('Error syncing trades:', e);
         }
     };
 
