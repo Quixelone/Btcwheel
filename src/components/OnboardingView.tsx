@@ -214,7 +214,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
     {
       title: 'I Tuoi Obiettivi',
       icon: Target,
-      description: 'Cosa speri di ottenere da questo corso?',
+      description: 'Definisci il tuo "Perché". Questo aiuterà Prof Satoshi a scegliere la strategia giusta (es. Reddito mensile vs Crescita a lungo termine).',
       content: (
         <div className="grid gap-4">
           {[
@@ -370,7 +370,7 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
               className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-xl flex flex-col items-center justify-center p-8 text-center"
             >
               <motion.div
-                animate={{ 
+                animate={{
                   scale: [1, 1.1, 1],
                   rotate: [0, 5, -5, 0]
                 }}
@@ -378,17 +378,17 @@ export function OnboardingView({ onComplete }: OnboardingViewProps) {
                 className="w-32 h-32 mb-8 relative"
               >
                 <div className="absolute inset-0 bg-emerald-500/20 rounded-full blur-xl animate-pulse" />
-                <img 
-                  src="/mascot-excited.png" 
-                  alt="Prof Satoshi Analyzing" 
+                <img
+                  src="/mascot-excited.png"
+                  alt="Prof Satoshi Analyzing"
                   className="w-full h-full object-contain relative z-10 drop-shadow-2xl"
                 />
               </motion.div>
-              
+
               <h3 className="text-2xl font-black text-white uppercase tracking-tight mb-4">
                 Analisi in corso...
               </h3>
-              
+
               <div className="space-y-2">
                 <LoadingMessage message="Valutazione esperienza..." delay={0} />
                 <LoadingMessage message="Calcolo percorso ottimale..." delay={1.5} />

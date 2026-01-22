@@ -18,13 +18,22 @@ export function useOnboarding() {
     profile: null,
     recommendations: null,
   });
+
+  // Internal loading state for the async operation
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
+
+  // Track which user ID the current data belongs to
+  // undefined = initial state, null = guest/no user, string = user ID
+  const [loadedUserId, setLoadedUserId] = useState<string | null | undefined>(undefined);
 
   // Load onboarding state
   useEffect(() => {
     const loadOnboardingState = async () => {
       setLoading(true);
+
+      // Current user ID at start of operation
+      const currentUserId = user?.id || null;
 
       // 1. Try DB if user exists
       if (user) {
@@ -42,6 +51,7 @@ export function useOnboarding() {
             const storageKey = `btc-wheel-onboarding-${user.id}`;
             storage.setItem(storageKey, JSON.stringify(newState));
 
+            setLoadedUserId(user.id);
             setLoading(false);
             return;
           }
@@ -60,10 +70,18 @@ export function useOnboarding() {
         const saved = storage.getItem(storageKey);
         if (saved) {
           setOnboarding(JSON.parse(saved));
+        } else {
+          // Explicitly reset if nothing found
+          setOnboarding({
+            completed: false,
+            profile: null,
+            recommendations: null
+          });
         }
       } catch (localError) {
         console.error('Error loading local onboarding:', localError);
       } finally {
+        setLoadedUserId(currentUserId);
         setLoading(false);
       }
     };
@@ -111,6 +129,9 @@ export function useOnboarding() {
         }
 
         setOnboarding(newState);
+        // Update loadedUserId so we don't think we are loading anymore
+        setLoadedUserId(user?.id || null);
+
         return recommendations;
       } catch (error) {
         console.error('Error completing onboarding:', error);
@@ -149,6 +170,7 @@ export function useOnboarding() {
     }
 
     setOnboarding(defaultState);
+    setLoadedUserId(user?.id || null);
   }, [user]);
 
   // Reset onboarding
@@ -165,15 +187,26 @@ export function useOnboarding() {
       profile: null,
       recommendations: null,
     });
+    setLoadedUserId(user?.id || null);
   }, [user]);
+
+  // Calculate effective loading state
+  // If the user ID we loaded for doesn't match current user ID, we are still loading (race condition fix)
+  const currentUserId = user?.id || null;
+  const isLoadedForCurrentUser = loadedUserId === currentUserId;
+
+  // If loadedUserId is undefined (initial), we are loading.
+  // If loading is true (async op running), we are loading.
+  // If loadedUserId mismatch, we are effectively loading (waiting for effect).
+  const effectiveLoading = loading || loadedUserId === undefined || !isLoadedForCurrentUser;
 
   return {
     onboarding,
-    loading,
+    loading: effectiveLoading,
     analyzing,
     completeOnboarding,
     skipOnboarding,
     resetOnboarding,
-    shouldShowOnboarding: !loading && !onboarding.completed,
+    shouldShowOnboarding: !effectiveLoading && !onboarding.completed,
   };
 }

@@ -297,7 +297,7 @@ Il minimo per un utente reale.
 
 | ID | Task | Priorità | Dipendenze |
 |----|------|----------|------------|
-| 1B.1 | Compound Vision Card (obiettivo + proiezione) | 🔴 CRITICO | 1A.2 |
+| 1B.1 | Compound Vision Card (obiettivo + proiezione) | 🔴 CRITICO | 1A.2 | ✅ COMPLETATO (Compound Tracker) |
 | 1B.2 | Quick Stats (capitale, streak, settimana) | 🔴 CRITICO | 0.6 |
 | 1B.3 | Daily Briefing Preview Card (link a Satoshi) | 🟡 ALTO | 2A.* |
 | 1B.4 | Next Action Card (cosa fare oggi) | 🟡 ALTO | 1B.1 |
@@ -311,7 +311,7 @@ Il minimo per un utente reale.
 | 1C.2 | Integrazione Deribit API (posizioni + storico) | 🔴 CRITICO | 1C.1 |
 | 1C.3 | Visualizzazione posizioni attive | 🔴 CRITICO | 1C.2 |
 | 1C.4 | Rilevamento automatico nuove posizioni | 🟡 ALTO | 1C.2 |
-| 1C.5 | Calcolo P&L automatico | 🟡 ALTO | 1C.3 |
+| 1C.5 | Calcolo P&L automatico | 🟡 ALTO | 1C.3 | ✅ COMPLETATO (Trade Journal) |
 
 **Output Fase 1:**
 - Utente può fare onboarding completo
@@ -417,7 +417,7 @@ Espansione exchange e tracciamento PAC.
 
 | ID | Task | Priorità | Dipendenze |
 |----|------|----------|------------|
-| 4B.1 | UI: PAC Dashboard (stato + storico) | 🟡 ALTO | 1A.5 |
+| 4B.1 | UI: PAC Dashboard (stato + storico) | 🟡 ALTO | 1A.5 | ✅ COMPLETATO (Compound Tracker) |
 | 4B.2 | Reminder notifiche (in-app) | 🟡 ALTO | 4B.1 |
 | 4B.3 | Verifica PAC via API (Premium) | 🟢 MEDIO | 4A.*, 4B.1 |
 | 4B.4 | Conferma manuale PAC (Free) | 🟡 ALTO | 4B.1 |
@@ -727,3 +727,32 @@ Prima di iniziare Fase 0:
 
 **Documento creato:** 17 Gennaio 2026  
 **Prossimo update:** Dopo conferma struttura
+
+---
+
+## 🔄 Aggiornamento Stato - Gennaio 2026
+
+### ✅ Funzionalità Completate (22/01/2026)
+
+#### 1. Compound Tracker (ex Compound Vision + PAC)
+- **Vista dedicata:** `CompoundTrackerView.tsx`
+- **Funzioni:**
+  - Calcolo interesse composto giornaliero
+  - Proiezione vs Reale
+  - Input manuale depositi (PAC)
+  - **Auto-Sync:** Legge automaticamente i profitti dal Trade Journal
+  - Persistenza su Supabase (`compound_tracker` table)
+
+#### 2. Trade Journal Avanzato
+- **Vista:** `TradeJournalView.tsx`
+- **Funzioni:**
+  - Registrazione trade (PUT/CALL)
+  - Gestione esiti (ITM/OTM/CLOSED)
+  - **Buyback:** Gestione chiusura anticipata e calcolo P&L reale
+  - **Cloud Sync:** Salvataggio su Supabase (`trades` table)
+  - Statistiche automatiche (Win Rate, Premium Totale)
+
+#### 3. Onboarding & Persistenza
+- **Fix:** Risolto loop onboarding al refresh
+- **Robustezza:** Fallback automatico a localStorage se DB non raggiungibile
+

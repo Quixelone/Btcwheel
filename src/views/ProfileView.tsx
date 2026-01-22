@@ -74,6 +74,39 @@ export function ProfileView({ currentView, onNavigate }: ProfileViewProps) {
     };
 
     // Objective Edit View
+    const [objectiveForm, setObjectiveForm] = useState({
+        name: '',
+        targetDate: '',
+        targetAmount: ''
+    });
+
+    // Load objective data when entering the view
+    useEffect(() => {
+        if (currentView === 'objective' && user) {
+            PersistenceService.load(user.id, 'user_objective').then(data => {
+                if (data) {
+                    setObjectiveForm({
+                        name: data.name || '',
+                        targetDate: data.targetDate || '',
+                        targetAmount: data.targetAmount?.toString() || ''
+                    });
+                }
+            });
+        }
+    }, [currentView, user]);
+
+    const handleSaveObjective = async () => {
+        if (!user) return;
+        await PersistenceService.save(user.id, 'user_objective', {
+            name: objectiveForm.name,
+            targetDate: objectiveForm.targetDate,
+            targetAmount: parseFloat(objectiveForm.targetAmount) || 0
+        });
+        // Update local mock/state if needed, or just notify
+        alert('Obiettivo salvato con successo!');
+        onNavigate('profile');
+    };
+
     if (currentView === 'objective') {
         return (
             <PageWrapper>
@@ -99,7 +132,9 @@ export function ProfileView({ currentView, onNavigate }: ProfileViewProps) {
                                 </label>
                                 <input
                                     type="text"
-                                    defaultValue={mockProfile.objective.name}
+                                    value={objectiveForm.name}
+                                    onChange={e => setObjectiveForm({ ...objectiveForm, name: e.target.value })}
+                                    placeholder="Es. La mia libertà, Casa nuova..."
                                     className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500/50"
                                 />
                             </div>
@@ -109,8 +144,9 @@ export function ProfileView({ currentView, onNavigate }: ProfileViewProps) {
                                     Data obiettivo
                                 </label>
                                 <input
-                                    type="text"
-                                    defaultValue={mockProfile.objective.targetDate}
+                                    type="date"
+                                    value={objectiveForm.targetDate}
+                                    onChange={e => setObjectiveForm({ ...objectiveForm, targetDate: e.target.value })}
                                     className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500/50"
                                 />
                             </div>
@@ -121,12 +157,17 @@ export function ProfileView({ currentView, onNavigate }: ProfileViewProps) {
                                 </label>
                                 <input
                                     type="number"
-                                    defaultValue={mockProfile.objective.targetAmount}
+                                    value={objectiveForm.targetAmount}
+                                    onChange={e => setObjectiveForm({ ...objectiveForm, targetAmount: e.target.value })}
+                                    placeholder="50000"
                                     className="w-full bg-white/[0.03] border border-white/[0.08] rounded-xl px-4 py-3 text-white focus:outline-none focus:border-purple-500/50"
                                 />
                             </div>
 
-                            <button className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-colors">
+                            <button
+                                onClick={handleSaveObjective}
+                                className="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white font-bold rounded-xl transition-colors"
+                            >
                                 Salva Modifiche
                             </button>
                         </div>

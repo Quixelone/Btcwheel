@@ -9,7 +9,8 @@ import {
     DollarSign,
     Edit2,
     Check,
-    X
+    X,
+    Link2
 } from 'lucide-react';
 import type { View } from '../types/navigation';
 import { PageWrapper, PageContent, PageHeader } from '../components/layout/PageWrapper';
@@ -28,6 +29,20 @@ interface DailyEntry {
     deposit: number; // PAC
     realProfit: number | null; // Null if not entered yet
     note?: string;
+}
+
+// Trade Interface (Shared with TradeJournalView)
+interface Trade {
+    id: string;
+    date: string; // ISO date
+    type: 'PUT' | 'CALL';
+    strike: number;
+    premium: number;
+    outcome: 'OTM' | 'ITM' | 'PENDING' | 'CLOSED';
+    btcAssigned?: number;
+    buybackPrice?: number;
+    realizedPnl?: number;
+    exchange: string;
 }
 
 interface TrackerData {
@@ -51,6 +66,7 @@ export function CompoundTrackerView({ onNavigate }: CompoundTrackerViewProps) {
         startDate: new Date().toISOString().split('T')[0]
     });
     const [entries, setEntries] = useState<Record<string, DailyEntry>>({});
+    const [trades, setTrades] = useState<Trade[]>([]);
 
     // Editing State
     const [editingDate, setEditingDate] = useState<string | null>(null);
@@ -61,10 +77,17 @@ export function CompoundTrackerView({ onNavigate }: CompoundTrackerViewProps) {
         const loadData = async () => {
             if (!user) return;
             try {
-                const data = await PersistenceService.load(user.id, 'compound_tracker');
-                if (data) {
-                    if (data.settings) setSettings(data.settings);
-                    if (data.entries) setEntries(data.entries);
+                // Load Tracker Data
+                const trackerData = await PersistenceService.load(user.id, 'compound_tracker');
+                if (trackerData) {
+                    if (trackerData.settings) setSettings(trackerData.settings);
+                    if (trackerData.entries) setEntries(trackerData.entries);
+                }
+
+                // Load Trades Data
+                const tradesData = await PersistenceService.load(user.id, 'trades');
+                if (tradesData && Array.isArray(tradesData.trades)) {
+                    setTrades(tradesData.trades);
                 }
             } catch (e) {
                 console.error('Failed to load tracker data', e);
@@ -90,7 +113,7 @@ export function CompoundTrackerView({ onNavigate }: CompoundTrackerViewProps) {
         let currentCapital = settings.startCapital;
         let projectedCapital = settings.startCapital;
 
-        // Generate 30 days for now (can be paginated later)
+        // Generate 60 days
         const daysToGenerate = 60;
         const start = new Date(settings.startDate);
 
@@ -104,15 +127,18 @@ export function CompoundTrackerView({ onNavigate }: CompoundTrackerViewProps) {
             const targetProfit = projectedCapital * (settings.dailyTargetPercent / 100);
             const projectedEnd = projectedCapital + targetProfit;
 
-            // Real Calculation
-            // If we have a real profit entered, use it to update the REAL current capital chain
-            // Otherwise, we just show the projection
+            // Calculate Daily Profit from Journal
+            const journalProfit = trades
+                .filter(t => t.date.startsWith(dateKey))
+                .reduce((sum, t) => sum + (t.realizedPnl ?? t.premium), 0);
 
-            // Note: In a compound tracker, usually "Projected" follows the perfect path,
-            // while "Real" follows the actual path.
+            // Logic: Manual Entry overrides Journal Profit
+            const hasManualEntry = entry.realProfit !== null;
+            // If manual entry exists, use it. If not, use journal profit (if > 0).
+            const finalRealProfit = hasManualEntry ? entry.realProfit! : (journalProfit !== 0 ? journalProfit : null);
+            const isAuto = !hasManualEntry && journalProfit !== 0;
 
-            const realProfitVal = entry.realProfit !== null ? entry.realProfit : 0;
-            const realEnd = currentCapital + realProfitVal + entry.deposit;
+            const realEnd = currentCapital + (finalRealProfit || 0) + entry.deposit;
 
             rows.push({
                 day: i,
@@ -122,27 +148,22 @@ export function CompoundTrackerView({ onNavigate }: CompoundTrackerViewProps) {
                 targetProfit,
                 projectedEnd,
                 deposit: entry.deposit,
-                realProfit: entry.realProfit,
-                realEnd: entry.realProfit !== null ? realEnd : null,
-                diff: entry.realProfit !== null ? realEnd - projectedEnd : null,
+                realProfit: finalRealProfit,
+                isAuto,
+                realEnd: finalRealProfit !== null ? realEnd : null,
+                diff: finalRealProfit !== null ? realEnd - projectedEnd : null,
                 isToday: dateKey === new Date().toISOString().split('T')[0]
             });
 
             // Update capitals for next iteration
-            projectedCapital = projectedEnd; // Perfect compound
+            projectedCapital = projectedEnd;
 
-            // For real capital: if we have data, we use real end. 
-            // If not, we assume it stays same (or follows projection? usually stays same until updated)
-            if (entry.realProfit !== null) {
+            if (finalRealProfit !== null) {
                 currentCapital = realEnd;
-            } else {
-                // If no data entered, we don't compound the "Real" capital yet, 
-                // but for the table to look continuous, we might want to carry over the last known real capital
-                // currentCapital remains same
             }
         }
         return rows;
-    }, [settings, entries]);
+    }, [settings, entries, trades]);
 
     const handleSaveEntry = () => {
         if (!editingDate) return;
@@ -323,7 +344,8 @@ export function CompoundTrackerView({ onNavigate }: CompoundTrackerViewProps) {
                                                 />
                                             ) : (
                                                 row.realProfit !== null ? (
-                                                    <span className={row.realProfit >= row.targetProfit ? 'text-green-400' : 'text-red-400'}>
+                                                    <span className={`flex items-center justify-end gap-1 ${row.realProfit >= row.targetProfit ? 'text-green-400' : 'text-red-400'}`}>
+                                                        {row.isAuto && <Link2 className="w-3 h-3 text-blue-400" title="Auto-calcolato dal Journal" />}
                                                         {row.realProfit >= 0 ? '+' : ''}${row.realProfit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                     </span>
                                                 ) : (
