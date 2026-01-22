@@ -47,6 +47,7 @@ import { WheelStrategyView } from './components/WheelStrategyView';
 import { ExchangeConnectionView } from './views/ExchangeConnectionView';
 import { TradeJournalView } from './views/TradeJournalView';
 import { BestDealsView } from './views/BestDealsView';
+import { CompoundTrackerView } from './views/CompoundTrackerView';
 
 // Dev/Debug Views
 import { ChatTutorTest } from './components/ChatTutorTest';
@@ -424,6 +425,15 @@ function AppContent() {
                 {
                     currentView === 'best-deals' && (
                         <BestDealsView
+                            onNavigate={handleNavigation}
+                        />
+                    )
+                }
+
+                {/* Compound Tracker View */}
+                {
+                    currentView === 'compound-tracker' && (
+                        <CompoundTrackerView
                             onNavigate={handleNavigation}
                         />
                     )

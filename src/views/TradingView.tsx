@@ -75,13 +75,22 @@ export function TradingView({ currentView, onNavigate }: TradingViewProps) {
                     title="Trading"
                     subtitle="Gestisci i tuoi exchange, posizioni e PAC settimanale"
                     actions={
-                        <button
-                            onClick={() => onNavigate('trade-journal')}
-                            className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl transition-all border border-white/10"
-                        >
-                            <Calendar className="w-4 h-4" />
-                            Trade Journal
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => onNavigate('trade-journal')}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl transition-all border border-white/10"
+                            >
+                                <Calendar className="w-4 h-4" />
+                                Trade Journal
+                            </button>
+                            <button
+                                onClick={() => onNavigate('compound-tracker')}
+                                className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white text-sm font-bold rounded-xl transition-all border border-white/10"
+                            >
+                                <TrendingUp className="w-4 h-4" />
+                                Compound Tracker
+                            </button>
+                        </div>
                     }
                 />
 

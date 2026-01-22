@@ -26,22 +26,33 @@ export function useOnboarding() {
     const loadOnboardingState = async () => {
       setLoading(true);
 
-      try {
-        // 1. Try to fetch from Persistence Service (DB)
-        if (user) {
+      // 1. Try DB if user exists
+      if (user) {
+        try {
           const dbData = await PersistenceService.load(user.id, 'onboarding');
           if (dbData && dbData.completed) {
-            setOnboarding({
+            const newState = {
               completed: true,
               profile: dbData.data?.profile || null,
               recommendations: dbData.data?.recommendations || null
-            });
+            };
+            setOnboarding(newState);
+
+            // Sync to local storage for future speed
+            const storageKey = `btc-wheel-onboarding-${user.id}`;
+            storage.setItem(storageKey, JSON.stringify(newState));
+
             setLoading(false);
             return;
           }
+        } catch (dbError) {
+          console.warn('Onboarding DB load failed, trying local:', dbError);
+          // Continue to local fallback
         }
+      }
 
-        // 2. Fallback to localStorage
+      // 2. Fallback to localStorage (runs if DB failed, returned null, or no user)
+      try {
         const storageKey = user
           ? `btc-wheel-onboarding-${user.id}`
           : 'btc-wheel-onboarding';
@@ -50,8 +61,8 @@ export function useOnboarding() {
         if (saved) {
           setOnboarding(JSON.parse(saved));
         }
-      } catch (error) {
-        console.error('Error loading onboarding state:', error);
+      } catch (localError) {
+        console.error('Error loading local onboarding:', localError);
       } finally {
         setLoading(false);
       }
@@ -88,10 +99,15 @@ export function useOnboarding() {
 
         // 2. Save to Supabase (Primary)
         if (user) {
-          await PersistenceService.save(user.id, 'onboarding', {
-            completed: true,
-            data: newState
-          });
+          try {
+            await PersistenceService.save(user.id, 'onboarding', {
+              completed: true,
+              data: newState
+            });
+          } catch (dbError) {
+            console.error('Failed to save onboarding to DB:', dbError);
+            // Don't throw, we saved locally
+          }
         }
 
         setOnboarding(newState);
@@ -122,10 +138,14 @@ export function useOnboarding() {
 
     // Supabase
     if (user) {
-      await PersistenceService.save(user.id, 'onboarding', {
-        completed: true,
-        data: defaultState
-      });
+      try {
+        await PersistenceService.save(user.id, 'onboarding', {
+          completed: true,
+          data: defaultState
+        });
+      } catch (dbError) {
+        console.error('Failed to save skip onboarding to DB:', dbError);
+      }
     }
 
     setOnboarding(defaultState);

@@ -29,6 +29,8 @@ import type { View } from '../types/navigation';
 import { PageWrapper, PageContent, PageHeader } from '../components/layout/PageWrapper';
 import { BaseCard, StatCard } from '../components/ui/cards';
 import { saveAccumulation } from '../components/BTCAccumulatorCard';
+import { useAuth } from '../hooks/useAuth';
+import { PersistenceService } from '../services/PersistenceService';
 
 // Trade types
 interface Trade {
@@ -37,8 +39,10 @@ interface Trade {
     type: 'PUT' | 'CALL';
     strike: number;
     premium: number;
-    outcome: 'OTM' | 'ITM' | 'PENDING';
+    outcome: 'OTM' | 'ITM' | 'PENDING' | 'CLOSED';
     btcAssigned?: number; // If ITM, how much BTC was assigned
+    buybackPrice?: number; // If CLOSED
+    realizedPnl?: number; // Calculated P&L
     notes?: string;
     exchange: string;
 }
@@ -74,6 +78,7 @@ function saveTrades(trades: Trade[]): void {
 
 export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewProps) {
     // State
+    const { user } = useAuth();
     const [trades, setTrades] = useState<Trade[]>([]);
     const [showAddForm, setShowAddForm] = useState(false);
     const [filter, setFilter] = useState<'all' | 'PUT' | 'CALL'>('all');
@@ -82,15 +87,37 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
     const [formType, setFormType] = useState<'PUT' | 'CALL'>('PUT');
     const [formStrike, setFormStrike] = useState('');
     const [formPremium, setFormPremium] = useState('');
-    const [formOutcome, setFormOutcome] = useState<'OTM' | 'ITM' | 'PENDING'>('PENDING');
+    const [formOutcome, setFormOutcome] = useState<'OTM' | 'ITM' | 'PENDING' | 'CLOSED'>('PENDING');
     const [formBtcAssigned, setFormBtcAssigned] = useState('');
+    const [formBuybackPrice, setFormBuybackPrice] = useState('');
     const [formExchange, setFormExchange] = useState('Pionex');
     const [formNotes, setFormNotes] = useState('');
 
     // Load trades on mount
     useEffect(() => {
-        setTrades(loadTrades());
-    }, []);
+        const loadData = async () => {
+            // 1. Load local first (fast)
+            const localTrades = loadTrades();
+            setTrades(localTrades);
+
+            // 2. Load from DB (authoritative)
+            if (user) {
+                try {
+                    const dbData = await PersistenceService.load(user.id, 'trades');
+                    if (dbData && Array.isArray(dbData.trades)) {
+                        // Merge logic: prefer DB, but keep local if DB is empty/stale? 
+                        // For simplicity, DB wins if present.
+                        setTrades(dbData.trades);
+                        // Update local cache
+                        saveTrades(dbData.trades);
+                    }
+                } catch (e) {
+                    console.warn('Failed to load trades from DB', e);
+                }
+            }
+        };
+        loadData();
+    }, [user]);
 
     // Pre-fill form if initialData is present
     useEffect(() => {
@@ -107,8 +134,8 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
     // Calculate statistics
     const stats = useMemo(() => {
         const completedTrades = trades.filter(t => t.outcome !== 'PENDING');
-        const winningTrades = completedTrades.filter(t => t.outcome === 'OTM');
-        const totalPremium = trades.reduce((sum, t) => sum + t.premium, 0);
+        const winningTrades = completedTrades.filter(t => t.realizedPnl && t.realizedPnl > 0);
+        const totalPremium = trades.reduce((sum, t) => sum + (t.realizedPnl ?? t.premium), 0);
         const btcAccumulated = trades
             .filter(t => t.outcome === 'ITM' && t.btcAssigned)
             .reduce((sum, t) => sum + (t.btcAssigned || 0), 0);
@@ -122,7 +149,7 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
         oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
         const weeklyPremium = trades
             .filter(t => new Date(t.date) >= oneWeekAgo)
-            .reduce((sum, t) => sum + t.premium, 0);
+            .reduce((sum, t) => sum + (t.realizedPnl ?? t.premium), 0);
 
         return {
             totalTrades: trades.length,
@@ -138,14 +165,24 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
     const handleAddTrade = () => {
         if (!formStrike || !formPremium) return;
 
+        const premium = parseFloat(formPremium);
+        let realizedPnl = premium; // Default: keep all premium (OTM/ITM)
+
+        if (formOutcome === 'CLOSED' && formBuybackPrice) {
+            const buyback = parseFloat(formBuybackPrice);
+            realizedPnl = premium - buyback;
+        }
+
         const newTrade: Trade = {
             id: Date.now().toString(),
             date: new Date().toISOString(),
             type: formType,
             strike: parseFloat(formStrike),
-            premium: parseFloat(formPremium),
+            premium: premium,
             outcome: formOutcome,
             btcAssigned: formOutcome === 'ITM' && formBtcAssigned ? parseFloat(formBtcAssigned) : undefined,
+            buybackPrice: formOutcome === 'CLOSED' && formBuybackPrice ? parseFloat(formBuybackPrice) : undefined,
+            realizedPnl: realizedPnl,
             exchange: formExchange,
             notes: formNotes || undefined,
         };
@@ -153,6 +190,7 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
         const updatedTrades = [newTrade, ...trades];
         setTrades(updatedTrades);
         saveTrades(updatedTrades);
+        if (user) PersistenceService.save(user.id, 'trades', { trades: updatedTrades });
 
         // If ITM with BTC assigned, save to BTC accumulation tracker
         if (newTrade.outcome === 'ITM' && newTrade.btcAssigned && newTrade.btcAssigned > 0) {
@@ -169,6 +207,7 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
         setFormPremium('');
         setFormOutcome('PENDING');
         setFormBtcAssigned('');
+        setFormBuybackPrice('');
         setFormNotes('');
     };
 
@@ -177,6 +216,7 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
         const updatedTrades = trades.filter(t => t.id !== id);
         setTrades(updatedTrades);
         saveTrades(updatedTrades);
+        if (user) PersistenceService.save(user.id, 'trades', { trades: updatedTrades });
     };
 
     // Update trade outcome
@@ -186,6 +226,7 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
         );
         setTrades(updatedTrades);
         saveTrades(updatedTrades);
+        if (user) PersistenceService.save(user.id, 'trades', { trades: updatedTrades });
     };
 
     // Filter trades
@@ -325,7 +366,7 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
                                     <div>
                                         <label className="block text-sm text-[#888899] mb-2">Esito</label>
                                         <div className="flex gap-2">
-                                            {(['PENDING', 'OTM', 'ITM'] as const).map((outcome) => (
+                                            {(['PENDING', 'OTM', 'ITM', 'CLOSED'] as const).map((outcome) => (
                                                 <button
                                                     key={outcome}
                                                     onClick={() => setFormOutcome(outcome)}
@@ -334,18 +375,38 @@ export function TradeJournalView({ onNavigate, initialData }: TradeJournalViewPr
                                                             ? 'bg-green-500/20 text-green-400 border border-green-500/40'
                                                             : outcome === 'ITM'
                                                                 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
-                                                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
+                                                                : outcome === 'CLOSED'
+                                                                    ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                                                                    : 'bg-blue-500/20 text-blue-400 border border-blue-500/40'
                                                         : 'bg-white/5 text-[#888899] border border-white/10'
                                                         }`}
                                                 >
                                                     {outcome === 'PENDING' && <Clock className="w-3 h-3 inline mr-1" />}
                                                     {outcome === 'OTM' && <CheckCircle2 className="w-3 h-3 inline mr-1" />}
                                                     {outcome === 'ITM' && <Target className="w-3 h-3 inline mr-1" />}
+                                                    {outcome === 'CLOSED' && <Trash2 className="w-3 h-3 inline mr-1" />}
                                                     {outcome}
                                                 </button>
                                             ))}
                                         </div>
                                     </div>
+
+                                    {/* Buyback Price (if CLOSED) */}
+                                    {formOutcome === 'CLOSED' && (
+                                        <motion.div
+                                            initial={{ opacity: 0, height: 0 }}
+                                            animate={{ opacity: 1, height: 'auto' }}
+                                        >
+                                            <label className="block text-sm text-[#888899] mb-2">Prezzo di Chiusura ($)</label>
+                                            <input
+                                                type="number"
+                                                value={formBuybackPrice}
+                                                onChange={(e) => setFormBuybackPrice(e.target.value)}
+                                                placeholder="50"
+                                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder:text-[#444455]"
+                                            />
+                                        </motion.div>
+                                    )}
 
                                     {/* BTC Assigned (if ITM) */}
                                     {formOutcome === 'ITM' && (

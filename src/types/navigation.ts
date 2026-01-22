@@ -33,7 +33,8 @@ export type TradingView =
     | 'position-detail'   // Dettaglio singola posizione
     | 'pac-tracker'       // PAC settimanale
     | 'trade-journal'     // Trade Journal
-    | 'best-deals';       // Multi-exchange best premium deals
+    | 'best-deals'        // Multi-exchange best premium deals
+    | 'compound-tracker'; // Compound Interest Tracker
 
 // SATOSHI Section
 export type SatoshiView =
@@ -120,7 +121,7 @@ export const MAIN_NAV_ITEMS: NavItem[] = [
 
 export function getMainSection(view: View): MainSection | null {
     const homeViews: View[] = ['home', 'weekly-review'];
-    const tradingViews: View[] = ['trading', 'exchange-hub', 'exchange-connect', 'positions', 'position-detail', 'pac-tracker', 'trade-journal', 'best-deals'];
+    const tradingViews: View[] = ['trading', 'exchange-hub', 'exchange-connect', 'positions', 'position-detail', 'pac-tracker', 'trade-journal', 'best-deals', 'compound-tracker'];
     const satoshiViews: View[] = ['satoshi', 'satoshi-chat', 'satoshi-history'];
     const academyViews: View[] = ['academy', 'lesson', 'quiz', 'resources'];
     const profileViews: View[] = ['profile', 'objective', 'risk-profile', 'notifications', 'subscription', 'account'];
