@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Trophy, Sparkles, X } from 'lucide-react';
-import { badges, rarityColors, rarityLabels, type Badge } from '../../lib/badges';
+import { badges, rarityColors, rarityLabels } from '../../lib/badges';
 
 interface BadgeUnlockAnimationProps {
   badgeId: string | null;
@@ -17,7 +17,7 @@ export function BadgeUnlockAnimation({ badgeId, onClose }: BadgeUnlockAnimationP
   useEffect(() => {
     if (badgeId && badge) {
       setIsVisible(true);
-      
+
       // Play celebration sound if available
       if (typeof window !== 'undefined' && 'vibrate' in navigator) {
         navigator.vibrate([200, 100, 200, 100, 400]);
@@ -49,9 +49,9 @@ export function BadgeUnlockAnimation({ badgeId, onClose }: BadgeUnlockAnimationP
           <div className="fixed inset-0 z-[101] flex items-center justify-center p-4">
             <motion.div
               initial={{ scale: 0.5, opacity: 0, rotateY: -180 }}
-              animate={{ 
-                scale: 1, 
-                opacity: 1, 
+              animate={{
+                scale: 1,
+                opacity: 1,
                 rotateY: 0,
                 transition: {
                   type: 'spring',
@@ -59,8 +59,8 @@ export function BadgeUnlockAnimation({ badgeId, onClose }: BadgeUnlockAnimationP
                   damping: 20
                 }
               }}
-              exit={{ 
-                scale: 0.8, 
+              exit={{
+                scale: 0.8,
                 opacity: 0,
                 transition: { duration: 0.2 }
               }}
@@ -73,13 +73,13 @@ export function BadgeUnlockAnimation({ badgeId, onClose }: BadgeUnlockAnimationP
                     <motion.div
                       key={i}
                       className="absolute w-2 h-2 rounded-full bg-yellow-400"
-                      initial={{ 
-                        x: '50%', 
+                      initial={{
+                        x: '50%',
                         y: '50%',
                         scale: 0,
                         opacity: 0
                       }}
-                      animate={{ 
+                      animate={{
                         x: `${Math.random() * 100}%`,
                         y: `${Math.random() * 100}%`,
                         scale: [0, 1, 0],
@@ -118,7 +118,7 @@ export function BadgeUnlockAnimation({ badgeId, onClose }: BadgeUnlockAnimationP
                 {/* Badge Icon with Glow */}
                 <motion.div
                   initial={{ scale: 0 }}
-                  animate={{ 
+                  animate={{
                     scale: 1,
                     transition: {
                       type: 'spring',
@@ -219,7 +219,7 @@ export function BadgeUnlockAnimation({ badgeId, onClose }: BadgeUnlockAnimationP
                         ease: 'easeOut',
                       }}
                     >
-                      <div 
+                      <div
                         className="w-3 h-3 rounded-sm"
                         style={{
                           backgroundColor: [

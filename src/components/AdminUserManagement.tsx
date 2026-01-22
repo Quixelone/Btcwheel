@@ -50,7 +50,7 @@ interface AdminStats {
 }
 
 export function AdminUserManagement() {
-  const { user } = useAuth();
+  useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,13 +65,13 @@ export function AdminUserManagement() {
   const fetchStats = async () => {
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError) {
         console.error('Session error:', sessionError);
         toast.error('Sessione scaduta. Ricarica la pagina e fai login di nuovo.');
         return;
       }
-      
+
       if (!session?.access_token) {
         console.error('No active session');
         toast.error('Nessuna sessione attiva. Fai login per continuare.');
@@ -108,7 +108,7 @@ export function AdminUserManagement() {
     } catch (error: any) {
       console.error('Error fetching stats:', error);
       console.error('Error stack:', error instanceof Error ? error.stack : 'No stack');
-      
+
       // Don't show toast if we already showed session error
       if (!error?.message?.includes('session')) {
         toast.error('Errore nel recupero delle statistiche');
@@ -123,14 +123,14 @@ export function AdminUserManagement() {
     setLoading(true);
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError) {
         console.error('Session error:', sessionError);
         toast.error('Sessione scaduta. Ricarica la pagina e fai login di nuovo.');
         setLoading(false);
         return;
       }
-      
+
       if (!session?.access_token) {
         console.error('No active session');
         toast.error('Nessuna sessione attiva. Fai login per continuare.');
@@ -172,7 +172,7 @@ export function AdminUserManagement() {
       setTotalPages(pagination.totalPages);
     } catch (error: any) {
       console.error('Error fetching users:', error);
-      
+
       // Don't show toast if we already showed session error
       if (!error?.message?.includes('session')) {
         toast.error('Errore nel caricamento utenti');
@@ -326,7 +326,7 @@ export function AdminUserManagement() {
               className="pl-10 bg-gray-900/50 border-gray-700 text-white"
             />
           </div>
-          
+
           <select
             value={planFilter}
             onChange={(e) => setPlanFilter(e.target.value)}
@@ -400,11 +400,11 @@ export function AdminUserManagement() {
                     </td>
                     <td className="px-4 py-4">
                       <Badge className={
-                        user.plan_name === 'Enterprise' 
+                        user.plan_name === 'Enterprise'
                           ? 'bg-purple-500/20 text-purple-400 border-purple-500/30'
                           : user.plan_name === 'Pro'
-                          ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
-                          : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                            ? 'bg-blue-500/20 text-blue-400 border-blue-500/30'
+                            : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
                       }>
                         {user.plan_name || 'Free'}
                       </Badge>
@@ -443,7 +443,7 @@ export function AdminUserManagement() {
                             Sospendi
                           </Button>
                         )}
-                        
+
                         <Button
                           size="sm"
                           variant="outline"

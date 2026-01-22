@@ -17,7 +17,7 @@ import {
     RefreshCw,
     Wallet,
     TrendingUp,
-    Shield,
+
     Loader2,
 } from 'lucide-react';
 import type { View } from '../types/navigation';
@@ -44,7 +44,7 @@ interface ExchangeConnectionViewProps {
     onNavigate: (view: View) => void;
 }
 
-export function ExchangeConnectionView({ onNavigate }: ExchangeConnectionViewProps) {
+export function ExchangeConnectionView({ }: ExchangeConnectionViewProps) {
     // Exchange selection
     const [activeExchange, setActiveExchange] = useState<'pionex' | 'deribit'>('pionex');
 

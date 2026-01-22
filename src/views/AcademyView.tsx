@@ -29,7 +29,7 @@ import type { View } from '../types/navigation';
 import { PageWrapper, PageContent, PageHeader, SectionHeader } from '../components/layout/PageWrapper';
 import { BaseCard, ActionCard, ProgressCard } from '../components/ui/cards';
 import { useUserProgress } from '../hooks/useUserProgress';
-import { lessons, type Lesson, type Question } from '../lib/lessons';
+import { lessons } from '../lib/lessons';
 import {
     coursePhases,
     getPhaseLesson,

@@ -25,11 +25,11 @@ export function useAnimations() {
   });
 
   // XP Gain Animation
-  const triggerXPGain = useCallback((amount: number) => {
+  const triggerXPGain = useCallback((_amount: number) => {
     setTriggers(prev => ({ ...prev, xpGain: true }));
     mascotSounds.success();
     haptics.success();
-    
+
     setTimeout(() => {
       setTriggers(prev => ({ ...prev, xpGain: false }));
     }, 100);
@@ -37,11 +37,11 @@ export function useAnimations() {
 
   // Quiz Feedback Animation
   const triggerQuizFeedback = useCallback((isCorrect: boolean) => {
-    setTriggers(prev => ({ 
-      ...prev, 
-      quizFeedback: { show: true, isCorrect } 
+    setTriggers(prev => ({
+      ...prev,
+      quizFeedback: { show: true, isCorrect }
     }));
-    
+
     if (isCorrect) {
       mascotSounds.excited();
       haptics.success();
@@ -52,18 +52,18 @@ export function useAnimations() {
 
     // Hide after animation completes (increased to 1000ms for smoother experience)
     setTimeout(() => {
-      setTriggers(prev => ({ 
-        ...prev, 
-        quizFeedback: { show: false, isCorrect: null } 
+      setTriggers(prev => ({
+        ...prev,
+        quizFeedback: { show: false, isCorrect: null }
       }));
     }, 1000);
   }, [mascotSounds, haptics]);
 
   // Dismiss Quiz Feedback immediately
   const dismissQuizFeedback = useCallback(() => {
-    setTriggers(prev => ({ 
-      ...prev, 
-      quizFeedback: { show: false, isCorrect: null } 
+    setTriggers(prev => ({
+      ...prev,
+      quizFeedback: { show: false, isCorrect: null }
     }));
   }, []);
 
@@ -79,11 +79,11 @@ export function useAnimations() {
   }, [mascotSounds, haptics]);
 
   // Level Up Animation (to be implemented with Runway)
-  const triggerLevelUp = useCallback((newLevel: number) => {
+  const triggerLevelUp = useCallback((_newLevel: number) => {
     setTriggers(prev => ({ ...prev, levelUp: true }));
     mascotSounds.success();
     haptics.success();
-    
+
     // Level up should stay visible longer - controlled by component
     setTimeout(() => {
       setTriggers(prev => ({ ...prev, levelUp: false }));
@@ -91,7 +91,7 @@ export function useAnimations() {
   }, [mascotSounds, haptics]);
 
   // Badge Unlock Animation (to be implemented with Runway)
-  const triggerBadgeUnlock = useCallback((badgeId: string) => {
+  const triggerBadgeUnlock = useCallback((_badgeId: string) => {
     setTriggers(prev => ({ ...prev, badgeUnlock: true }));
     mascotSounds.success();
     haptics.success();

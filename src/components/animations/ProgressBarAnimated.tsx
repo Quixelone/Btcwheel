@@ -50,13 +50,7 @@ export function ProgressBarAnimated({
     gradient: 'bg-gradient-to-r from-blue-500 via-purple-500 to-orange-500',
   };
 
-  // Dynamic color based on percentage
-  const getColorByPercentage = () => {
-    if (color !== 'gradient') return colorClasses[color];
-    if (percentage < 33) return 'bg-red-500';
-    if (percentage < 66) return 'bg-yellow-500';
-    return 'bg-green-500';
-  };
+
 
   return (
     <div className="w-full space-y-2">

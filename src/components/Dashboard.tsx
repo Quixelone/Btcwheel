@@ -2,11 +2,9 @@ import { useRef } from 'react';
 import { Navigation } from './Navigation';
 import { UserMenu } from './UserMenu';
 import { Button } from './ui/button';
-
-import { Avatar, AvatarFallback } from './ui/avatar';
 import { useUserProgress } from '../hooks/useUserProgress';
 import { useAuth } from '../hooks/useAuth';
-import { motion, useInView } from 'motion/react';
+import { motion } from 'motion/react';
 import { PageWrapper, PageContent, PageHeader, SectionHeader } from './layout/PageWrapper';
 import { StatCard } from './ui/stat-card';
 import {
@@ -17,7 +15,6 @@ import {
   Star,
   Target,
   TrendingUp,
-  Sparkles,
   BookOpen,
   CheckCircle2,
   ArrowRight

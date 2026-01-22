@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
 // Navigation now uses MainNavigation internally
 import { Navigation } from './Navigation';
 import { Card } from './ui/card';
@@ -13,15 +13,12 @@ import {
   PiggyBank,
   Save,
   Sparkles,
-  Download,
   BarChart3,
   Target,
   Zap,
   Loader2
 } from 'lucide-react';
 import {
-  LineChart,
-  Line,
   AreaChart,
   Area,
   XAxis,
@@ -34,7 +31,7 @@ import {
 import type { View } from '../App';
 import { toast } from "sonner";
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
-import { projectId, publicAnonKey } from '../utils/supabase/info';
+import { projectId } from '../utils/supabase/info';
 
 interface LongTermSimulatorProps {
   onNavigate: (view: View) => void;
@@ -74,7 +71,6 @@ export function LongTermSimulator({ onNavigate, mascotVisible, onMascotToggle }:
   const [years, setYears] = useState(5);
 
   // UI states
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const [savedPlans, setSavedPlans] = useState<SavedPlan[]>(() => {
     const saved = localStorage.getItem('btcwheel_longterm_plans');
     return saved ? JSON.parse(saved) : [];

@@ -1,25 +1,16 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion } from 'motion/react';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
 import {
-  Euro,
   TrendingUp,
   Users,
   FileText,
-  Calendar,
   Search,
-  Download,
   Check,
-  AlertCircle,
-  BarChart3,
   Wallet,
-  ArrowUpCircle,
-  ChevronLeft,
-  ChevronRight,
-  RefreshCw,
   Eye,
   X,
 } from 'lucide-react';
@@ -75,7 +66,7 @@ interface Strategy {
 }
 
 export function AdminBillingPanel() {
-  const { user } = useAuth();
+  useAuth(); // Hook for auth context
   const [activeTab, setActiveTab] = useState<'overview' | 'invoices' | 'strategies'>('overview');
   const [users, setUsers] = useState<BillingUser[]>([]);
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -88,11 +79,11 @@ export function AdminBillingPanel() {
     pending_invoices_amount: 0,
     total_revenue: 0
   });
-  const [loading, setLoading] = useState(false);
+  const [, setLoading] = useState(false);
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
   const [userStrategies, setUserStrategies] = useState<Strategy[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
-  
+
   // Invoice generation
   const [generateMonth, setGenerateMonth] = useState(new Date().getMonth() + 1);
   const [generateYear, setGenerateYear] = useState(new Date().getFullYear());
@@ -102,12 +93,12 @@ export function AdminBillingPanel() {
     setLoading(true);
     try {
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError) {
         console.error('Session error:', sessionError);
         throw new Error('Errore sessione: ' + sessionError.message);
       }
-      
+
       if (!session?.access_token) {
         console.error('No active session found');
         throw new Error('Sessione non attiva. Prova a fare logout e login di nuovo.');
@@ -148,12 +139,12 @@ export function AdminBillingPanel() {
     try {
       // Try to refresh session first
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
+
       if (sessionError) {
         console.error('Session error in fetchInvoices:', sessionError);
         throw new Error('Errore sessione: ' + sessionError.message);
       }
-      
+
       if (!session?.access_token) {
         console.error('No active session in fetchInvoices');
         throw new Error('Sessione non attiva. Prova a fare logout e login di nuovo.');
@@ -211,7 +202,7 @@ export function AdminBillingPanel() {
 
       const { strategies, summary } = await response.json();
       setUserStrategies(strategies);
-      
+
       toast.success(`Strategie caricate: ${summary.total_strategies} totali, ${summary.active_strategies} attive`);
     } catch (error) {
       console.error('Error fetching user strategies:', error);
@@ -248,7 +239,7 @@ export function AdminBillingPanel() {
 
       const { invoice } = await response.json();
       toast.success(`Fattura generata per ${userEmail}: €${invoice.amount.toFixed(2)}`);
-      
+
       fetchBillingOverview();
       if (activeTab === 'invoices') {
         fetchInvoices();
@@ -321,11 +312,11 @@ export function AdminBillingPanel() {
       if (!response.ok) throw new Error('Failed to bulk generate invoices');
 
       const { results } = await response.json();
-      
+
       toast.success(
         `Fatture generate: ${results.success.length} success, ${results.errors.length} errori, ${results.skipped.length} già esistenti`
       );
-      
+
       fetchBillingOverview();
       if (activeTab === 'invoices') {
         fetchInvoices();
@@ -356,7 +347,7 @@ export function AdminBillingPanel() {
     }
   };
 
-  const filteredUsers = users.filter(u => 
+  const filteredUsers = users.filter(u =>
     u.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     u.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
@@ -425,32 +416,29 @@ export function AdminBillingPanel() {
       <div className="flex gap-2 border-b border-gray-700">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === 'overview'
+          className={`px-4 py-2 font-medium transition-colors ${activeTab === 'overview'
               ? 'text-emerald-400 border-b-2 border-emerald-400'
               : 'text-gray-400 hover:text-white'
-          }`}
+            }`}
         >
           Overview Utenti
         </button>
         <button
           onClick={() => setActiveTab('invoices')}
-          className={`px-4 py-2 font-medium transition-colors ${
-            activeTab === 'invoices'
+          className={`px-4 py-2 font-medium transition-colors ${activeTab === 'invoices'
               ? 'text-emerald-400 border-b-2 border-emerald-400'
               : 'text-gray-400 hover:text-white'
-          }`}
+            }`}
         >
           Fatture
         </button>
         {selectedUser && (
           <button
             onClick={() => setActiveTab('strategies')}
-            className={`px-4 py-2 font-medium transition-colors ${
-              activeTab === 'strategies'
+            className={`px-4 py-2 font-medium transition-colors ${activeTab === 'strategies'
                 ? 'text-emerald-400 border-b-2 border-emerald-400'
                 : 'text-gray-400 hover:text-white'
-            }`}
+              }`}
           >
             Strategie Utente
           </button>
@@ -544,7 +532,7 @@ export function AdminBillingPanel() {
                             ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
                             : 'bg-blue-500/20 text-blue-400 border-blue-500/30'
                         }>
-                          {user.payment_model === 'profit_share' 
+                          {user.payment_model === 'profit_share'
                             ? `${user.profit_share_percentage || 15}% profitti`
                             : `€${user.plan_price || 0}/mese`
                           }
@@ -624,7 +612,7 @@ export function AdminBillingPanel() {
                       </td>
                       <td className="px-4 py-4">
                         <div className="text-sm text-gray-300">
-                          {new Date(invoice.billing_period_start).toLocaleDateString('it-IT')} - 
+                          {new Date(invoice.billing_period_start).toLocaleDateString('it-IT')} -
                           {new Date(invoice.billing_period_end).toLocaleDateString('it-IT')}
                         </div>
                       </td>
@@ -634,7 +622,7 @@ export function AdminBillingPanel() {
                             ? 'bg-emerald-500/20 text-emerald-400'
                             : 'bg-blue-500/20 text-blue-400'
                         }>
-                          {invoice.invoice_type === 'profit_share' 
+                          {invoice.invoice_type === 'profit_share'
                             ? `Profit Share (${invoice.profit_share_percentage}%)`
                             : 'Canone Fisso'
                           }

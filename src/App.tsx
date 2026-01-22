@@ -13,7 +13,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from './hooks/useAuth';
 import { useOnboarding } from './hooks/useOnboarding';
 import { Toaster } from "sonner";
-import { supabase } from './lib/supabase';
 import { PersistenceService } from './services/PersistenceService';
 
 // Types

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
-import { Progress } from './ui/progress';
+
 import { RadioGroup, RadioGroupItem } from './ui/radio-group';
 import { Label } from './ui/label';
 import { Checkbox } from './ui/checkbox';
@@ -16,8 +16,8 @@ import {
   ArrowRight,
   ArrowLeft,
   Loader2,
-  Zap,
-  ShieldCheck
+
+
 } from 'lucide-react';
 import type { UserProfile } from '../lib/openai';
 import { useOnboarding } from '../hooks/useOnboarding';

@@ -1,7 +1,7 @@
 import { Navigation } from './Navigation';
 import { UserMenu } from './UserMenu';
 import { Button } from './ui/button';
-import { Card } from './ui/card';
+
 import { Badge } from './ui/badge';
 import { useUserProgress } from '../hooks/useUserProgress';
 import { motion } from 'motion/react';

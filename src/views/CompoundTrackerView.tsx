@@ -3,10 +3,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
     ArrowLeft,
     Settings,
-    Save,
-    TrendingUp,
-    Calendar,
-    DollarSign,
     Edit2,
     Check,
     X,
@@ -45,18 +41,13 @@ interface Trade {
     exchange: string;
 }
 
-interface TrackerData {
-    settings: TrackerSettings;
-    entries: Record<string, DailyEntry>; // Key: YYYY-MM-DD
-}
-
 interface CompoundTrackerViewProps {
     onNavigate: (view: View) => void;
 }
 
 export function CompoundTrackerView({ onNavigate }: CompoundTrackerViewProps) {
     const { user } = useAuth();
-    const [loading, setLoading] = useState(true);
+    const [, setLoading] = useState(true);
     const [showSettings, setShowSettings] = useState(false);
 
     // Data State
@@ -345,7 +336,7 @@ export function CompoundTrackerView({ onNavigate }: CompoundTrackerViewProps) {
                                             ) : (
                                                 row.realProfit !== null ? (
                                                     <span className={`flex items-center justify-end gap-1 ${row.realProfit >= row.targetProfit ? 'text-green-400' : 'text-red-400'}`}>
-                                                        {row.isAuto && <Link2 className="w-3 h-3 text-blue-400" title="Auto-calcolato dal Journal" />}
+                                                        {row.isAuto && <Link2 className="w-3 h-3 text-blue-400" />}
                                                         {row.realProfit >= 0 ? '+' : ''}${row.realProfit.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                                                     </span>
                                                 ) : (

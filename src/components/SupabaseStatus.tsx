@@ -5,12 +5,12 @@ import { useAuth } from '../hooks/useAuth';
 import { Card } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
-import { 
-  Database, 
-  CheckCircle2, 
-  XCircle, 
-  Loader2, 
-  Users, 
+import {
+  Database,
+  CheckCircle2,
+  XCircle,
+  Loader2,
+  Users,
   Activity,
   TrendingUp,
   Shield,
@@ -32,7 +32,7 @@ export function SupabaseStatus() {
   const [testing, setTesting] = useState(false);
   const [tableStatus, setTableStatus] = useState<TableStatus[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<'connected' | 'error' | 'unconfigured'>('unconfigured');
-  
+
   // Test auth
   const [testEmail, setTestEmail] = useState('test@btcwheel.com');
   const [testPassword, setTestPassword] = useState('testpassword123');
@@ -43,7 +43,7 @@ export function SupabaseStatus() {
 
   const checkConnection = async () => {
     setLoading(true);
-    
+
     if (!isSupabaseConfigured) {
       setConnectionStatus('unconfigured');
       setLoading(false);
@@ -52,8 +52,8 @@ export function SupabaseStatus() {
 
     try {
       // Test basic connection
-      const { data, error } = await supabase.from('kv_store_7c0f82ca').select('count', { count: 'exact', head: true });
-      
+      const { error } = await supabase.from('kv_store_7c0f82ca').select('count', { count: 'exact', head: true });
+
       if (error) {
         console.error('Connection error:', error);
         setConnectionStatus('error');
@@ -65,7 +65,7 @@ export function SupabaseStatus() {
       console.error('Unexpected error:', err);
       setConnectionStatus('error');
     }
-    
+
     setLoading(false);
   };
 

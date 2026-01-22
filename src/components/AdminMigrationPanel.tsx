@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Card } from './ui/card';
-import { 
-  Crown, Users, Database, TrendingUp, RefreshCw, 
-  CheckCircle2, XCircle, Loader2, AlertTriangle, 
-  ArrowRight, Eye, Download 
+import {
+  Crown, Users, Database, TrendingUp, RefreshCw,
+  CheckCircle2, Loader2, AlertTriangle,
+  ArrowRight, Eye, Download
 } from 'lucide-react';
 import { toast } from "sonner";
 import { projectId, publicAnonKey } from '../utils/supabase/info';
@@ -61,7 +61,7 @@ export function AdminMigrationPanel() {
         const result = await response.json();
         setStats(result.stats);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading stats:', error);
     }
   };
@@ -87,9 +87,9 @@ export function AdminMigrationPanel() {
 
       const result = await response.json();
       setUsers(result.users);
-      
+
       toast.success(`✅ Trovati ${result.userCount} utenti con dati "${sourcePrefix}"`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error scanning users:', error);
       toast.error(`❌ Errore durante la scansione: ${error.message}`);
     } finally {
@@ -169,7 +169,7 @@ export function AdminMigrationPanel() {
       } else {
         toast.error(`⚠️ Migrazione parziale: ${result.failedCount} utenti falliti`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Migration error:', error);
       toast.error(`❌ Errore durante la migrazione: ${error.message}`);
     } finally {
@@ -208,13 +208,13 @@ export function AdminMigrationPanel() {
               <RefreshCw className="w-4 h-4 text-gray-400" />
             </motion.button>
           </div>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
               <p className="text-gray-400 text-xs mb-1">Chiavi Totali</p>
               <p className="text-2xl font-bold text-white">{stats.totalKeys}</p>
             </div>
-            
+
             {Object.entries(stats.prefixes).map(([prefix, data]) => (
               <div key={prefix} className="p-3 bg-purple-500/10 border border-purple-500/20 rounded-lg">
                 <p className="text-gray-400 text-xs mb-1">{prefix}</p>
@@ -235,7 +235,7 @@ export function AdminMigrationPanel() {
           <Users className="w-5 h-5 text-emerald-400" />
           Scansione Utenti
         </h3>
-        
+
         <div className="space-y-3">
           <div>
             <label className="text-sm text-gray-400 mb-2 block">Prefisso Sorgente</label>
@@ -278,7 +278,7 @@ export function AdminMigrationPanel() {
               <TrendingUp className="w-5 h-5 text-purple-400" />
               Utenti Trovati ({users.length})
             </h3>
-            
+
             <div className="flex items-center gap-2">
               <button
                 onClick={selectAll}
@@ -286,7 +286,7 @@ export function AdminMigrationPanel() {
               >
                 {selectedUsers.size === users.length ? 'Deseleziona Tutti' : 'Seleziona Tutti'}
               </button>
-              
+
               {selectedUsers.size > 0 && (
                 <motion.button
                   onClick={migrateBatch}
@@ -317,11 +317,10 @@ export function AdminMigrationPanel() {
                 key={user.userId}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`p-4 rounded-lg border transition-all cursor-pointer ${
-                  selectedUsers.has(user.userId)
+                className={`p-4 rounded-lg border transition-all cursor-pointer ${selectedUsers.has(user.userId)
                     ? 'bg-purple-500/20 border-purple-500/50'
                     : 'bg-gray-800/30 border-gray-700/50 hover:border-gray-600'
-                }`}
+                  }`}
                 onClick={() => toggleUserSelection(user.userId)}
               >
                 <div className="flex items-start justify-between">
@@ -339,7 +338,7 @@ export function AdminMigrationPanel() {
                         <p className="text-xs text-gray-500 font-mono">{user.userId}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex items-center gap-4 ml-8 text-sm">
                       <div className="flex items-center gap-1">
                         <Database className="w-4 h-4 text-blue-400" />
@@ -385,7 +384,7 @@ export function AdminMigrationPanel() {
                   </p>
                 </div>
               </div>
-              
+
               <div className="w-full bg-gray-800 rounded-full h-2">
                 <div
                   className="bg-gradient-to-r from-purple-500 to-pink-600 h-2 rounded-full transition-all duration-300"

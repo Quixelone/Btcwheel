@@ -10,7 +10,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Bitcoin, TrendingUp, TrendingDown, DollarSign, Target, RefreshCw } from 'lucide-react';
+import { Bitcoin, TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import { BaseCard } from './ui/cards';
 import { PionexClient, getPionexCredentials, hasPionexCredentials } from '../services/pionex';
 

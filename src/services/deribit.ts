@@ -88,7 +88,7 @@ export class DeribitClient {
         const url = `${DERIBIT_API_BASE}${endpoint}?${queryParams}`;
 
         const response = await fetch(url, {
-            method: 'GET', // Deribit uses GET for most data fetching with params
+            method: method,
             headers: {
                 'Authorization': `Bearer ${token}`,
                 'Content-Type': 'application/json'

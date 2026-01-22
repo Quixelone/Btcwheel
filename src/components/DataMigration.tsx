@@ -12,8 +12,7 @@ export function DataMigration() {
   const [isImporting, setIsImporting] = useState(false);
   const [isMigrating, setIsMigrating] = useState(false);
   const [mergeMode, setMergeMode] = useState(true);
-  const [showDataPreview, setShowDataPreview] = useState(false);
-  const [previewData, setPreviewData] = useState<any>(null);
+
 
   // 📤 Export data to JSON file
   const handleExport = async () => {

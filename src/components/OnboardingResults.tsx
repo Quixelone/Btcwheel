@@ -2,7 +2,7 @@ import { motion } from 'motion/react';
 import { Button } from './ui/button';
 import { Card } from './ui/card';
 import { Badge } from './ui/badge';
-import { Sparkles, Target, Clock, Lightbulb, TrendingUp, ArrowRight, Zap, Trophy } from 'lucide-react';
+import { Sparkles, Target, Clock, Lightbulb, TrendingUp, ArrowRight, Zap } from 'lucide-react';
 import type { PersonalizedRecommendation } from '../lib/openai';
 
 interface OnboardingResultsProps {

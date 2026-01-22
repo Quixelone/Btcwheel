@@ -7,7 +7,7 @@ import {
   Plus,
   TrendingUp,
   Calendar,
-  DollarSign,
+
   Target,
   CheckCircle2,
   Edit2,
@@ -467,16 +467,16 @@ export function ManualTradeJournal() {
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-3 mb-4">
                       <Badge className={`font-black text-[10px] uppercase px-2 py-0.5 ${trade.type === 'put'
-                          ? 'bg-orange-500/10 text-orange-400 border-orange-500/20'
-                          : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                        ? 'bg-orange-500/10 text-orange-400 border-orange-500/20'
+                        : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
                         }`}>
                         {trade.type} {trade.action === 'sell' ? 'SELL' : 'BUY'}
                       </Badge>
 
                       <Badge className={`font-black text-[10px] uppercase px-2 py-0.5 ${trade.status === 'open' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
-                          trade.status === 'closed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
-                            trade.status === 'expired' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
-                              'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                        trade.status === 'closed' ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' :
+                          trade.status === 'expired' ? 'bg-slate-500/10 text-slate-400 border-slate-500/20' :
+                            'bg-purple-500/10 text-purple-400 border-purple-500/20'
                         }`}>
                         {trade.status}
                       </Badge>

@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 export function MobileGestures() {
   useEffect(() => {
     let touchStartY = 0;
-    let touchEndY = 0;
 
     // Disable pull-to-refresh on the entire app
     const preventDefault = (e: TouchEvent) => {
@@ -12,7 +11,7 @@ export function MobileGestures() {
         // Allow pinch-to-zoom
         return;
       }
-      
+
       const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
       if (scrollTop === 0 && e.touches[0].clientY > touchStartY) {
         // At top of page and pulling down
@@ -24,9 +23,7 @@ export function MobileGestures() {
       touchStartY = e.touches[0].clientY;
     };
 
-    const handleTouchMove = (e: TouchEvent) => {
-      touchEndY = e.touches[0].clientY;
-    };
+
 
     // Add haptic feedback on certain interactions
     const addHapticFeedback = (element: Element) => {
@@ -42,7 +39,7 @@ export function MobileGestures() {
     };
 
     document.addEventListener('touchstart', handleTouchStart, { passive: false });
-    document.addEventListener('touchmove', handleTouchMove, { passive: false });
+
     document.addEventListener('touchmove', preventDefault, { passive: false });
     document.addEventListener('click', handleClick);
 
@@ -71,7 +68,7 @@ export function MobileGestures() {
 
     return () => {
       document.removeEventListener('touchstart', handleTouchStart);
-      document.removeEventListener('touchmove', handleTouchMove);
+
       document.removeEventListener('touchmove', preventDefault);
       document.removeEventListener('click', handleClick);
       window.removeEventListener('online', handleOnline);

@@ -8,7 +8,7 @@ import {
   isSupabaseConfigured,
   type UserProgressDB,
   type UserActivity,
-  supabase,
+
 } from '../lib/supabase';
 import { storage } from '../lib/localStorage';
 import { useAuth } from './useAuth';

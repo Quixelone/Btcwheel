@@ -3,18 +3,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Button } from './ui/button';
 import {
   Settings as SettingsIcon,
-  User,
-  Bell,
-  Shield,
   LogOut,
-  Database,
   Volume2,
   VolumeX,
   Vibrate,
   Crown,
   Heart,
-  ShieldCheck,
-  ArrowRight
+  ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { supabase } from '../lib/supabase';

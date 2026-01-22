@@ -2,11 +2,11 @@ import { useState } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Progress } from '../ui/progress';
-import { 
-  TrendingUp, 
-  TrendingDown, 
-  DollarSign, 
-  Target, 
+import {
+  TrendingUp,
+
+  DollarSign,
+  Target,
   Activity,
   Clock,
   ArrowUpCircle,
@@ -37,7 +37,7 @@ interface WheelDashboardProps {
   onNavigate?: (view: string) => void;
 }
 
-export function WheelDashboard({ onNavigate }: WheelDashboardProps) {
+export function WheelDashboard({ }: WheelDashboardProps) {
   const [activeTab, setActiveTab] = useState<'overview' | 'positions' | 'history'>('overview');
 
   // Mock data (da sostituire con dati reali dal paper trading)
@@ -154,11 +154,10 @@ export function WheelDashboard({ onNavigate }: WheelDashboardProps) {
       <div className="flex gap-2 border-b border-gray-200">
         <button
           onClick={() => setActiveTab('overview')}
-          className={`px-4 py-2 font-medium transition-colors relative ${
-            activeTab === 'overview'
+          className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'overview'
               ? 'text-emerald-600'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           Overview
           {activeTab === 'overview' && (
@@ -167,11 +166,10 @@ export function WheelDashboard({ onNavigate }: WheelDashboardProps) {
         </button>
         <button
           onClick={() => setActiveTab('positions')}
-          className={`px-4 py-2 font-medium transition-colors relative ${
-            activeTab === 'positions'
+          className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'positions'
               ? 'text-emerald-600'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           Posizioni
           {activeTab === 'positions' && (
@@ -180,11 +178,10 @@ export function WheelDashboard({ onNavigate }: WheelDashboardProps) {
         </button>
         <button
           onClick={() => setActiveTab('history')}
-          className={`px-4 py-2 font-medium transition-colors relative ${
-            activeTab === 'history'
+          className={`px-4 py-2 font-medium transition-colors relative ${activeTab === 'history'
               ? 'text-emerald-600'
               : 'text-gray-600 hover:text-gray-900'
-          }`}
+            }`}
         >
           Storico
           {activeTab === 'history' && (
@@ -211,11 +208,10 @@ export function WheelDashboard({ onNavigate }: WheelDashboardProps) {
                 const Icon = step.icon;
                 return (
                   <div key={index} className="flex items-center gap-4">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      step.status === 'completed' ? 'bg-emerald-100' :
-                      step.status === 'active' ? 'bg-orange-100' :
-                      'bg-gray-100'
-                    }`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${step.status === 'completed' ? 'bg-emerald-100' :
+                        step.status === 'active' ? 'bg-orange-100' :
+                          'bg-gray-100'
+                      }`}>
                       <Icon className={`w-5 h-5 ${step.color}`} />
                     </div>
                     <div className="flex-1">
@@ -365,11 +361,10 @@ export function WheelDashboard({ onNavigate }: WheelDashboardProps) {
               <Card key={position.id} className="p-4 md:p-6 hover:shadow-lg transition-shadow">
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                      position.type === 'put' ? 'bg-emerald-100' :
-                      position.type === 'call' ? 'bg-blue-100' :
-                      'bg-orange-100'
-                    }`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${position.type === 'put' ? 'bg-emerald-100' :
+                        position.type === 'call' ? 'bg-blue-100' :
+                          'bg-orange-100'
+                      }`}>
                       {position.type === 'put' ? (
                         <ArrowDownCircle className="w-5 h-5 text-emerald-600" />
                       ) : position.type === 'call' ? (
@@ -389,12 +384,11 @@ export function WheelDashboard({ onNavigate }: WheelDashboardProps) {
                   </div>
 
                   <div className="text-right">
-                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                      position.status === 'open' ? 'bg-blue-100 text-blue-800' :
-                      position.status === 'assigned' ? 'bg-orange-100 text-orange-800' :
-                      position.status === 'called-away' ? 'bg-purple-100 text-purple-800' :
-                      'bg-gray-100 text-gray-800'
-                    }`}>
+                    <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${position.status === 'open' ? 'bg-blue-100 text-blue-800' :
+                        position.status === 'assigned' ? 'bg-orange-100 text-orange-800' :
+                          position.status === 'called-away' ? 'bg-purple-100 text-purple-800' :
+                            'bg-gray-100 text-gray-800'
+                      }`}>
                       {position.status}
                     </span>
                   </div>
@@ -477,9 +471,8 @@ export function WheelDashboard({ onNavigate }: WheelDashboardProps) {
             ].map((trade, i) => (
               <div key={i} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                    trade.action === 'Sell Put' ? 'bg-emerald-100' : 'bg-blue-100'
-                  }`}>
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center ${trade.action === 'Sell Put' ? 'bg-emerald-100' : 'bg-blue-100'
+                    }`}>
                     {trade.action === 'Sell Put' ? (
                       <ArrowDownCircle className="w-4 h-4 text-emerald-600" />
                     ) : (

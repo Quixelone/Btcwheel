@@ -13,8 +13,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
     PiggyBank,
     Plus,
-    Calendar,
-    TrendingUp,
+
+
     CheckCircle2,
     AlertTriangle,
     Trash2,
@@ -205,8 +205,8 @@ export function PACTrackerCard({ weeklyTarget = 100, className }: PACTrackerCard
                             initial={{ width: 0 }}
                             animate={{ width: `${stats.weeklyProgress}%` }}
                             className={`h-full rounded-full ${stats.pacDoneThisWeek
-                                    ? 'bg-gradient-to-r from-green-500 to-emerald-500'
-                                    : 'bg-gradient-to-r from-amber-500 to-yellow-500'
+                                ? 'bg-gradient-to-r from-green-500 to-emerald-500'
+                                : 'bg-gradient-to-r from-amber-500 to-yellow-500'
                                 }`}
                         />
                     </div>

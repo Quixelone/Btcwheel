@@ -28,7 +28,7 @@ interface TradingViewProps {
     onNavigate: (view: View) => void;
 }
 
-export function TradingView({ currentView, onNavigate }: TradingViewProps) {
+export function TradingView({ onNavigate }: TradingViewProps) {
 
     // Mock data - da sostituire con dati reali dagli exchange
     const mockExchanges = [

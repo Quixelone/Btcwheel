@@ -10,6 +10,7 @@
  * - Account
  */
 
+import { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
     User,
@@ -37,7 +38,7 @@ interface ProfileViewProps {
 
 export function ProfileView({ currentView, onNavigate }: ProfileViewProps) {
     const { user, signOut } = useAuth();
-    const { progress } = useUserProgress();
+    useUserProgress(); // Hook for side effects only
 
     const userName = user?.user_metadata?.name || user?.email?.split('@')[0] || 'Utente';
     const userEmail = user?.email || '';
@@ -83,25 +84,29 @@ export function ProfileView({ currentView, onNavigate }: ProfileViewProps) {
     // Load objective data when entering the view
     useEffect(() => {
         if (currentView === 'objective' && user) {
-            PersistenceService.load(user.id, 'user_objective').then(data => {
-                if (data) {
+            const stored = localStorage.getItem(`user_objective_${user.id}`);
+            if (stored) {
+                try {
+                    const data = JSON.parse(stored);
                     setObjectiveForm({
                         name: data.name || '',
                         targetDate: data.targetDate || '',
                         targetAmount: data.targetAmount?.toString() || ''
                     });
+                } catch {
+                    // Ignore parse errors
                 }
-            });
+            }
         }
     }, [currentView, user]);
 
-    const handleSaveObjective = async () => {
+    const handleSaveObjective = () => {
         if (!user) return;
-        await PersistenceService.save(user.id, 'user_objective', {
+        localStorage.setItem(`user_objective_${user.id}`, JSON.stringify({
             name: objectiveForm.name,
             targetDate: objectiveForm.targetDate,
             targetAmount: parseFloat(objectiveForm.targetAmount) || 0
-        });
+        }));
         // Update local mock/state if needed, or just notify
         alert('Obiettivo salvato con successo!');
         onNavigate('profile');

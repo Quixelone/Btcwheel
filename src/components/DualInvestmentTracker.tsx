@@ -13,14 +13,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
     Layers,
     Plus,
-    Calendar,
+
     TrendingUp,
     TrendingDown,
     CheckCircle2,
-    Clock,
+
     Trash2,
     DollarSign,
-    Bitcoin,
+
     AlertTriangle,
 } from 'lucide-react';
 import { BaseCard, StatCard } from './ui/cards';
@@ -178,16 +178,7 @@ export function DualInvestmentTracker({ className }: DualInvestmentTrackerProps)
         }
     }, [investments, filter]);
 
-    // Format date
-    const formatDate = (dateStr: string) => {
-        const date = new Date(dateStr);
-        return date.toLocaleDateString('it-IT', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
+
 
     // Days until expiry
     const daysUntilExpiry = (expiryStr: string) => {
@@ -257,8 +248,8 @@ export function DualInvestmentTracker({ className }: DualInvestmentTrackerProps)
                                     <button
                                         onClick={() => { setFormType('BUY_LOW'); setFormAsset('USDT'); }}
                                         className={`flex-1 py-3 rounded-xl font-bold transition-all ${formType === 'BUY_LOW'
-                                                ? 'bg-green-500/20 text-green-400 border border-green-500/40'
-                                                : 'bg-white/5 text-[#888899] border border-white/10'
+                                            ? 'bg-green-500/20 text-green-400 border border-green-500/40'
+                                            : 'bg-white/5 text-[#888899] border border-white/10'
                                             }`}
                                     >
                                         <TrendingDown className="w-4 h-4 inline mr-2" />
@@ -267,8 +258,8 @@ export function DualInvestmentTracker({ className }: DualInvestmentTrackerProps)
                                     <button
                                         onClick={() => { setFormType('SELL_HIGH'); setFormAsset('BTC'); }}
                                         className={`flex-1 py-3 rounded-xl font-bold transition-all ${formType === 'SELL_HIGH'
-                                                ? 'bg-red-500/20 text-red-400 border border-red-500/40'
-                                                : 'bg-white/5 text-[#888899] border border-white/10'
+                                            ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                                            : 'bg-white/5 text-[#888899] border border-white/10'
                                             }`}
                                     >
                                         <TrendingUp className="w-4 h-4 inline mr-2" />
@@ -373,8 +364,8 @@ export function DualInvestmentTracker({ className }: DualInvestmentTrackerProps)
                         key={f}
                         onClick={() => setFilter(f)}
                         className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${filter === f
-                                ? 'bg-purple-500/20 text-purple-400'
-                                : 'bg-white/5 text-[#888899]'
+                            ? 'bg-purple-500/20 text-purple-400'
+                            : 'bg-white/5 text-[#888899]'
                             }`}
                     >
                         {f === 'all' ? 'Tutti' : f === 'active' ? 'Attivi' : 'Conclusi'}
@@ -401,8 +392,8 @@ export function DualInvestmentTracker({ className }: DualInvestmentTrackerProps)
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-4">
                                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${inv.type === 'BUY_LOW'
-                                                ? 'bg-green-500/20'
-                                                : 'bg-red-500/20'
+                                            ? 'bg-green-500/20'
+                                            : 'bg-red-500/20'
                                             }`}>
                                             {inv.type === 'BUY_LOW'
                                                 ? <TrendingDown className="w-6 h-6 text-green-400" />
@@ -417,10 +408,10 @@ export function DualInvestmentTracker({ className }: DualInvestmentTrackerProps)
                                                 </span>
                                                 <span className="text-[#888899]">@${inv.targetPrice.toLocaleString()}</span>
                                                 <span className={`px-2 py-0.5 rounded text-xs font-bold ${inv.status === 'ACTIVE'
-                                                        ? 'bg-blue-500/20 text-blue-400'
-                                                        : inv.status === 'SETTLED_TARGET'
-                                                            ? 'bg-green-500/20 text-green-400'
-                                                            : 'bg-amber-500/20 text-amber-400'
+                                                    ? 'bg-blue-500/20 text-blue-400'
+                                                    : inv.status === 'SETTLED_TARGET'
+                                                        ? 'bg-green-500/20 text-green-400'
+                                                        : 'bg-amber-500/20 text-amber-400'
                                                     }`}>
                                                     {inv.status === 'ACTIVE' ? `⏳ ${daysUntilExpiry(inv.expiryDate)}` :
                                                         inv.status === 'SETTLED_TARGET' ? '✓ Target' : '⚡ Alt'}

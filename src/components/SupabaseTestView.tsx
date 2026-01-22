@@ -36,7 +36,7 @@ export function SupabaseTestView() {
       if (supabase && isSupabaseConfigured) {
         try {
           // Try to get session (this will ping Supabase)
-          const { data, error } = await supabase.auth.getSession();
+          const { error } = await supabase.auth.getSession();
           if (!error) {
             testResults.pingSuccess = true;
           } else {
