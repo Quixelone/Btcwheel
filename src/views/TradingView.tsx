@@ -32,6 +32,11 @@ import {
 } from '../services/deribit';
 import { useAuth } from '../hooks/useAuth';
 import { PersistenceService } from '../services/PersistenceService';
+import {
+    PionexClient,
+    getPionexCredentials,
+    hasPionexCredentials
+} from '../services/pionex';
 
 interface TradingViewProps {
     currentView: View;
@@ -56,11 +61,13 @@ export function TradingView({ onNavigate }: TradingViewProps) {
     const [isLoading, setIsLoading] = useState(false);
     const [btcPrice, setBtcPrice] = useState(0);
     const [deribitConnected, setDeribitConnected] = useState(false);
+    const [pionexConnected, setPionexConnected] = useState(false);
+    const [balances, setBalances] = useState({ deribit: 0, pionex: 0 });
 
     // Mock data for exchanges (still static for now except connection status)
     const mockExchanges = [
         { name: 'Deribit', connected: deribitConnected, premium: '1.8%', strike: '$96,000', logo: '🟢' },
-        { name: 'OKX', connected: false, premium: '1.6%', strike: '$95,800', logo: '⚪' },
+        { name: 'Pionex', connected: pionexConnected, premium: '1.6%', strike: '$95,800', logo: '⚪' },
         { name: 'Binance', connected: false, premium: '-', strike: '-', logo: '🟡' },
     ];
 
@@ -77,10 +84,54 @@ export function TradingView({ onNavigate }: TradingViewProps) {
 
     const checkConnectionsAndLoad = async () => {
         const hasDeribit = hasDeribitCredentials();
+        const hasPionex = hasPionexCredentials();
+
         setDeribitConnected(hasDeribit);
+        setPionexConnected(hasPionex);
 
         if (hasDeribit) {
             loadDeribitData();
+        }
+
+        if (hasPionex) {
+            loadPionexData();
+        }
+    };
+
+    const loadPionexData = async () => {
+        try {
+            const creds = getPionexCredentials();
+            if (!creds) return;
+
+            const client = new PionexClient(creds);
+
+            // Get BTC Price if not already set (fallback)
+            if (btcPrice === 0) {
+                try {
+                    const ticker = await client.getBTCPrice();
+                    setBtcPrice(ticker.price);
+                } catch (e) {
+                    console.warn('Failed to fetch BTC price from Pionex', e);
+                }
+            }
+
+            // Get Balances
+            const usdt = await client.getUSDTBalance();
+            const btc = await client.getBTCBalance();
+
+            // Calculate total in USD
+            // Note: We need BTC price here. If we just fetched it, use it.
+            // If not, we might need to wait or fetch it again.
+            // For simplicity, we fetch it inside getBTCPrice which is fast.
+            const ticker = await client.getBTCPrice();
+            const price = ticker.price;
+
+            const totalUsd = usdt.total + (btc.total * price);
+
+            setBalances(prev => ({ ...prev, pionex: totalUsd }));
+
+        } catch (error) {
+            console.error('Failed to load Pionex data:', error);
         }
     };
 
@@ -97,7 +148,14 @@ export function TradingView({ onNavigate }: TradingViewProps) {
             const currentBtcPrice = priceData.index_price;
             setBtcPrice(currentBtcPrice);
 
-            // 2. Get Positions
+            // 2. Get Account Summary (Balance)
+            const summary = await client.getAccountSummary('BTC');
+            const equityBtc = summary.equity;
+            const equityUsd = equityBtc * currentBtcPrice;
+
+            setBalances(prev => ({ ...prev, deribit: equityUsd }));
+
+            // 3. Get Positions
             const rawPositions = await client.getPositions('BTC');
 
             // 3. Parse Positions
@@ -230,7 +288,7 @@ export function TradingView({ onNavigate }: TradingViewProps) {
                 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                     <StatCard
                         label="Capitale Totale"
-                        value="€4,230"
+                        value={`$${(balances.deribit + balances.pionex).toLocaleString(undefined, { maximumFractionDigits: 0 })}`}
                         icon={Wallet}
                         color="purple"
                     />
@@ -249,7 +307,7 @@ export function TradingView({ onNavigate }: TradingViewProps) {
                     />
                     <StatCard
                         label="Exchange"
-                        value={`${deribitConnected ? 1 : 0}/3`}
+                        value={`${(deribitConnected ? 1 : 0) + (pionexConnected ? 1 : 0)}/3`}
                         icon={Link2}
                         color="yellow"
                     />
