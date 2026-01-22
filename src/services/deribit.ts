@@ -119,6 +119,13 @@ export class DeribitClient {
     }
 
     /**
+     * Get Index Price
+     */
+    async getIndexPrice(index_name: 'btc_usd' | 'eth_usd' = 'btc_usd'): Promise<{ index_price: number }> {
+        return this.request<{ index_price: number }>('GET', '/public/get_index_price', { index_name });
+    }
+
+    /**
      * Test Connection
      */
     async testConnection(): Promise<boolean> {
