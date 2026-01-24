@@ -124,12 +124,24 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true,
-    // Proxy per evitare CORS con le API Pionex
+    // Proxy per evitare CORS con le API
     proxy: {
       '/api/pionex': {
         target: 'https://api.pionex.com',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api\/pionex/, ''),
+        secure: true,
+      },
+      '/api/binance': {
+        target: 'https://api.binance.com',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/binance/, ''),
+        secure: true,
+      },
+      '/api/alternative': {
+        target: 'https://api.alternative.me',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/alternative/, ''),
         secure: true,
       },
     },

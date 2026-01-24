@@ -22,7 +22,8 @@ export const marketDataService = {
 
     async getFearAndGreed(): Promise<{ value: number; classification: string }> {
         try {
-            const res = await fetch('https://api.alternative.me/fng/');
+            const baseUrl = import.meta.env.DEV ? '/api/alternative' : 'https://api.alternative.me';
+            const res = await fetch(`${baseUrl}/fng/`);
             const data = await res.json();
             if (data.data && data.data.length > 0) {
                 return {
@@ -39,7 +40,8 @@ export const marketDataService = {
     async getBTCPriceAndCandles(): Promise<{ price: number; candles: any[] }> {
         try {
             // Fetch last 30 days daily candles
-            const res = await fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=30');
+            const baseUrl = import.meta.env.DEV ? '/api/binance' : 'https://api.binance.com';
+            const res = await fetch(`${baseUrl}/api/v3/klines?symbol=BTCUSDT&interval=1d&limit=30`);
             const data = await res.json();
 
             // Binance kline format: [time, open, high, low, close, volume, ...]

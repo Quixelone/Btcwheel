@@ -28,8 +28,8 @@ Queste funzionalità sono essenziali per rendere l'app "viva" e utile quotidiana
 Funzionalità che danno valore aggiunto e differenziano l'app.
 
 4.  **Backend "Prof Satoshi" (Daily Briefing)**
-    *   **Stato:** Mock / Statico.
-    *   **Manca:** Il motore che scarica news/dati reali (Fear&Greed, Prezzo BTC, Volatilità) per generare il briefing giornaliero dinamico.
+    *   **Stato:** ✅ COMPLETATO
+    *   **Funzionalità:** Il motore ora scarica news/dati reali (Fear&Greed, Prezzo BTC, Volatilità, RSI) e li usa per generare il briefing con OpenAI.
 
 5.  **Quiz Dinamici (NotebookLM)**
     *   **Stato:** Statico.
