@@ -177,11 +177,14 @@ export const aiBriefingService = {
 
             return finalData;
 
-        } catch (error) {
+        } catch (error: any) {
             console.error('AI Briefing Generation failed:', error);
             return {
                 ...FALLBACK_DATA,
-                bias: { ...FALLBACK_DATA.bias, summary: "Errore generazione AI. Riprova più tardi." }
+                bias: {
+                    ...FALLBACK_DATA.bias,
+                    summary: `Errore AI: ${error.message || 'Errore sconosciuto'}.`
+                }
             };
         }
     }
