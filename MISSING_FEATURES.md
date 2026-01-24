@@ -6,18 +6,22 @@ Basato sul Piano di Implementazione v1.0.0 e sullo stato attuale del progetto.
 
 Queste funzionalità sono essenziali per rendere l'app "viva" e utile quotidianamente.
 
+## 🔴 Priorità Alta (Core Trading)
+
+Queste funzionalità sono essenziali per rendere l'app "viva" e utile quotidianamente.
+
 1.  **Tracking Posizioni Real-Time**
-    *   **Stato:** Parziale (solo bilanci).
-    *   **Manca:** Fetch automatico delle posizioni aperte (Opzioni/Futures) da Deribit e Pionex.
-    *   **Obiettivo:** L'utente deve vedere le sue opzioni attive nella Home/Trading senza doverle inserire a mano.
+    *   **Stato:** ✅ COMPLETATO
+    *   **Funzionalità:** Fetch automatico delle posizioni aperte (Opzioni/Futures) da Deribit.
+    *   **Obiettivo:** L'utente vede le sue opzioni attive nella Home/Trading.
 
 2.  **Auto-Sync Trade Journal**
-    *   **Stato:** Manuale.
-    *   **Manca:** Quando l'app rileva una nuova posizione sull'exchange, dovrebbe creare automaticamente una bozza di entry nel Trade Journal.
+    *   **Stato:** ✅ COMPLETATO
+    *   **Funzionalità:** Quando l'app rileva una nuova posizione su Deribit, crea automaticamente una entry nel Trade Journal.
 
 3.  **Dashboard Unificata (Exchange Hub)**
-    *   **Stato:** Placeholder.
-    *   **Manca:** Una vista aggregata che somma i capitali di tutti gli exchange collegati per dare il "Net Worth" totale in tempo reale.
+    *   **Stato:** ✅ COMPLETATO
+    *   **Funzionalità:** Vista aggregata che somma i capitali di Pionex e Deribit per dare il "Net Worth" totale in tempo reale.
 
 ## 🟡 Priorità Media (AI & Academy)
 

@@ -58,6 +58,10 @@ const FALLBACK_DATA: BriefingData = {
     action: 'VENDI PUT',
 };
 
+import { marketDataService } from './marketDataService';
+
+// ... (imports)
+
 export const aiBriefingService = {
     async generateBriefing(): Promise<BriefingData> {
         const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
@@ -85,15 +89,9 @@ export const aiBriefingService = {
         }
 
         try {
-            // 2. Get current BTC Price (Binance API - More reliable)
-            let btcPrice = 89700; // Fallback più realistico
-            try {
-                const priceRes = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT');
-                const priceData = await priceRes.json();
-                btcPrice = parseFloat(priceData.price);
-            } catch (e) {
-                console.warn('Failed to fetch BTC price from Binance, using default', e);
-            }
+            // 2. Get Real Market Data
+            const marketData = await marketDataService.getFullMarketOverview();
+            console.log('📊 Market Data for AI:', marketData);
 
             // 3. Call OpenAI
             const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -110,13 +108,21 @@ export const aiBriefingService = {
                             content: `Sei Prof Satoshi, un esperto trader di Bitcoin specializzato nella "Wheel Strategy" (vendita di PUT e CALL).
                             Analizza il mercato attuale e genera un briefing giornaliero in formato JSON.
                             
-                            Il prezzo attuale di Bitcoin è: $${btcPrice}.
+                            DATI DI MERCATO ATTUALI:
+                            - Prezzo Bitcoin: $${marketData.price}
+                            - Fear & Greed Index: ${marketData.fearAndGreed.value} (${marketData.fearAndGreed.classification})
+                            - RSI (14): ${marketData.rsi}
+                            - Trend (SMA): ${marketData.trend}
+                            - Volatilità 24h: ${marketData.volatility.toFixed(2)}%
                             
                             Devi fornire:
-                            1. Bias di mercato (bullish/bearish/neutral)
-                            2. Analisi Macro sintetica
-                            3. Analisi Tecnica (RSI stimato, Supporti/Resistenze)
-                            4. 3 Strike consigliati per vendere PUT (Conservativo, Moderato, Aggressivo)
+                            1. Bias di mercato (bullish/bearish/neutral) basato sui dati sopra.
+                            2. Analisi Macro sintetica (inventa news plausibili se non hai dati specifici, ma basati sul sentiment).
+                            3. Analisi Tecnica basata su RSI e Trend forniti.
+                            4. 3 Strike consigliati per vendere PUT (Conservativo, Moderato, Aggressivo).
+                               - Conservativo: Delta basso (~0.15), lontano dal prezzo.
+                               - Moderato: Delta medio (~0.30).
+                               - Aggressivo: Delta alto (~0.45), vicino al prezzo (ATM).
                             
                             Rispondi ESCLUSIVAMENTE con un oggetto JSON valido che rispetta questa struttura, senza markdown:
                             {
