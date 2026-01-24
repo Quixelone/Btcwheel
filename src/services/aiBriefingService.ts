@@ -160,7 +160,7 @@ export const aiBriefingService = {
 
             const finalData = {
                 ...parsedData,
-                btcPrice: btcPrice // Ensure we use the real fetched price
+                btcPrice: marketData.price // Ensure we use the real fetched price
             };
 
             // 4. Save to Cache (KV Store)
